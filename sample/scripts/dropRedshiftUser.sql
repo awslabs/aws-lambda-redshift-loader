@@ -1,0 +1,1 @@
+drop user test_lambda_load_user;
