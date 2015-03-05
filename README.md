@@ -24,7 +24,7 @@ load files. Best practice for loading Redshift is to use the COPY command
 parallel from Amazon S3, Amazon DynamoDB or an HDFS file system on Amazon Elastic 
 MapReduce. Whatever the input, customers must run servers that look for new data 
 on the file system, and manage the workflow of loading new data and dealing with 
-any issues that might arise. That’s why we created Amazon (http://github.com/awslabs/amazon-lambda-redshift-loader) - 
+any issues that might arise. That’s why we created Amazon (http://github.com/awslabs/aws-lambda-redshift-loader) - 
 it offers you the ability drop files into S3 and load them into any number of 
 database tables in multiple Amazon Redshift Clusters automatically - with no 
 servers to maintain. This is possible because AWS Lambda(http://aws.amazon.com/lambda), 
@@ -136,7 +136,7 @@ and http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html. You
 also need a local instance of Node.js and to install dependencies using the following 
 command:
 
-`cd amazon-lambda-redshift-loader && npm install`
+`cd aws-lambda-redshift-loader && npm install`
 
 Next, run the setup.js script by entering ‘node setup.js’, which will ask a series 
 of questions about how the load should be done. Please note that the Database Password, 
@@ -298,7 +298,7 @@ In the project we’ve included a ‘sample’ directory which will help you giv
 function a try. This sample includes the setup scripts to configure your database 
 for loads of the sample data, as well as the script to create a sample configuration.
 
-To get started, deploy the AWSLambdaRedshiftLoader.zip from the Github ‘dist’ folder 
+To get started, deploy the AWSLambdaRedshiftLoader.zip from the GitHub ‘dist’ folder 
 as outlined in the Getting Started section, and install the dependent modules
  (npm install java jdbc async node-uuid). You’ll also need to have a Redshift cluster 
  set up, and have the cluster endpoint address, port, the database name in which 

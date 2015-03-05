@@ -1,10 +1,10 @@
 {
-    "name": "amazon-lambda-redshift-loader",
+    "name": "aws-lambda-redshift-loader",
     "description": "An Amazon Redshift Database Loader written for AWS Lambda",
     "version": "1.0.0",
-    "homepage": "http://github.com/awslabs/amazon-lambda-redshift-loader",
+    "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
     "bugs": {
-        "url": "http://github.com/awslabs/amazon-lambda-redshift-loader/issues",
+        "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
         "email": "meyersi@amazon.com"
     },
     "dependencies": {
@@ -46,6 +46,6 @@
     ],
     "repository": {
         "type": "git",
-        "url": "http://github.com/awslabs/amazon-lambda-redshift-loader"
+        "url": "http://github.com/awslabs/aws-lambda-redshift-loader"
     }
 }
