@@ -7,6 +7,8 @@ Amazon Redshift is a fully managed petabyte scale data warehouse available for l
 
 Whatever the input, customers must run servers that look for new data on the file system, and manage the workflow of loading new data and dealing with any issues that might arise. That’s why we created the AWS Lambda-based Amazon Redshift loader (http://github.com/awslabs/aws-lambda-redshift-loader) - it offers you the ability drop files into S3 and load them into any number of database tables in multiple Amazon Redshift Clusters automatically - with no servers to maintain. This is possible because AWS Lambda (http://aws.amazon.com/lambda) provides an event-driven, zero-administration compute service. It allows developers to create applications that are automatically hosted and scaled, while providing you with a fine-grained pricing structure.
 
+![Loader Architecture](Architecture.png)
+
 The function maintains a list of all the files to be loaded from S3 into an Amazon Redshift Cluster with DynamoDB. This list allows us to confirm that a file is loaded only one time, and allows you to determine when a file was loaded and into which table. Input file locations are buffered up to a specified batch size that you control, or you can specify a time-based threshold which triggers a load. 
 
 You can specify any of the many COPY options available, and we support loading both CSV files (of any delimiter), as well as JSON files (with or without JSON paths specifications). All Passwords and Access Keys are encrypted for security. With AWS Lambda you get automatic scaling, high availability, and built in Amazon CloudWatch Logging.
