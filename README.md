@@ -3,7 +3,6 @@
 With this AWS Lambda function, it’s never been easier to get file data into Amazon Redshift. You simply push files into a variety of locations on Amazon S3, and have them automatically loaded into your Amazon Redshift clusters. 
 
 ## Using AWS Lambda with Amazon Redshift
-
 Amazon Redshift is a fully managed petabyte scale data warehouse available for less than $1000/TB/YR that provides AWS customers with an extremely powerful way to analyse their applications and business as a whole. To load their Clusters, customers ingest data from a large number of sources, whether they are FTP locations managed by third parties, or internal applications generating load files. Best practice for loading Amazon Redshift is to use the COPY command (http://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html), which loads data in parallel from Amazon S3, Amazon DynamoDB or an HDFS file system on Amazon Elastic MapReduce (EMR). 
 
 Whatever the input, customers must run servers that look for new data on the file system, and manage the workflow of loading new data and dealing with any issues that might arise. That’s why we created the AWS Lambda-based Amazon Redshift loader (http://github.com/awslabs/aws-lambda-redshift-loader) - it offers you the ability drop files into S3 and load them into any number of database tables in multiple Amazon Redshift Clusters automatically - with no servers to maintain. This is possible because AWS Lambda (http://aws.amazon.com/lambda) provides an event-driven, zero-administration compute service. It allows developers to create applications that are automatically hosted and scaled, while providing you with a fine-grained pricing structure.
@@ -13,7 +12,8 @@ The function maintains a list of all the files to be loaded from S3 into an Amaz
 You can specify any of the many COPY options available, and we support loading both CSV files (of any delimiter), as well as JSON files (with or without JSON paths specifications). All Passwords and Access Keys are encrypted for security. With AWS Lambda you get automatic scaling, high availability, and built in Amazon CloudWatch Logging.
 
 Finally, we’ve provided tools to manage the status of your load processes, with built in configuration management and the ability to monitor batch status and troubleshoot issues. We also support sending notifications of load status through Simple Notification Service  (SNS) (http://aws.amazon.com/sns), so you have visibility into how your loads are progressing over time.
-Getting Access to the AWS Lambda Redshift Database Loader
+
+## Getting Access to the AWS Lambda Redshift Database Loader
 You can download the AWS Lambda function today from AWSLabs: http://github.com/awslabs/aws-lambda-redshift-loader. For example, perform the following steps to complete local setup:
 
 ```
@@ -26,13 +26,13 @@ npm install
 In order to load a cluster, we’ll have to enable AWS Lambda to connect. To do this, we must enable the Cluster Security Group to allow access from the public internet. In the future AWS Lambda will support presenting the service as though it was inside your own VPC. To configure your cluster security group for access, log in to the Amazon Redshift console, and select Security on the lefthand navigation pane. Choose the cluster security group in which your cluster is configured. Add a new ‘Connection Type’ of CIDR/IP, and enter the value 0.0.0.0/0. Then select Authorize to save your changes.
 
 We recommend granting Amazon Redshift users only INSERT rights on tables to be loaded. Create a user with a complex password using the ‘CREATE USER’ command (http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html), and grant INSERT using GRANT (http://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html). 
-Getting Started - Deploying the AWS Lambda Function
+
+## Getting Started - Deploying the AWS Lambda Function
 To deploy the function, go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster. Select ‘Create a Lambda function’, and enter name ‘MyLambdaDBLoader’ (for example). Under ‘Code entry type’ select ‘Upload a zip file’, and then and upload the AWSLambdaRedshiftLoader.zip from GitHub. Use the default values of 'index.js' for the filename, and 'handler' for the handler, and follow the wizard for creating the AWS Lambda Execution Role.  We also recommend using the max timeout for the function, which in preview is 60 seconds. 
 
 Next, configure an event source, which delivers S3 PUT events to your AWS Lambda function. On the deployed function, select ‘Configure Event Source’ and then select the bucket you want to use for Input Data, and either select the ‘lambda_invoke_role’, or use the ‘Create/Select’ function to create the default invocation role. Press Submit to save the changes. When done, you’ll see that the AWS Lambda function is deployed and you can submit test events as well as view the CloudWatch Logging log streams created.
 
 ## Getting Started - Lambda Execution Role
-
 You also need to add an IAM Policy as shown below to the Role that AWS Lambda uses when it runs. Once your function is deployed, add the following policy to the `lambda_exec_role` to enable AWS Lambda to call SNS and use DynamoDB:
 
 ```
@@ -82,7 +82,7 @@ All data used to manage the lifecycle of data loads is stored in DynamoDB, and t
 
 You are now ready to go. Simply place files that meet the configured format into S3 at the location that you configured as the input location, and watch as AWS Lambda loads them into your Amazon Redshift Cluster. You are charged by the number of input files that are processed, plus a small charge for DynamoDB. You now have a highly available load framework which doesn’t require you manage servers!
 
-## Viewing Previous Batches & Status
+## Viewing Previous Batches & Status
 If you ever need to see what happened to batch loads into your Cluster, you can use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB table. It takes 3 arguments:
 
 * region - the region in which the AWS Lambda function is deployed
@@ -166,11 +166,11 @@ When you create the configuration, add a filenameFilterRegex such as '.*\.csv', 
 This writes a file called ‘lambda-redshift-trigger-file.dummy’ to the configured input prefix, which causes your deployed function to scan the open pending batch and load the contents if the timeout seconds limit has been reached.
 
 ## Reviewing Logs
-For normal operation, you won’t have to do anything from an administration perspective. Files placed into the configured S3 locations will be loaded when the number of new files equals the configured batch size. You may want to create an operational process to deal with failure notifications, but you can also just view the performance of your loader by looking at Amazon CloudWatch. Open the CloudWatch console, and then click ‘Logs’ in the lefthand navigation pane. You can then select the log group for your function, with a name such as ‘/aws/lambda/<My Function>’.
+For normal operation, you won’t have to do anything from an administration perspective. Files placed into the configured S3 locations will be loaded when the number of new files equals the configured batch size. You may want to create an operational process to deal with failure notifications, but you can also just view the performance of your loader by looking at Amazon CloudWatch. Open the CloudWatch console, and then click ‘Logs’ in the lefthand navigation pane. You can then select the log group for your function, with a name such as `/aws/lambda/<My Function>`.
 
 Each of the above Log Streams were created by an AWS Lambda function invocation, and will be rotated periodically. You can see the last ingestion time, which is when AWS Lambda last pushed events into CloudWatch Logging.
 
-You can then review each log stream, and see events where your function simply buffered a file, or where it performed a load
+You can then review each log stream, and see events where your function simply buffered a file, or where it performed a load.
  
 ## Extending and Building New Features
 We’re excited to offer this AWS Lambda function under the Amazon Software License. The GitHub repository does not include all the dependencies for Node.js, so in order to build and run locally please install the following modules with npm install:
