@@ -39,6 +39,9 @@ dynamoConfig = {
 		batchSize : {
 			N : "2"
 		},
+		batchTimeoutSecs : {
+			N : "60"
+		},
 		connectUser : {
 			S : "test_lambda_load_user"
 		},
