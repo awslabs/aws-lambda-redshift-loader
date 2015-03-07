@@ -391,10 +391,12 @@ exports.handler = function(event, context) {
 					doProcessBatch = true;
 				}
 
-				if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
-					console.log("Batch Size " + config.batchSize.N + " not reached but reached Age " + config.batchTimeoutSecs.N
-							+ " seconds");
-					doProcessBatch = true;
+				if (config.batchTimeoutSecs && config.batchTimeoutSecs.N) {
+					if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
+						console.log("Batch Size " + config.batchSize.N + " not reached but reached Age "
+								+ config.batchTimeoutSecs.N + " seconds");
+						doProcessBatch = true;
+					}
 				}
 
 				if (doProcessBatch) {
