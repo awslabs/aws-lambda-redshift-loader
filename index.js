@@ -846,7 +846,7 @@ exports.handler = function(event, context) {
 	/* end of runtime functions */
 
 	// commented out event logger, for debugging if needed
-	console.log(JSON.stringify(event));
+	//console.log(JSON.stringify(event));
 
 	if (event.Records.length > 1) {
 		context.done(error, "Unable to process multi-record events");
