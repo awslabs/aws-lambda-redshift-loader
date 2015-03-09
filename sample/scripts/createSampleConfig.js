@@ -6,7 +6,7 @@ var readline = require('readline');
 var aws = require('aws-sdk');
 var dynamoDB;
 require('../../constants');
-var crypto = require('lollyrock');
+var kmsCrypto = require('../../kmsCrypto');
 var setRegion = 'us-east-1';
 var common = require('../../common');
 var async = require('async');
@@ -44,12 +44,15 @@ dynamoConfig = {
 		},
 		connectUser : {
 			S : "test_lambda_load_user"
-		},
-		connectPassword : {
-			S : crypto.encrypt("Change-me1!")
 		}
 	}
 };
+
+kmsCrypto.encrypt("Change-me1!", function(err, ciphertext) {
+	dynamoConfig.Item.connectPassword = {
+		S : kmsCrypto.bufferToString(ciphertext)
+	};
+});
 
 /* configuration of question prompts and config assignment */
 var rl = readline.createInterface({
@@ -152,10 +155,12 @@ q_accessKey = function(i) {
 q_secretKey = function(i) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Secret Key');
-		dynamoConfig.Item.secretKeyForS3 = {
-			S : crypto.encrypt(answer)
-		};
-		qs[i + 1](i + 1);
+		kmsCrypto.encrypt(answer, function(err, ciphertext) {
+			dynamoConfig.Item.secretKeyForS3 = {
+				S : kmsCrypto.bufferToString(ciphertext)
+			};
+			qs[i + 1](i + 1);
+		});
 	});
 };
 

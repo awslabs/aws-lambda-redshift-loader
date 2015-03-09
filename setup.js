@@ -16,7 +16,7 @@ var readline = require('readline');
 var aws = require('aws-sdk');
 var dynamoDB;
 require('./constants');
-var crypto = require('lollyrock');
+var kmsCrypto = require('./kmsCrypto');
 var setRegion = 'us-east-1';
 var common = require('./common');
 var async = require('async');
@@ -133,10 +133,13 @@ q_userName = function(i) {
 q_userPwd = function(i) {
 	rl.question('Enter the Database Password > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Password', rl);
-		dynamoConfig.Item.connectPassword = {
-			S : crypto.encrypt(answer)
-		};
-		qs[i + 1](i + 1);
+
+		kmsCrypto.encrypt(answer, function(err, ciphertext) {
+			dynamoConfig.Item.connectPassword = {
+				S : kmsCrypto.bufferToString(ciphertext)
+			};
+			qs[i + 1](i + 1);
+		});
 	});
 };
 
@@ -199,7 +202,7 @@ q_jsonPaths = function(i) {
 };
 
 q_manifestBucket = function(i) {
-	rl.question('Enter the S3 Bucket for Redshift COPY Manifests > ', function(answer) {
+	rl.question('Enter the S3 Bucket & Prefix for Redshift COPY Manifests > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Bucket Name for Manifest File Storage', rl);
 		dynamoConfig.Item.manifestBucket = {
 			S : answer
@@ -241,10 +244,13 @@ q_accessKey = function(i) {
 q_secretKey = function(i) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Secret Key', rl);
-		dynamoConfig.Item.secretKeyForS3 = {
-			S : crypto.encrypt(answer)
-		};
-		qs[i + 1](i + 1);
+
+		kmsCrypto.encrypt(answer, function(err, ciphertext) {
+			dynamoConfig.Item.secretKeyForS3 = {
+				S : kmsCrypto.bufferToString(ciphertext)
+			};
+			qs[i + 1](i + 1);
+		});
 	});
 };
 
@@ -309,15 +315,25 @@ last = function(i) {
 	setup();
 };
 
-setup = function() {
+setup = function(overrideConfig) {
 	dynamoDB = new aws.DynamoDB({
 		apiVersion : '2012-08-10',
 		region : setRegion
 	});
 
-	var configWriter = common.writeConfig(setRegion, dynamoDB, dynamoConfig);
+	// set which configuration to use
+	var useConfig = undefined;
+	if (overrideConfig) {
+		useConfig = overrideConfig;
+	} else {
+		useConfig = dynamoConfig;
+	}
+	var configWriter = common.writeConfig(setRegion, dynamoDB, useConfig);
 	common.createTables(dynamoDB, configWriter);
 };
+// export the setup module so that customers can programmatically add new
+// configurations
+exports.setup = setup;
 
 qs.push(q_region);
 qs.push(q_s3Prefix);

@@ -26,7 +26,7 @@ var sns = new aws.SNS({
 var jdbc = new (require('jdbc'));
 var java = require('java');
 require('./constants');
-var crypto = require('lollyrock');
+var kmsCrypto = require('./kmsCrypto');
 var common = require('./common');
 var async = require('async');
 var uuid = require('node-uuid');
@@ -564,84 +564,100 @@ exports.handler = function(event, context) {
 				copyCommand = 'truncate table ' + config.targetTable.S + ';\n';
 			}
 
-			copyCommand = copyCommand + 'begin;\nCOPY ' + config.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath
-					+ '\' with credentials as \'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key='
-					+ crypto.decrypt(config.secretKeyForS3.S) + '\' manifest ';
+			var encryptedItems = [ kmsCrypto.stringToBuffer(config.secretKeyForS3.S),
+					kmsCrypto.stringToBuffer(config.connectPassword.S) ];
 
-			// add data formatting directives
-			if (config.dataFormat.S === 'CSV') {
-				copyCommand = copyCommand + ' delimiter \'' + config.csvDelimiter.S + '\'\n';
-			} else if (config.dataFormat.S === 'JSON') {
-				if (config.jsonPath !== undefined) {
-					copyCommand = copyCommand + 'json \'' + config.jsonPath.S + '\'\n';
-				} else {
-					copyCommand = copyCommand + 'json \'auto\' \n';
-				}
-			} else {
-				context.done(error, 'Unsupported data format ' + config.dataFormat.S);
-			}
+			// decrypt the encrypted items
+			kmsCrypto
+					.decryptAll(
+							encryptedItems,
+							function(err, decryptedConfigItems) {
+								if (err) {
+									console.log("Unable to decrypt configuration items due to");
+									console.log(err);
+									context.done(error, err);
+								} else {
+									copyCommand = copyCommand + 'begin;\nCOPY ' + config.targetTable.S + ' from \'s3://'
+											+ manifestInfo.manifestPath + '\' with credentials as \'aws_access_key_id='
+											+ config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[0].toString()
+											+ '\' manifest ';
 
-			// add compression directives
-			if (config.compression !== undefined) {
-				copyCommand = copyCommand + ' ' + config.compression.S + '\n';
-			}
-
-			// add copy options
-			if (config.copyOptions !== undefined) {
-				copyCommand = copyCommand + config.copyOptions.S + '\n';
-			}
-
-			// commit
-			copyCommand = copyCommand + ";\ncommit;";
-
-			// build the connection string
-			var dbString = '';
-			if (config.clusterDB) {
-				dbString = '/' + config.clusterDB.S;
-			}
-			var clusterString = 'jdbc:postgresql://' + config.clusterEndpoint.S + ':' + config.clusterPort.N + dbString
-					+ '?tcpKeepAlive=true';
-			var dbConfig = {
-				libpath : __dirname
-						+ '/lib/postgresql-9.3-1102.jdbc41.jar:/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.75.x86_64/jre/lib/amd64/server/libjvm.so',
-				drivername : 'org.postgresql.Driver',
-				url : clusterString,
-				user : config.connectUser.S,
-				password : crypto.decrypt(config.connectPassword.S),
-			};
-
-			console.log("Connecting to Database " + clusterString);
-
-			/* connect to database and run the commands */
-			jdbc.initialize(dbConfig, function(err, res) {
-				if (err) {
-					failBatch(err, config, thisBatchId, s3Info, manifestInfo);
-				} else {
-					jdbc.open(function(err, conn) {
-						if (err) {
-							failBatch(err, config, thisBatchId, s3Info, manifestInfo);
-						} else {
-							if (conn) {
-								jdbc.executeUpdate(copyCommand, function(err, result) {
-									if (err) {
-										failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+									// add data formatting directives
+									if (config.dataFormat.S === 'CSV') {
+										copyCommand = copyCommand + ' delimiter \'' + config.csvDelimiter.S + '\'\n';
+									} else if (config.dataFormat.S === 'JSON') {
+										if (config.jsonPath !== undefined) {
+											copyCommand = copyCommand + 'json \'' + config.jsonPath.S + '\'\n';
+										} else {
+											copyCommand = copyCommand + 'json \'auto\' \n';
+										}
 									} else {
-										console.log("Load Complete");
-
-										// close connection
-										jdbc.close(function() {});
-
-										// mark the batch as closed OK
-										closeBatch(config, thisBatchId, s3Info, null);
+										context.done(error, 'Unsupported data format ' + config.dataFormat.S);
 									}
-								});
-							} else {
-								failBatch('Unable to Connect to Database', config, thisBatchId, s3Info, manifestInfo);
-							}
-						}
-					});
-				}
-			});
+
+									// add compression directives
+									if (config.compression !== undefined) {
+										copyCommand = copyCommand + ' ' + config.compression.S + '\n';
+									}
+
+									// add copy options
+									if (config.copyOptions !== undefined) {
+										copyCommand = copyCommand + config.copyOptions.S + '\n';
+									}
+
+									// commit
+									copyCommand = copyCommand + ";\ncommit;";
+
+									// build the connection string
+									var dbString = '';
+									if (config.clusterDB) {
+										dbString = '/' + config.clusterDB.S;
+									}
+									var clusterString = 'jdbc:postgresql://' + config.clusterEndpoint.S + ':' + config.clusterPort.N
+											+ dbString + '?tcpKeepAlive=true';
+									var dbConfig = {
+										libpath : __dirname
+												+ '/lib/postgresql-9.3-1102.jdbc41.jar:/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.75.x86_64/jre/lib/amd64/server/libjvm.so',
+										drivername : 'org.postgresql.Driver',
+										url : clusterString,
+										user : config.connectUser.S,
+										password : decryptedConfigItems[1].toString()
+									};
+
+									console.log("Connecting to Database " + clusterString);
+
+									/* connect to database and run the commands */
+									jdbc.initialize(dbConfig, function(err, res) {
+										if (err) {
+											failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+										} else {
+											jdbc.open(function(err, conn) {
+												if (err) {
+													failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+												} else {
+													if (conn) {
+														jdbc.executeUpdate(copyCommand, function(err, result) {
+															if (err) {
+																failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+															} else {
+																console.log("Load Complete");
+
+																// close connection
+																jdbc.close(function() {});
+
+																// mark the batch as closed OK
+																closeBatch(config, thisBatchId, s3Info, null);
+															}
+														});
+													} else {
+														failBatch('Unable to Connect to Database', config, thisBatchId, s3Info, manifestInfo);
+													}
+												}
+											});
+										}
+									});
+								}
+							});
 		}
 	};
 
@@ -846,8 +862,7 @@ exports.handler = function(event, context) {
 	/* end of runtime functions */
 
 	// commented out event logger, for debugging if needed
-	//console.log(JSON.stringify(event));
-
+	// console.log(JSON.stringify(event));
 	if (event.Records.length > 1) {
 		context.done(error, "Unable to process multi-record events");
 	} else {
