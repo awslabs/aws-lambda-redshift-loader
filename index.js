@@ -10,6 +10,11 @@
 
 var region = process.env['AWS_REGION'];
 
+if (!region || region === null || region === "") {
+	region = "us-east-1";
+	console.log("Using default region " + region);
+}
+
 var aws = require('aws-sdk');
 var s3 = new aws.S3({
 	apiVersion : '2006-03-01',

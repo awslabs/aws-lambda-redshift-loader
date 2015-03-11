@@ -10,6 +10,12 @@
 var useRegion = process.env['AWS_REGION'];
 var aws = require('aws-sdk');
 var async = require('async');
+
+if (!useRegion || useRegion === null || useRegion === "") {
+	useRegion = "us-east-1";
+	console.log("Using default region " + useRegion);
+}
+
 var kms = new aws.KMS({
 	apiVersion : '2014-11-01',
 	region : useRegion
