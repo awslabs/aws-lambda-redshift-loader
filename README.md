@@ -101,6 +101,10 @@ Now that your function is deployed, we need to create a configuration which tell
 
 `cd aws-lambda-redshift-loader && npm install`
 
+In order to ensure communication with the correct AWS Region, you'll need to set an environment variable ```AWS_REGION``` to the desired location. For example, for US East use 'us-east=1', and for EU West 1 use 'eu-west-1'.
+
+```export AWS_REGION=eu-central-1``` 
+
 Next, run the setup.js script by entering node setup.js. The script asks questions about how the load should be done, including those outlined in the setup appendix as the end of this document. 
 
 All data used to manage the lifecycle of data loads is stored in DynamoDB, and the setup script automatically provisions the following tables:
@@ -177,7 +181,6 @@ Which would return the batch information as it is stored in Dynamo DB:
 
 ## Clearing Processed Files
 We’ll only load a file one time by default, but in certain rare cases you might want to re-process a file, such as if a batch goes into error state for some reason. If so, use the 'processedFiles.js' script to query or delete processed files entries. The script takes an 'operation type' and 'filename' as arguments; use -q to query if a file has been processed, and -d to delete a given file entry. An example of the processed files store can be seen below:
-
  
 ## Reprocessing a Batch
 If you ever need to reprocess a batch - for example if it failed to load the required files for some reason - then you can use the reprocessBatch.js script. This takes the same arguments as describeBatch.js (region, batch ID & input location). The original input batch is not affected; instead, each of the input files that were part of the batch are removed from the LambdaRedshiftProcessedFiles table, and then the script forces an S3 event to be generated for the file. This will be captured and reprocessed by the function as it was originally. Please note you can only reprocess batches that are not in “open” status.
@@ -212,6 +215,8 @@ We’re excited to offer this AWS Lambda function under the Amazon Software Lice
 * Node UUID - Rigorous implementation of RFC4122 (v1 and v4) UUIDs (https://www.npmjs.com/package/node-uuid & `npm install node-uuid`)
 
 # Configuration Reference
+
+The following section provides guidance on the configuration options supported. For items such as the batch size, please keep in mind that in Preview the Lambda function timeout is 60 seconds. This means that your COPY command must complete in less than ~ 50 seconds so that the Lambda function has time to complete writing batch metadata. The COPY time will be a function of file size, the number of files to be loaded, the size of the cluster, and how many other processes might be consuming WorkLoadManagement queue slots.
 
 Item | Required | Notes
 :---- | :--------: | :-----
