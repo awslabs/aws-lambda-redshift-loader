@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ $# -ne 4 ]; then
-  echo "You must provide the cluster Endpoint, Port, and DB Name and Database Master Username";
+if [ $# -ne 5 ]; then
+  echo "You must provide the cluster Endpoint, Port, DB Name, Database Master Username and region";
   exit -1;
 fi
 
@@ -9,11 +9,13 @@ endpoint=$1
 port=$2
 db=$3
 user_name=$4
+region=$5
 
 # export these variables for use by the createSampleConfig.js
 export CLUSTER_ENDPOINT=$endpoint
 export CLUSTER_PORT=$port
 export CLUSTER_DB=$db
+export AWS_REGION=$region
 
 # create the sample database user
 psql -U $user_name -h $endpoint -p $port -f createRedshiftUser.sql -d $db -a
