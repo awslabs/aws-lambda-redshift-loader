@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -ne 5 ]; then
-  echo "You must provide the cluster Endpoint, Port, DB Name, Database Master Username and region";
+  echo "You must provide the cluster Endpoint, Port, DB Name, Database Master Username and Region";
   exit -1;
 fi
 
