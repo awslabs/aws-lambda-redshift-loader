@@ -879,7 +879,7 @@ exports.handler = function(event, context) {
 			if (r.eventSource !== "aws:s3") {
 				noProcessReason = "Invalid Event Source " + r.eventSource;
 			}
-			if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put")) {
+			if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put" || r.eventName === 'ObjectCreated:CompleteMultipartUpload')) {
 				noProcessReason = "Invalid Event Name " + r.eventName;
 			}
 			if (r.s3.s3SchemaVersion !== "1.0") {
