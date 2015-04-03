@@ -913,7 +913,12 @@ exports.handler = function(event, context) {
 
 				// if the event didn't have a prefix, and is just in the bucket, then
 				// just use the bucket name, otherwise add the prefix
-				if (searchKey !== "") {
+				if (searchKey && searchKey !== null && searchKey !== "") {
+					// transform hive style dynamic prefixes into static match prefixes
+					do {
+						searchKey = searchKey.replace(/(=\d+)+/, "=*");
+					} while (searchKey.match(/(=\d+)+/) !== null);
+					
 					searchKey = "/" + searchKey;
 				}
 				inputInfo.prefix = inputInfo.bucket + searchKey;

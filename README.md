@@ -117,6 +117,14 @@ The database password, as well as the secret key used by Amazon Redshift to acce
 
 You are now ready to go. Simply place files that meet the configured format into S3 at the location that you configured as the input location, and watch as AWS Lambda loads them into your Amazon Redshift Cluster. You are charged by the number of input files that are processed, plus a small charge for DynamoDB. You now have a highly available load framework which doesn’t require you manage servers!
 
+## Loading files in Prefixes which are generated dynamically
+
+Configurations are supported for dynamica S3 Prefixes which use a Hive style Partitioning 
+structure of <key>=<value> in the path. For example, if you require the ability 
+to load data for files in a prefix in S3 partitioned by year, month, and day 
+using format ```s3://mybucket/prefix/year=<year>/mm=<month>/dd=<day>```, you 
+can specify a configuration ```s3://mybucket/prefix/year=*/mm=*/dd=*```
+
 ## Viewing Previous Batches & Status
 If you ever need to see what happened to batch loads into your Cluster, you can use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB table. It takes 3 arguments:
 
