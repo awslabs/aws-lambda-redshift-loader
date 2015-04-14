@@ -899,7 +899,7 @@ exports.handler = function(event, context) {
 				};
 
 				inputInfo.bucket = r.s3.bucket.name;
-				inputInfo.key = r.s3.object.key;
+				inputInfo.key = decodeURIComponent(r.s3.object.key);
 
 				// remove the bucket name from the key, if we have received it
 				// - happens on object copy
