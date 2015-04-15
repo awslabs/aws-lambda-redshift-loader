@@ -81,6 +81,9 @@ You also need to add an IAM policy as shown below to the role that AWS Lambda us
                 "sns:Publish",
                 "sns:Subscribe",
                 "sns:Unsubscribe",
+                "s3:Get*",
+                "s3:Put*",
+                "s3:List*",
                 "kms:Decrypt",
                 "kms:DescribeKey",
                 "kms:GetKeyPolicy"
