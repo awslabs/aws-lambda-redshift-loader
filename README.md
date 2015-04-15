@@ -196,6 +196,9 @@ We’ll only load a file one time by default, but in certain rare cases you migh
 ## Reprocessing a Batch
 If you ever need to reprocess a batch - for example if it failed to load the required files for some reason - then you can use the reprocessBatch.js script. This takes the same arguments as describeBatch.js (region, batch ID & input location). The original input batch is not affected; instead, each of the input files that were part of the batch are removed from the LambdaRedshiftProcessedFiles table, and then the script forces an S3 event to be generated for the file. This will be captured and reprocessed by the function as it was originally. Please note you can only reprocess batches that are not in “open” status.
 
+## Unlocking a Batch
+It is possible, but rare, that a batch would become locked but not be being processed by AWS Lambda. If this were to happen, please use ```unlockBatch.js``` including the region and Batch ID to set the batch to 'open' state again.
+
 ## Ensuring Periodic Loads
 If you have a prefix that doesn't receive files very often, and want to ensure that files are loaded every N minutes, use the following process to force periodic loads. 
 
