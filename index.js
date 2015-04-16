@@ -106,8 +106,15 @@ exports.handler = function(event, context) {
 			if (err) {
 				// the conditional check failed so the file has already been
 				// processed
-				console.log("File " + itemEntry + " Already Processed");
-				context.done(null, null);
+				console.log(err, err.stack);
+				if(err.code == "ValidationException" || err.code == "ConditionalCheckFailedException"){
+					console.log("File " + itemEntry + " Already Processed");
+					context.done(null, null);
+				}else{
+					var msg = "Error on "+ err.code +" for "+ fileEntry;
+					console.log(msg);
+					failBatch(msg, config, thisBatchId, s3Info, undefined);
+				}
 			} else {
 				if (!data) {
 					var msg = "Idempotency Check on " + fileEntry + " failed";
