@@ -677,6 +677,10 @@ exports.handler = function(event, context) {
 	 * Function which marks a batch as failed and sends notifications accordingly
 	 */
 	var failBatch = function(error, config, thisBatchId, s3Info, manifestInfo) {
+		if(error){
+			console.log(error);
+		}
+		
 		if (config.failedManifestKey && manifestInfo) {
 			// copy the manifest to the failed location
 			manifestInfo.failedManifestPrefix = manifestInfo.manifestPrefix.replace(manifestInfo.manifestKey + '/',
