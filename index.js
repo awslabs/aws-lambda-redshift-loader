@@ -84,7 +84,7 @@ exports.handler = function(event, context) {
 	 */
 	var checkFileProcessed = function(config, thisBatchId, s3Info) {
 		var itemEntry = s3Info.bucket + '/' + s3Info.key;
-
+		console.log("check if "+itemEntry+" is processed");
 		// perform the idempotency check for the file before we put it into
 		// a manifest
 		var fileEntry = {
@@ -107,7 +107,7 @@ exports.handler = function(event, context) {
 				// the conditional check failed so the file has already been
 				// processed
 				console.log(err, err.stack);
-				if(err.code == "ValidationException" || err.code == "ConditionalCheckFailedException"){
+				if(err.code == "ConditionalCheckFailedException"){
 					console.log("File " + itemEntry + " Already Processed");
 					context.done(null, null);
 				}else{
