@@ -48,9 +48,9 @@ var processFile = function(index) {
 			process.exit(ERROR);
 		} else {
 			// issue a same source/target copy command to S3, which will cause
-			// Lambda to get a new PUT event
+			// Lambda to get a new event
 			var bucketName = batchEntries[index].split("/")[0];
-			var fileKey = batchEntries[index].replace("^" + bucketName + "\/", "");
+			var fileKey = batchEntries[index].replace(bucketName + "\/", "");
 			var copySpec = {
 				Bucket : bucketName,
 				Key : fileKey,
