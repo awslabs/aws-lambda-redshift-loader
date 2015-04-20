@@ -13,7 +13,7 @@ var async = require('async');
 
 if (!useRegion || useRegion === null || useRegion === "") {
 	useRegion = "us-east-1";
-	console.log("Using default region " + useRegion);
+	console.log("AWS KMS using default region " + useRegion);
 }
 
 var kms = new aws.KMS({
@@ -38,50 +38,75 @@ var moduleKeyName = "alias/LambaRedshiftLoaderKey";
  * master key</li>
  */
 var getOrCreateMasterKey = function(callback) {
-	kms.describeKey({
-		KeyId : moduleKeyName
-	}, function(err, data) {
-		if (err) {
-			if (err.code === 'InvalidArnException' || err.code === 'NotFoundException') {
-				// master key for the module doesn't exist, so create it
-				var createKeyParams = {
-					Description : "Lambda Redshift Loader Master Encryption Key",
-					KeyUsage : 'ENCRYPT_DECRYPT'
-				};
+	kms
+			.describeKey(
+					{
+						KeyId : moduleKeyName
+					},
+					function(err, data) {
+						if (err) {
+							if (err.code === 'InvalidArnException'
+									|| err.code === 'NotFoundException') {
+								// master key for the module doesn't exist, so
+								// create it
+								var createKeyParams = {
+									Description : "Lambda Redshift Loader Master Encryption Key",
+									KeyUsage : 'ENCRYPT_DECRYPT'
+								};
 
-				// create the master key for this module and bind an alias to it
-				kms.createKey(createKeyParams, function(err, createKeyData) {
-					if (err) {
-						console.log("Error during Master Key creation");
-						callback(err);
-					} else {
-						// create an alias for the master key
-						var createAliasParams = {
-							AliasName : moduleKeyName,
-							TargetKeyId : createKeyData.KeyMetadata.KeyId
-						};
-						kms.createAlias(createAliasParams, function(err, createAliasData) {
-							if (err) {
-								console.log("Error during creation of Alias " + moduleKeyName + " for Master Key "
-										+ createKeyData.KeyMetadata.Arn);
-								callback(err);
+								// create the master key for this module and
+								// bind an alias to it
+								kms
+										.createKey(
+												createKeyParams,
+												function(err, createKeyData) {
+													if (err) {
+														console
+																.log("Error during Master Key creation");
+														return callback(err);
+													} else {
+														// create an alias for
+														// the master key
+														var createAliasParams = {
+															AliasName : moduleKeyName,
+															TargetKeyId : createKeyData.KeyMetadata.KeyId
+														};
+														kms
+																.createAlias(
+																		createAliasParams,
+																		function(
+																				err,
+																				createAliasData) {
+																			if (err) {
+																				console
+																						.log("Error during creation of Alias "
+																								+ moduleKeyName
+																								+ " for Master Key "
+																								+ createKeyData.KeyMetadata.Arn);
+																				return callback(err);
+																			} else {
+																				// invoke
+																				// the
+																				// callback
+																				return callback(
+																						undefined,
+																						createKeyData.KeyMetadata);
+																			}
+																		});
+													}
+												});
 							} else {
-								// invoke the callback
-								callback(undefined, createKeyData.KeyMetadata);
+								// got an unknown error while describing the key
+								console
+										.log("Unknown Error during Customer Master Key describe");
+								return callback(err);
 							}
-						});
-					}
-				});
-			} else {
-				// got an unknown error while describing the key
-				console.log("Unknown Error during Customer Master Key describe");
-				callback(err);
-			}
-		} else {
-			// ok - we got the previously generated key, so callback
-			callback(undefined, data.KeyMetadata);
-		}
-	});
+						} else {
+							// ok - we got the previously generated key, so
+							// callback
+							return callback(undefined, data.KeyMetadata);
+						}
+					});
 };
 exports.getOrCreateMasterKey = getOrCreateMasterKey;
 
@@ -96,7 +121,7 @@ var encrypt = function(toEncrypt, callback) {
 	getOrCreateMasterKey(function(err, keyMetadata) {
 		if (err) {
 			console.log("Error during resolution of Customer Master Key");
-			callback(err);
+			return callback(err);
 		} else {
 			// encrypt the data
 			var params = {
@@ -107,9 +132,9 @@ var encrypt = function(toEncrypt, callback) {
 			kms.encrypt(params, function(err, encryptData) {
 				if (err) {
 					console.log("Error during Encryption");
-					callback(err);
+					return callback(err);
 				} else {
-					callback(undefined, encryptData.CiphertextBlob);
+					return callback(undefined, encryptData.CiphertextBlob);
 				}
 			});
 		}
@@ -130,11 +155,11 @@ var encryptAll = function(plaintextArray, afterEncryptionCallback) {
 	async.map(plaintextArray, function(item, callback) {
 		// decrypt the value using internal decrypt
 		encrypt(item, function(err, ciphertext) {
-			callback(err, ciphertext);
+			return callback(err, ciphertext);
 		});
 	}, function(err, results) {
 		// call the after encryption callback with the result array
-		afterEncryptionCallback(err, results);
+		return afterEncryptionCallback(err, results);
 	});
 };
 exports.encryptAll = encryptAll;
@@ -155,13 +180,13 @@ var decrypt = function(encryptedCiphertext, callback) {
 	kms.decrypt(params, function(err, decryptData) {
 		if (err) {
 			console.log("Error during Decryption");
-			callback(err);
+			return callback(err);
 		} else {
 			if (!decryptData) {
 				console.log("Failed to decrypt ciphertext");
-				callback(undefined);
+				return callback(undefined);
 			} else {
-				callback(undefined, decryptData.Plaintext);
+				return callback(undefined, decryptData.Plaintext);
 			}
 		}
 	});
@@ -181,11 +206,11 @@ var decryptAll = function(encryptedArray, afterDecryptionCallback) {
 	async.map(encryptedArray, function(item, callback) {
 		// decrypt the value using internal decrypt
 		decrypt(item, function(err, plaintext) {
-			callback(err, plaintext);
+			return callback(err, plaintext);
 		});
 	}, function(err, results) {
 		// call the after decryption callback with the result array
-		afterDecryptionCallback(err, results);
+		return afterDecryptionCallback(err, results);
 	});
 };
 exports.decryptAll = decryptAll;
@@ -199,3 +224,15 @@ var stringToBuffer = function(stringBuffer) {
 	return new Buffer(JSON.parse(stringBuffer));
 };
 exports.stringToBuffer = stringToBuffer;
+
+var toLambdaStringFormat = function(buffer) {
+	// only extract the numeric array from the specified buffer
+	// buffer implementation varies between node .10 and .12, so this method
+	// will ensure
+	// that the buffer is stored in a format that Lambda can rehydrate (v0.10
+	// format)
+	var regex = /.*(\[.*\]).*/;
+	var stringValue = bufferToString(buffer);
+	return regex.exec(stringValue)[1];
+};
+exports.toLambdaStringFormat = toLambdaStringFormat;

@@ -136,7 +136,7 @@ q_userPwd = function(i) {
 
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
 			dynamoConfig.Item.connectPassword = {
-				S : kmsCrypto.bufferToString(ciphertext)
+				S : kmsCrypto.toLambdaStringFormat(ciphertext)
 			};
 			qs[i + 1](i + 1);
 		});
@@ -202,7 +202,7 @@ q_jsonPaths = function(i) {
 };
 
 q_manifestBucket = function(i) {
-	rl.question('Enter the S3 Bucket & Prefix for Redshift COPY Manifests > ', function(answer) {
+	rl.question('Enter the S3 Bucket for Redshift COPY Manifests > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Bucket Name for Manifest File Storage', rl);
 		dynamoConfig.Item.manifestBucket = {
 			S : answer
@@ -247,7 +247,7 @@ q_secretKey = function(i) {
 
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
 			dynamoConfig.Item.secretKeyForS3 = {
-				S : kmsCrypto.bufferToString(ciphertext)
+				S : kmsCrypto.toLambdaStringFormat(ciphertext)
 			};
 			qs[i + 1](i + 1);
 		});
