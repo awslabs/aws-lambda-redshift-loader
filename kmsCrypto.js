@@ -38,75 +38,56 @@ var moduleKeyName = "alias/LambaRedshiftLoaderKey";
  * master key</li>
  */
 var getOrCreateMasterKey = function(callback) {
-	kms
-			.describeKey(
-					{
-						KeyId : moduleKeyName
-					},
-					function(err, data) {
-						if (err) {
-							if (err.code === 'InvalidArnException'
-									|| err.code === 'NotFoundException') {
-								// master key for the module doesn't exist, so
-								// create it
-								var createKeyParams = {
-									Description : "Lambda Redshift Loader Master Encryption Key",
-									KeyUsage : 'ENCRYPT_DECRYPT'
-								};
+	kms.describeKey({
+		KeyId : moduleKeyName
+	}, function(err, data) {
+		if (err) {
+			if (err.code === 'InvalidArnException' || err.code === 'NotFoundException') {
+				// master key for the module doesn't exist, so
+				// create it
+				var createKeyParams = {
+					Description : "Lambda Redshift Loader Master Encryption Key",
+					KeyUsage : 'ENCRYPT_DECRYPT'
+				};
 
-								// create the master key for this module and
-								// bind an alias to it
-								kms
-										.createKey(
-												createKeyParams,
-												function(err, createKeyData) {
-													if (err) {
-														console
-																.log("Error during Master Key creation");
-														return callback(err);
-													} else {
-														// create an alias for
-														// the master key
-														var createAliasParams = {
-															AliasName : moduleKeyName,
-															TargetKeyId : createKeyData.KeyMetadata.KeyId
-														};
-														kms
-																.createAlias(
-																		createAliasParams,
-																		function(
-																				err,
-																				createAliasData) {
-																			if (err) {
-																				console
-																						.log("Error during creation of Alias "
-																								+ moduleKeyName
-																								+ " for Master Key "
-																								+ createKeyData.KeyMetadata.Arn);
-																				return callback(err);
-																			} else {
-																				// invoke
-																				// the
-																				// callback
-																				return callback(
-																						undefined,
-																						createKeyData.KeyMetadata);
-																			}
-																		});
-													}
-												});
-							} else {
-								// got an unknown error while describing the key
-								console
-										.log("Unknown Error during Customer Master Key describe");
+				// create the master key for this module and
+				// bind an alias to it
+				kms.createKey(createKeyParams, function(err, createKeyData) {
+					if (err) {
+						console.log("Error during Master Key creation");
+						return callback(err);
+					} else {
+						// create an alias for
+						// the master key
+						var createAliasParams = {
+							AliasName : moduleKeyName,
+							TargetKeyId : createKeyData.KeyMetadata.KeyId
+						};
+						kms.createAlias(createAliasParams, function(err, createAliasData) {
+							if (err) {
+								console.log("Error during creation of Alias " + moduleKeyName + " for Master Key "
+										+ createKeyData.KeyMetadata.Arn);
 								return callback(err);
+							} else {
+								// invoke
+								// the
+								// callback
+								return callback(undefined, createKeyData.KeyMetadata);
 							}
-						} else {
-							// ok - we got the previously generated key, so
-							// callback
-							return callback(undefined, data.KeyMetadata);
-						}
-					});
+						});
+					}
+				});
+			} else {
+				// got an unknown error while describing the key
+				console.log("Unknown Error during Customer Master Key describe");
+				return callback(err);
+			}
+		} else {
+			// ok - we got the previously generated key, so
+			// callback
+			return callback(undefined, data.KeyMetadata);
+		}
+	});
 };
 exports.getOrCreateMasterKey = getOrCreateMasterKey;
 
@@ -233,6 +214,16 @@ var toLambdaStringFormat = function(buffer) {
 	// format)
 	var regex = /.*(\[.*\]).*/;
 	var stringValue = bufferToString(buffer);
-	return regex.exec(stringValue)[1];
+
+	if (stringValue === null) {
+		return null;
+	} else {
+		var matches = regex.exec(stringValue);
+		if (matches.length > 0) {
+			return matches[1];
+		} else {
+			return stringValue;
+		}
+	}
 };
 exports.toLambdaStringFormat = toLambdaStringFormat;
