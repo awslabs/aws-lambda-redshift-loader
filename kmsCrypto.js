@@ -219,7 +219,7 @@ var toLambdaStringFormat = function(buffer) {
 		return null;
 	} else {
 		var matches = regex.exec(stringValue);
-		if (matches.length > 0) {
+		if (matches && matches.length > 0) {
 			return matches[1];
 		} else {
 			return stringValue;
