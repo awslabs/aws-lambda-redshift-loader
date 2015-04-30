@@ -84,7 +84,7 @@ exports.handler = function(event, context) {
 	 */
 	var checkFileProcessed = function(config, thisBatchId, s3Info) {
 		var itemEntry = s3Info.bucket + '/' + s3Info.key;
-
+		console.log("check if "+itemEntry+" is processed");
 		// perform the idempotency check for the file before we put it into
 		// a manifest
 		var fileEntry = {
@@ -106,8 +106,15 @@ exports.handler = function(event, context) {
 			if (err) {
 				// the conditional check failed so the file has already been
 				// processed
-				console.log("File " + itemEntry + " Already Processed");
-				context.done(null, null);
+				console.log(err, err.stack);
+				if(err.code == "ConditionalCheckFailedException"){
+					console.log("File " + itemEntry + " Already Processed");
+					context.done(null, null);
+				}else{
+					var msg = "Error on "+ err.code +" for "+ fileEntry;
+					console.log(msg);
+					failBatch(msg, config, thisBatchId, s3Info, undefined);
+				}
 			} else {
 				if (!data) {
 					var msg = "Idempotency Check on " + fileEntry + " failed";
@@ -670,6 +677,10 @@ exports.handler = function(event, context) {
 	 * Function which marks a batch as failed and sends notifications accordingly
 	 */
 	var failBatch = function(error, config, thisBatchId, s3Info, manifestInfo) {
+		if(error){
+			console.log(error);
+		}
+		
 		if (config.failedManifestKey && manifestInfo) {
 			// copy the manifest to the failed location
 			manifestInfo.failedManifestPrefix = manifestInfo.manifestPrefix.replace(manifestInfo.manifestKey + '/',
