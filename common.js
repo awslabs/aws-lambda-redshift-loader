@@ -63,7 +63,7 @@ exports.createTables = function(dynamoDB, callback) {
 		} ],
 		TableName : filesTable,
 		ProvisionedThroughput : {
-			ReadCapacityUnits : 1,
+			ReadCapacityUnits : 5,
 			WriteCapacityUnits : 5
 		}
 	};
@@ -79,7 +79,7 @@ exports.createTables = function(dynamoDB, callback) {
 		} ],
 		TableName : configTable,
 		ProvisionedThroughput : {
-			ReadCapacityUnits : 1,
+			ReadCapacityUnits : 5,
 			WriteCapacityUnits : 5
 		}
 	};
@@ -164,7 +164,43 @@ exports.createTables = function(dynamoDB, callback) {
 	});
 };
 
-exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig) {
+exports.updateConfig = function(setRegion, dynamoDB, updateRequest, outerCallback) {
+	var tryNumber = 0;
+	var writeConfigRetryLimit = 100;
+
+	async.whilst(function() {
+		// retry until the try count is hit
+		return tryNumber < writeConfigRetryLimit;
+	}, function(callback) {
+		tryNumber++;
+
+		dynamoDB.updateItem(updateRequest, function(err, data) {
+			if (err) {
+				if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException') {
+					console.log(err.code);
+
+					// retry if the table is in use after 1 second
+					setTimeout(callback(), 1000);
+				} else {
+					// some other error - fail
+					console.log(JSON.stringify(updateRequest));
+					console.log(err);
+					outerCallback(err);
+				}
+			} else {
+				// all OK - exit OK
+				if (data) {
+					console.log("Configuration for " + updateRequest.Key.s3Prefix.S + " updated in " + setRegion);
+					outerCallback(null);
+				}
+			}
+		});
+	}, function(error) {
+	// never called
+	});
+};
+
+exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig, outerCallback) {
 	var tryNumber = 0;
 	var writeConfigRetryLimit = 100;
 
@@ -182,15 +218,14 @@ exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig) {
 				} else {
 					// some other error - fail
 					console.log(JSON.stringify(dynamoConfig));
-					console.log(err);
-					process.exit(ERROR);
+					console.log(JSON.stringify(err));
+					outerCallback(err);
 				}
 			} else {
 				// all OK - exit OK
 				if (data) {
-					console.log("Configuration for " + dynamoConfig.Item.s3Prefix.S
-							+ " successfully written in " + setRegion);
-					process.exit(OK);
+					console.log("Configuration for " + dynamoConfig.Item.s3Prefix.S + " successfully written in " + setRegion);
+					outerCallback(null);
 				}
 			}
 		});
@@ -309,6 +344,10 @@ exports.createManifestInfo = function(config) {
 	};
 	manifestInfo.manifestPrefix = manifestInfo.manifestKey + '/' + manifestInfo.manifestName;
 	manifestInfo.manifestPath = manifestInfo.manifestBucket + "/" + manifestInfo.manifestPrefix;
-	
+
 	return manifestInfo;
+};
+
+exports.randomInt = function(low, high) {
+	return Math.floor(Math.random() * (high - low) + low);
 };

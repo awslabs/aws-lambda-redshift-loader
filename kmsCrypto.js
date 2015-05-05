@@ -7,27 +7,41 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
-var useRegion = process.env['AWS_REGION'];
+var useRegion = undefined;
 var aws = require('aws-sdk');
 var async = require('async');
-
-if (!useRegion || useRegion === null || useRegion === "") {
-	useRegion = "us-east-1";
-	console.log("AWS KMS using default region " + useRegion);
-}
-
-var kms = new aws.KMS({
-	apiVersion : '2014-11-01',
-	region : useRegion
-});
+var kms = undefined;
 
 var authContext = {
 	module : "AWSLambdaRedshiftLoader",
-	region : useRegion
+	region : null
 };
 
 // module key alias to be used for this application
 var moduleKeyName = "alias/LambaRedshiftLoaderKey";
+
+var setRegion = function(region) {
+	if (!region) {
+		useRegion = process.env['AWS_REGION'];
+
+		if (!useRegion) {
+			useRegion = 'us-east-1';
+			console.log("AWS KMS using default region " + useRegion);
+		}
+	} else {
+		useRegion = region;
+	}
+
+	aws.config.update({
+		region : useRegion
+	});
+	kms = new aws.KMS({
+		apiVersion : '2014-11-01',
+		region : useRegion
+	});
+	authContext.region = useRegion;
+};
+exports.setRegion = setRegion;
 
 /**
  * Retrieves or creates the master key metadata for this module <br>

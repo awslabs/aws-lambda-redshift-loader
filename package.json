@@ -1,7 +1,7 @@
 {
     "name": "aws-lambda-redshift-loader",
     "description": "An Amazon Redshift Database Loader written for AWS Lambda",
-    "version": "1.1.5",
+    "version": "2.0.0",
     "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
     "bugs": {
         "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
@@ -9,9 +9,8 @@
     },
     "dependencies": {
         "async": "0.9.0",
-        "java": "0.4.4",
-        "jdbc": "0.0.11",
-        "node-uuid": "1.4.2"
+        "node-uuid": "1.4.2",
+        "pg":"4.3.0"
     },
     "keywords": [
         "amazon",
@@ -31,22 +30,23 @@
         }
     ],
     "files": [
+              "addAdditionalClusterEndpoint.js",
         "common.js",
         "constants.js",
         "describeBatch.js",
+        "encryptValue.js",
         "generate-trigger-file.py",
         "index.js",
         "kmsCrypto.js",
         "LICENSE.txt",
         "NOTICE.txt",
-        "package.json",
         "processedFiles.js",
         "queryBatches.js",
         "README.md",
         "reprocessBatch.js",
         "setup.js",
-        "unlockBatch.js",        
-        "lib"
+        "unlockBatch.js",
+        "upgrades.js"
     ],
     "repository": {
         "type": "git",

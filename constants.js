@@ -23,6 +23,7 @@ batchTable = 'LambdaRedshiftBatches';
 batchStatusGSI = 'LambdaRedshiftBatchStatus';
 filesTable = 'LambdaRedshiftProcessedFiles';
 conditionCheckFailed = 'ConditionalCheckFailedException';
+provisionedThroughputExceeded = 'ProvisionedThroughputExceededException';
 INVALID_ARG = -1;
 ERROR = -1;
 OK = 0;
