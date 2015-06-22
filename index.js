@@ -96,8 +96,7 @@ exports.handler =
 													+ config.filenameFilterRegex.S + '\'');
 
 											// scan the current batch to decide
-											// if it needs to
-											// be
+											// if it needs to be
 											// flushed due to batch timeout
 											exports.processPendingBatch(config, thisBatchId, s3Info);
 										}
@@ -763,7 +762,7 @@ exports.handler =
 
 								// build the connection string
 								var dbString =
-										'postgres://' + clusterInfo.connectUser.S + ":" + decryptedConfigItems[1].toString() + "@"
+										'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[1].toString()) + "@"
 												+ clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N;
 								if (clusterInfo.clusterDB) {
 									dbString = dbString + '/' + clusterInfo.clusterDB.S;

@@ -56,10 +56,8 @@ var qs = [];
 q_region = function(callback) {
 	rl.question('Enter the Region for the Configuration > ', function(answer) {
 		if (common.blank(answer) !== null) {
-			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1",
-					"ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1",
-					"us-east-1", "us-west-1", "us-west-2" ], answer
-					.toLowerCase(), rl);
+			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1",
+					"sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer.toLowerCase(), rl);
 
 			setRegion = answer.toLowerCase();
 
@@ -76,11 +74,8 @@ q_region = function(callback) {
 };
 
 q_s3Prefix = function(callback) {
-	rl.question('Enter the S3 Bucket & Prefix to watch for files > ', function(
-			answer) {
-		common.validateNotNull(answer,
-				'You Must Provide an S3 Bucket Name, and optionally a Prefix',
-				rl);
+	rl.question('Enter the S3 Bucket & Prefix to watch for files > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide an S3 Bucket Name, and optionally a Prefix', rl);
 
 		// setup prefix to be * if one was not provided
 		var stripped = answer.replace(new RegExp('s3://', 'g'), '');
@@ -116,8 +111,7 @@ q_filenameFilter = function(callback) {
 
 q_clusterEndpoint = function(callback) {
 	rl.question('Enter the Cluster Endpoint > ', function(answer) {
-		common.validateNotNull(answer, 'You Must Provide a Cluster Endpoint',
-				rl);
+		common.validateNotNull(answer, 'You Must Provide a Cluster Endpoint', rl);
 		dynamoConfig.Item.loadClusters.L[0].M.clusterEndpoint = {
 			S : answer
 		};
@@ -160,10 +154,15 @@ q_userPwd = function(callback) {
 		common.validateNotNull(answer, 'You Must Provide a Password', rl);
 
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
-			dynamoConfig.Item.loadClusters.L[0].M.connectPassword = {
-				S : kmsCrypto.toLambdaStringFormat(ciphertext)
-			};
-			callback(null);
+			if (err) {
+				console.log(JSON.stringify(err));
+				process.exit(ERROR);
+			} else {
+				dynamoConfig.Item.loadClusters.L[0].M.connectPassword = {
+					S : kmsCrypto.toLambdaStringFormat(ciphertext)
+				};
+				callback(null);
+			}
 		});
 	});
 };
@@ -179,19 +178,17 @@ q_table = function(callback) {
 };
 
 q_truncateTable = function(callback) {
-	rl.question('Should the Table be Truncated before Load? (Y/N) > ',
-			function(answer) {
-				dynamoConfig.Item.loadClusters.L[0].M.truncateTarget = {
-					BOOL : common.getBooleanValue(answer)
-				};
-				callback(null);
-			});
+	rl.question('Should the Table be Truncated before Load? (Y/N) > ', function(answer) {
+		dynamoConfig.Item.loadClusters.L[0].M.truncateTarget = {
+			BOOL : common.getBooleanValue(answer)
+		};
+		callback(null);
+	});
 };
 
 q_df = function(callback) {
 	rl.question('Enter the Data Format (CSV or JSON) > ', function(answer) {
-		common.validateArrayContains([ 'CSV', 'JSON' ], answer.toUpperCase(),
-				rl);
+		common.validateArrayContains([ 'CSV', 'JSON' ], answer.toUpperCase(), rl);
 		dynamoConfig.Item.dataFormat = {
 			S : answer.toUpperCase()
 		};
@@ -202,8 +199,7 @@ q_df = function(callback) {
 q_csvDelimiter = function(callback) {
 	if (dynamoConfig.Item.dataFormat.S === 'CSV') {
 		rl.question('Enter the CSV Delimiter > ', function(answer) {
-			common.validateNotNull(answer,
-					'You Must the Delimiter for CSV Input', rl);
+			common.validateNotNull(answer, 'You Must the Delimiter for CSV Input', rl);
 			dynamoConfig.Item.csvDelimiter = {
 				S : answer
 			};
@@ -216,44 +212,32 @@ q_csvDelimiter = function(callback) {
 
 q_jsonPaths = function(callback) {
 	if (dynamoConfig.Item.dataFormat.S === 'JSON') {
-		rl
-				.question(
-						'Enter the JSON Paths File Location on S3 (or NULL for Auto) > ',
-						function(answer) {
-							if (common.blank(answer) !== null) {
-								dynamoConfig.Item.jsonPath = {
-									S : answer
-								};
-							}
-							callback(null);
-						});
+		rl.question('Enter the JSON Paths File Location on S3 (or NULL for Auto) > ', function(answer) {
+			if (common.blank(answer) !== null) {
+				dynamoConfig.Item.jsonPath = {
+					S : answer
+				};
+			}
+			callback(null);
+		});
 	} else {
 		callback(null);
 	}
 };
 
 q_manifestBucket = function(callback) {
-	rl
-			.question(
-					'Enter the S3 Bucket for Redshift COPY Manifests > ',
-					function(answer) {
-						common
-								.validateNotNull(
-										answer,
-										'You Must Provide a Bucket Name for Manifest File Storage',
-										rl);
-						dynamoConfig.Item.manifestBucket = {
-							S : answer
-						};
-						callback(null);
-					});
+	rl.question('Enter the S3 Bucket for Redshift COPY Manifests > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide a Bucket Name for Manifest File Storage', rl);
+		dynamoConfig.Item.manifestBucket = {
+			S : answer
+		};
+		callback(null);
+	});
 };
 
 q_manifestPrefix = function(callback) {
-	rl.question('Enter the Prefix for Redshift COPY Manifests > ', function(
-			answer) {
-		common.validateNotNull(answer,
-				'You Must Provide a Prefix for Manifests', rl);
+	rl.question('Enter the Prefix for Redshift COPY Manifests > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide a Prefix for Manifests', rl);
 		dynamoConfig.Item.manifestKey = {
 			S : answer
 		};
@@ -262,59 +246,56 @@ q_manifestPrefix = function(callback) {
 };
 
 q_failedManifestPrefix = function(callback) {
-	rl.question('Enter the Prefix to use for Failed Load Manifest Storage > ',
-			function(answer) {
-				common.validateNotNull(answer,
-						'You Must Provide a Prefix for Manifests', rl);
-				dynamoConfig.Item.failedManifestKey = {
-					S : answer
-				};
-				callback(null);
-			});
+	rl.question('Enter the Prefix to use for Failed Load Manifest Storage > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide a Prefix for Manifests', rl);
+		dynamoConfig.Item.failedManifestKey = {
+			S : answer
+		};
+		callback(null);
+	});
 };
 
 q_accessKey = function(callback) {
-	rl.question('Enter the Access Key used by Redshift to get data from S3 > ',
-			function(answer) {
-				common.validateNotNull(answer,
-						'You Must Provide an Access Key', rl);
-				dynamoConfig.Item.accessKeyForS3 = {
-					S : answer
-				};
-				callback(null);
-			});
+	rl.question('Enter the Access Key used by Redshift to get data from S3 > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide an Access Key', rl);
+		dynamoConfig.Item.accessKeyForS3 = {
+			S : answer
+		};
+		callback(null);
+	});
 };
 
 q_secretKey = function(callback) {
-	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ',
-			function(answer) {
-				common.validateNotNull(answer, 'You Must Provide a Secret Key',
-						rl);
+	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ', function(answer) {
+		common.validateNotNull(answer, 'You Must Provide a Secret Key', rl);
 
-				kmsCrypto.encrypt(answer, function(err, ciphertext) {
-					dynamoConfig.Item.secretKeyForS3 = {
-						S : kmsCrypto.toLambdaStringFormat(ciphertext)
-					};
-					callback(null);
-				});
-			});
+		kmsCrypto.encrypt(answer, function(err, ciphertext) {
+			if (err) {
+				console.log(JSON.stringify(err));
+				process.exit(ERROR);
+			} else {
+				dynamoConfig.Item.secretKeyForS3 = {
+					S : kmsCrypto.toLambdaStringFormat(ciphertext)
+				};
+				callback(null);
+			}
+		});
+	});
 };
 
 q_failureTopic = function(callback) {
-	rl.question('Enter the SNS Topic ARN for Failed Loads > ',
-			function(answer) {
-				if (common.blank(answer) !== null) {
-					dynamoConfig.Item.failureTopicARN = {
-						S : answer
-					};
-				}
-				callback(null);
-			});
+	rl.question('Enter the SNS Topic ARN for Failed Loads > ', function(answer) {
+		if (common.blank(answer) !== null) {
+			dynamoConfig.Item.failureTopicARN = {
+				S : answer
+			};
+		}
+		callback(null);
+	});
 };
 
 q_successTopic = function(callback) {
-	rl.question('Enter the SNS Topic ARN for Successful Loads > ', function(
-			answer) {
+	rl.question('Enter the SNS Topic ARN for Successful Loads > ', function(answer) {
 		if (common.blank(answer) !== null) {
 			dynamoConfig.Item.successTopicARN = {
 				S : answer
@@ -325,29 +306,25 @@ q_successTopic = function(callback) {
 };
 
 q_batchSize = function(callback) {
-	rl.question('How many files should be buffered before loading? > ',
-			function(answer) {
-				if (common.blank(answer) !== null) {
-					dynamoConfig.Item.batchSize = {
-						N : '' + common.getIntValue(answer, rl)
-					};
-				}
-				callback(null);
-			});
+	rl.question('How many files should be buffered before loading? > ', function(answer) {
+		if (common.blank(answer) !== null) {
+			dynamoConfig.Item.batchSize = {
+				N : '' + common.getIntValue(answer, rl)
+			};
+		}
+		callback(null);
+	});
 };
 
 q_batchTimeoutSecs = function(callback) {
-	rl
-			.question(
-					'How old should we allow a Batch to be before loading (seconds)? > ',
-					function(answer) {
-						if (common.blank(answer) !== null) {
-							dynamoConfig.Item.batchTimeoutSecs = {
-								N : '' + common.getIntValue(answer, rl)
-							};
-						}
-						callback(null);
-					});
+	rl.question('How old should we allow a Batch to be before loading (seconds)? > ', function(answer) {
+		if (common.blank(answer) !== null) {
+			dynamoConfig.Item.batchTimeoutSecs = {
+				N : '' + common.getIntValue(answer, rl)
+			};
+		}
+		callback(null);
+	});
 };
 
 q_copyOptions = function(callback) {
@@ -375,8 +352,7 @@ setup = function(overrideConfig, callback) {
 	} else {
 		useConfig = dynamoConfig;
 	}
-	var configWriter = common.writeConfig(setRegion, dynamoDB, useConfig,
-			callback);
+	var configWriter = common.writeConfig(setRegion, dynamoDB, useConfig, callback);
 	common.createTables(dynamoDB, configWriter);
 };
 // export the setup module so that customers can programmatically add new
