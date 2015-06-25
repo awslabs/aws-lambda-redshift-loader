@@ -12,7 +12,8 @@ var aws = require('aws-sdk');
 require('./constants');
 
 if (process.argv.length < 4) {
-	console.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
+	console
+			.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
 	process.exit(ERROR);
 }
 var setRegion = process.argv[2];
@@ -31,7 +32,7 @@ var s3 = new aws.S3({
 
 var batchEntries = undefined;
 
-var processFile = function(index) {
+var processFile = function(index, thisBatchId) {
 	// delete the processed file entry
 	var fileItem = {
 		Key : {
@@ -52,22 +53,31 @@ var processFile = function(index) {
 			var bucketName = batchEntries[index].split("/")[0];
 			var fileKey = batchEntries[index].replace(bucketName + "\/", "");
 			var copySpec = {
+				Metadata : {
+					CopyReason : "AWS Lambda Redshift Loader Reprocess Batch "
+							+ thisBatchId
+				},
+				MetadataDirective : "REPLACE",
 				Bucket : bucketName,
 				Key : fileKey,
 				CopySource : batchEntries[index]
 			};
+
 			s3.copyObject(copySpec, function(err, data) {
 				if (err) {
 					console.log(err);
 					process.exit(ERROR);
 				} else {
-					console.log("Submitted reprocess request for " + batchEntries[index]);
+					console.log("Submitted reprocess request for "
+							+ batchEntries[index]);
 
 					if (index + 1 < batchEntries.length) {
-						// call this function with the next file entry index as a reference
+						// call this function with the next file entry index as
+						// a reference
 						processFile(index + 1);
 					} else {
-						console.log("Processed " + batchEntries.length + " Files");
+						console.log("Processed " + batchEntries.length
+								+ " Files");
 						process.exit(OK);
 					}
 				}
@@ -100,15 +110,18 @@ dynamoDB.getItem(getBatch, function(err, data) {
 				console.log("Cannot reprocess an Open Batch");
 				process.exit(error);
 			} else {
-				// load the global batch entries so that we can process it in callbacks
+				// load the global batch entries so that we can process it in
+				// callbacks
 				batchEntries = data.Item.entries.SS;
 
-				// call processFile with 0 index to tell it to process the first item in
+				// call processFile with 0 index to tell it to process the first
+				// item in
 				// the array
-				processFile(0);
+				processFile(0, thisBatchId);
 			}
 		} else {
-			console.log("Unable to retrieve batch " + thisBatchId + " for prefix " + prefix);
+			console.log("Unable to retrieve batch " + thisBatchId
+					+ " for prefix " + prefix);
 			process.exit(ERROR);
 		}
 	}
