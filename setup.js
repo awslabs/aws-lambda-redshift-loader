@@ -283,6 +283,24 @@ q_secretKey = function(callback) {
 	});
 };
 
+q_symmetricKey = function(callback) {
+	rl.question('If Encrypted Files are used, Enter the Symmetric Master Key Value > ', function(answer) {
+		if (answer && answer !== null && answer !== "") {
+			kmsCrypto.encrypt(answer, function(err, ciphertext) {
+				if (err) {
+					console.log(JSON.stringify(err));
+					process.exit(ERROR);
+				} else {
+					dynamoConfig.Item.masterSymmetricKey = {
+						S : kmsCrypto.toLambdaStringFormat(ciphertext)
+					};
+					callback(null);
+				}
+			});
+		}
+	});
+};
+
 q_failureTopic = function(callback) {
 	rl.question('Enter the SNS Topic ARN for Failed Loads > ', function(answer) {
 		if (common.blank(answer) !== null) {
@@ -382,6 +400,7 @@ qs.push(q_failureTopic);
 qs.push(q_batchSize);
 qs.push(q_batchTimeoutSecs);
 qs.push(q_copyOptions);
+qs.push(q_symmetricKey);
 
 // always have to have the 'last' function added to halt the readline channel
 // and run the setup
