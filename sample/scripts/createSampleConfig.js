@@ -11,6 +11,7 @@ var setRegion = 'us-east-1';
 var common = require('../../common');
 var async = require('async');
 var uuid = require('node-uuid');
+kmsCrypto.setRegion();
 
 dynamoConfig = {
 	TableName : configTable,
