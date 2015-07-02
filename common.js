@@ -155,7 +155,8 @@ exports.createTables = function(dynamoDB, callback) {
 					}
 				}
 
-				// now write the config item after the table has been provisioned
+				// now write the config item after the table has been
+				// provisioned
 				if (callback) {
 					setTimeout(callback(), 5000);
 				}
@@ -196,7 +197,7 @@ exports.updateConfig = function(setRegion, dynamoDB, updateRequest, outerCallbac
 			}
 		});
 	}, function(error) {
-	// never called
+		// never called
 	});
 };
 
@@ -219,18 +220,21 @@ exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig, outerCallback)
 					// some other error - fail
 					console.log(JSON.stringify(dynamoConfig));
 					console.log(JSON.stringify(err));
-					outerCallback(err);
+					if (outerCallback)
+						outerCallback(err);
 				}
 			} else {
 				// all OK - exit OK
 				if (data) {
-					console.log("Configuration for " + dynamoConfig.Item.s3Prefix.S + " successfully written in " + setRegion);
-					outerCallback(null);
+					console.log("Configuration for " + dynamoConfig.Item.s3Prefix.S + " successfully written in "
+							+ setRegion);
+					if (outerCallback)
+						outerCallback(null);
 				}
 			}
 		});
 	}, function(error) {
-	// never called
+		// never called
 	});
 };
 
