@@ -297,6 +297,8 @@ q_symmetricKey = function(callback) {
 					callback(null);
 				}
 			});
+		} else {
+			callback(null);
 		}
 	});
 };
