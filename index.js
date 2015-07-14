@@ -46,8 +46,8 @@ exports.handler = function(event, context) {
 	/** runtime functions * */
 
 	/*
-	 * Function which performs all version upgrades over time - must be able to do
-	 * a forward migration from any version to 'current' at all times!
+	 * Function which performs all version upgrades over time - must be able to
+	 * do a forward migration from any version to 'current' at all times!
 	 */
 	exports.upgradeConfig = function(s3Info, currentConfig, callback) {
 		// v 1.x to 2.x upgrade for multi-cluster loaders
@@ -91,8 +91,8 @@ exports.handler = function(event, context) {
 						if (s3Info.key.match(config.filenameFilterRegex.S)) {
 							exports.checkFileProcessed(config, thisBatchId, s3Info);
 						} else {
-							console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + config.filenameFilterRegex.S
-									+ '\'');
+							console.log('Object ' + s3Info.key + ' excluded by filename filter \''
+									+ config.filenameFilterRegex.S + '\'');
 
 							// scan the current batch to decide
 							// if it needs to be
@@ -155,9 +155,9 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * Function run to add a file to the existing open batch. This will repeatedly
-	 * try to write and if unsuccessful it will requery the batch ID on the
-	 * configuration
+	 * Function run to add a file to the existing open batch. This will
+	 * repeatedly try to write and if unsuccessful it will requery the batch ID
+	 * on the configuration
 	 */
 	exports.addFileToPendingBatch = function(config, thisBatchId, s3Info, itemEntry) {
 		console.log("Adding Pending Batch Entry for " + itemEntry);
@@ -213,59 +213,107 @@ exports.handler = function(event, context) {
 							};
 
 							// add the file to the pending batch
-							dynamoDB.updateItem(item, function(err, data) {
-								if (err) {
-									if (err.code === conditionCheckFailed) {
-										/*
-										 * the batch I have a reference to was locked so reload the
-										 * current batch ID from the config
-										 */
-										var configReloadRequest = {
-											Key : {
-												s3Prefix : {
-													S : s3Info.prefix
+							dynamoDB
+									.updateItem(
+											item,
+											function(err, data) {
+												if (err) {
+													if (err.code === conditionCheckFailed) {
+														/*
+														 * the batch I have a
+														 * reference to was
+														 * locked so reload the
+														 * current batch ID from
+														 * the config
+														 */
+														var configReloadRequest = {
+															Key : {
+																s3Prefix : {
+																	S : s3Info.prefix
+																}
+															},
+															TableName : configTable,
+															ConsistentRead : true
+														};
+														dynamoDB
+																.getItem(
+																		configReloadRequest,
+																		function(err, data) {
+																			if (err) {
+																				console.log(err);
+																				callback(err);
+																			} else {
+																				/*
+																				 * reset
+																				 * the
+																				 * batch
+																				 * ID
+																				 * to
+																				 * the
+																				 * current
+																				 * marked
+																				 * batch
+																				 */
+																				thisBatchId = data.Item.currentBatch.S;
+
+																				/*
+																				 * we've
+																				 * not
+																				 * set
+																				 * proceed
+																				 * to
+																				 * true,
+																				 * so
+																				 * async
+																				 * will
+																				 * retry
+																				 */
+																				console
+																						.log("Reload of Configuration Complete after attempting Locked Batch Write");
+
+																				/*
+																				 * we
+																				 * can
+																				 * call
+																				 * into
+																				 * the
+																				 * callback
+																				 * immediately,
+																				 * as
+																				 * we
+																				 * probably
+																				 * just
+																				 * missed
+																				 * the
+																				 * pending
+																				 * batch
+																				 * processor's
+																				 * rotate
+																				 * of
+																				 * the
+																				 * configuration
+																				 * batch
+																				 * ID
+																				 */
+																				callback();
+																			}
+																		});
+													} else {
+														asyncError = err;
+														proceed = true;
+														callback();
+													}
+												} else {
+													/*
+													 * no error - the file was
+													 * added to the batch, so
+													 * mark the operation as OK
+													 * so async will not retry
+													 */
+													proceed = true;
+													callback();
 												}
-											},
-											TableName : configTable,
-											ConsistentRead : true
-										};
-										dynamoDB.getItem(configReloadRequest, function(err, data) {
-											if (err) {
-												console.log(err);
-												callback(err);
-											} else {
-												/*
-												 * reset the batch ID to the current marked batch
-												 */
-												thisBatchId = data.Item.currentBatch.S;
-
-												/*
-												 * we've not set proceed to true, so async will retry
-												 */
-												console.log("Reload of Configuration Complete after attempting Locked Batch Write");
-
-												/*
-												 * we can call into the callback immediately, as we
-												 * probably just missed the pending batch processor's
-												 * rotate of the configuration batch ID
-												 */
-												callback();
-											}
-										});
-									} else {
-										asyncError = err;
-										proceed = true;
-										callback();
-									}
-								} else {
-									/*
-									 * no error - the file was added to the batch, so mark the
-									 * operation as OK so async will not retry
-									 */
-									proceed = true;
-									callback();
-								}
-							});
+											});
 						},
 						function(err) {
 							if (err) {
@@ -275,18 +323,20 @@ exports.handler = function(event, context) {
 							} else {
 								if (asyncError) {
 									/*
-									 * throw errors which were encountered during the async calls
+									 * throw errors which were encountered
+									 * during the async calls
 									 */
 									console.log(asyncError);
 									context.done(error, asyncError);
 								} else {
 									if (!proceed) {
 										/*
-										 * process what happened if the iterative request to write
-										 * to the open pending batch timed out
+										 * process what happened if the
+										 * iterative request to write to the
+										 * open pending batch timed out
 										 * 
-										 * TODO Can we force a rotation of the current batch at this
-										 * point?
+										 * TODO Can we force a rotation of the
+										 * current batch at this point?
 										 */
 										var e = "Unable to write "
 												+ itemEntry
@@ -299,16 +349,19 @@ exports.handler = function(event, context) {
 												+ "' state. If so, unlock the back using `node unlockBatch.js <batch ID>`, delete the processed file marker with `node processedFiles.js -d <filename>`, and then re-store the file in S3";
 										console.log(e);
 										exports.sendSNS(config.failureTopicARN.S,
-												"Lambda Redshift Loader unable to write to Open Pending Batch", e, function() {
+												"Lambda Redshift Loader unable to write to Open Pending Batch", e,
+												function() {
 													context.done(error, e);
 												}, function(err) {
 													console.log(err);
 													context.done(error, "Unable to Send SNS Notification");
 												});
 									} else {
-										// the add of the file was successful, so we
+										// the add of the file was successful,
+										// so we
 										exports.linkProcessedFileToBatch(itemEntry, thisBatchId);
-										// which is async, so may fail but we'll still sweep
+										// which is async, so may fail but we'll
+										// still sweep
 										// the pending batch
 										exports.processPendingBatch(config, thisBatchId, s3Info);
 									}
@@ -318,8 +371,8 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * Function which will link the deduplication table entry for the file to the
-	 * batch into which the file was finally added
+	 * Function which will link the deduplication table entry for the file to
+	 * the batch into which the file was finally added
 	 */
 	exports.linkProcessedFileToBatch = function(itemEntry, batchId) {
 		var updateProcessedFile = {
@@ -349,8 +402,8 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * Function which links the manifest name used to load redshift onto the batch
-	 * table entry
+	 * Function which links the manifest name used to load redshift onto the
+	 * batch table entry
 	 */
 	exports.addManifestToBatch = function(config, thisBatchId, s3Info, manifestInfo) {
 		// build the reference to the pending batch, with an atomic
@@ -429,7 +482,8 @@ exports.handler = function(event, context) {
 				}
 
 				if (config.batchTimeoutSecs && config.batchTimeoutSecs.N) {
-					if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
+					if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N)
+							&& pendingEntries.length > 0) {
 						console.log("Batch Size " + config.batchSize.N + " not reached but reached Age "
 								+ config.batchTimeoutSecs.N + " seconds");
 						doProcessBatch = true;
@@ -463,8 +517,9 @@ exports.handler = function(event, context) {
 							}
 						},
 						/*
-						 * the batch to be processed has to be 'open', otherwise we'll have
-						 * multiple processes all handling a single batch
+						 * the batch to be processed has to be 'open', otherwise
+						 * we'll have multiple processes all handling a single
+						 * batch
 						 */
 						Expected : {
 							status : {
@@ -475,8 +530,8 @@ exports.handler = function(event, context) {
 							}
 						},
 						/*
-						 * add the ALL_NEW return values so we have the most up to date
-						 * version of the entries string set
+						 * add the ALL_NEW return values so we have the most up
+						 * to date version of the entries string set
 						 */
 						ReturnValues : "ALL_NEW"
 					};
@@ -484,8 +539,9 @@ exports.handler = function(event, context) {
 						if (err) {
 							if (err.code === conditionCheckFailed) {
 								/*
-								 * some other Lambda function has locked the batch - this is OK
-								 * and we'll just exit quietly
+								 * some other Lambda function has locked the
+								 * batch - this is OK and we'll just exit
+								 * quietly
 								 */
 								context.done(null, null);
 							} else {
@@ -499,12 +555,14 @@ exports.handler = function(event, context) {
 								context.done(error, e);
 							} else {
 								/*
-								 * grab the pending entries from the locked batch
+								 * grab the pending entries from the locked
+								 * batch
 								 */
 								pendingEntries = data.Attributes.entries.SS;
 
 								/*
-								 * assign the loaded configuration a new batch ID
+								 * assign the loaded configuration a new batch
+								 * ID
 								 */
 								var allocateNewBatchRequest = {
 									Key : {
@@ -566,9 +624,9 @@ exports.handler = function(event, context) {
 		for (var i = 0; i < batchEntries.length; i++) {
 			manifestContents.entries.push({
 				/*
-				 * fix url encoding for files with spaces. Space values come in from
-				 * Lambda with '+' and plus values come in as %2B. Redshift wants the
-				 * original S3 value
+				 * fix url encoding for files with spaces. Space values come in
+				 * from Lambda with '+' and plus values come in as %2B. Redshift
+				 * wants the original S3 value
 				 */
 				url : 's3://' + batchEntries[i].replace('+', ' ').replace('%2B', '+'),
 				mandatory : true
@@ -584,8 +642,9 @@ exports.handler = function(event, context) {
 		console.log("Writing manifest to " + manifestInfo.manifestBucket + "/" + manifestInfo.manifestPrefix);
 
 		/*
-		 * save the manifest file to S3 and build the rest of the copy command in
-		 * the callback letting us know that the manifest was created correctly
+		 * save the manifest file to S3 and build the rest of the copy command
+		 * in the callback letting us know that the manifest was created
+		 * correctly
 		 */
 		s3.putObject(s3PutParams, exports.loadRedshiftWithManifest.bind(undefined, config, thisBatchId, s3Info,
 				manifestInfo));
@@ -703,107 +762,104 @@ exports.handler = function(event, context) {
 		var encryptedItems = [ kmsCrypto.stringToBuffer(config.secretKeyForS3.S),
 				kmsCrypto.stringToBuffer(clusterInfo.connectPassword.S) ];
 
-		// add the master encryption key to the list of items to be decrypted, if
+		// add the master encryption key to the list of items to be decrypted,
+		// if
 		// there is one
 		if (config.masterSymmetricKey) {
 			encryptedItems[encryptedItems.length] = kmsCrypto.stringToBuffer(config.masterSymmetricKey.S);
 		}
 
 		// decrypt the encrypted items
-		kmsCrypto.decryptAll(encryptedItems, function(err, decryptedConfigItems) {
-			if (err) {
-				callback(err, {
-					status : ERROR,
-					cluster : clusterInfo.clusterEndpoint.S
-				});
-			} else {
-				// create the credentials section
-				var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key='
-						+ decryptedConfigItems[0].toString();
-
-				copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://'
-						+ manifestInfo.manifestPath + '\'';
-
-				// add data formatting directives to copy options
-				if (config.dataFormat.S === 'CSV') {
-					copyOptions = copyOptions + ' delimiter \'' + config.csvDelimiter.S + '\'\n';
-				} else if (config.dataFormat.S === 'JSON') {
-					if (config.jsonPath !== undefined) {
-						copyOptions = copyOptions + 'json \'' + config.jsonPath.S + '\'\n';
-					} else {
-						copyOptions = copyCommand + 'json \'auto\' \n';
-					}
-				} else {
-					callback(null, {
-						status : ERROR,
-						error : 'Unsupported data format ' + config.dataFormat.S,
-						cluster : clusterInfo.clusterEndpoint.S
-					});
-				}
-
-				// add compression directives
-				if (config.compression !== undefined) {
-					copyOptions = copyOptions + ' ' + config.compression.S + '\n';
-				}
-
-				// add copy options
-				if (config.copyOptions !== undefined) {
-					copyOptions = copyOptions + config.copyOptions.S + '\n';
-				}
-
-				// add the encryption option to the copy command, and the master
-				// symmetric key clause to the credentials
-				if (config.masterSymmetricKey) {
-					copyOptions = copyOptions + "encrypted\n";
-
-					if (decryptedConfigItems.length === 3) {
-						credentials = credentials + ";master_symmetric_key=" + decryptedConfigItems[2].toString();
-					} else {
-						console.log(JSON.stringify(decryptedConfigItems));
-						
-						// we didn't get a decrypted symmetric key back so fail
-						callback(null, {
-							status : ERROR,
-							error : "KMS did not return a Decrypted Master Symmetric Key Value from: "
-									+ config.masterSymmetricKey.S,
-							cluster : clusterInfo.clusterEndpoint.S
-						});
-					}
-				}
-
-				// build the final copy command
-				copyCommand = copyCommand + "with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
-
-				if (debug) {
-					console.log(copyCommand);
-				}
-
-				// build the connection string
-				var dbString = 'postgres://' + clusterInfo.connectUser.S + ":"
-						+ encodeURIComponent(decryptedConfigItems[1].toString()) + "@" + clusterInfo.clusterEndpoint.S + ":"
-						+ clusterInfo.clusterPort.N;
-				if (clusterInfo.clusterDB) {
-					dbString = dbString + '/' + clusterInfo.clusterDB.S;
-				}
-				console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
-
-				/*
-				 * connect to database and run the copy command
-				 */
-				pg.connect(dbString, function(err, client, done) {
+		kmsCrypto.decryptAll(encryptedItems,
+				function(err, decryptedConfigItems) {
 					if (err) {
-						callback(null, {
+						callback(err, {
 							status : ERROR,
-							error : err,
 							cluster : clusterInfo.clusterEndpoint.S
 						});
 					} else {
-						client.query(copyCommand, function(err, result) {
-							// release the client thread back to
-							// the pool
-							done();
+						// create the credentials section
+						var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key='
+								+ decryptedConfigItems[0].toString();
 
-							// handle errors and cleanup
+						copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://'
+								+ manifestInfo.manifestPath + '\'';
+
+						// add data formatting directives to copy options
+						if (config.dataFormat.S === 'CSV') {
+							copyOptions = copyOptions + ' delimiter \'' + config.csvDelimiter.S + '\'\n';
+						} else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
+							copyOptions = copyOptions + ' ' + config.dataFormat.S;
+							
+							if (config.jsonPath !== undefined) {
+								copyOptions = copyOptions + ' \'' + config.jsonPath.S
+										+ '\' \n';
+							} else {
+								copyOptions = copyCommand + ' ' + config.dataFormat.S + ' \'auto\' \n';
+							}
+						} else {
+							callback(null, {
+								status : ERROR,
+								error : 'Unsupported data format ' + config.dataFormat.S,
+								cluster : clusterInfo.clusterEndpoint.S
+							});
+						}
+
+						// add compression directives
+						if (config.compression !== undefined) {
+							copyOptions = copyOptions + ' ' + config.compression.S + '\n';
+						}
+
+						// add copy options
+						if (config.copyOptions !== undefined) {
+							copyOptions = copyOptions + config.copyOptions.S + '\n';
+						}
+
+						// add the encryption option to the copy command, and
+						// the master
+						// symmetric key clause to the credentials
+						if (config.masterSymmetricKey) {
+							copyOptions = copyOptions + "encrypted\n";
+
+							if (decryptedConfigItems.length === 3) {
+								credentials = credentials + ";master_symmetric_key="
+										+ decryptedConfigItems[2].toString();
+							} else {
+								console.log(JSON.stringify(decryptedConfigItems));
+
+								// we didn't get a decrypted symmetric key back
+								// so fail
+								callback(null, {
+									status : ERROR,
+									error : "KMS did not return a Decrypted Master Symmetric Key Value from: "
+											+ config.masterSymmetricKey.S,
+									cluster : clusterInfo.clusterEndpoint.S
+								});
+							}
+						}
+
+						// build the final copy command
+						copyCommand = copyCommand + "with credentials as \'" + credentials + "\' " + copyOptions
+								+ ";\ncommit;";
+
+						if (debug) {
+							console.log(copyCommand);
+						}
+
+						// build the connection string
+						var dbString = 'postgres://' + clusterInfo.connectUser.S + ":"
+								+ encodeURIComponent(decryptedConfigItems[1].toString()) + "@"
+								+ clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N;
+						if (clusterInfo.clusterDB) {
+							dbString = dbString + '/' + clusterInfo.clusterDB.S;
+						}
+						console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":"
+								+ clusterInfo.clusterPort.N);
+
+						/*
+						 * connect to database and run the copy command
+						 */
+						pg.connect(dbString, function(err, client, done) {
 							if (err) {
 								callback(null, {
 									status : ERROR,
@@ -811,23 +867,37 @@ exports.handler = function(event, context) {
 									cluster : clusterInfo.clusterEndpoint.S
 								});
 							} else {
-								console.log("Load Complete");
+								client.query(copyCommand, function(err, result) {
+									// release the client thread back to
+									// the pool
+									done();
 
-								callback(null, {
-									status : OK,
-									error : null,
-									cluster : clusterInfo.clusterEndpoint.S
+									// handle errors and cleanup
+									if (err) {
+										callback(null, {
+											status : ERROR,
+											error : err,
+											cluster : clusterInfo.clusterEndpoint.S
+										});
+									} else {
+										console.log("Load Complete");
+
+										callback(null, {
+											status : OK,
+											error : null,
+											cluster : clusterInfo.clusterEndpoint.S
+										});
+									}
 								});
 							}
 						});
 					}
 				});
-			}
-		});
 	};
 
 	/**
-	 * Function which marks a batch as failed and sends notifications accordingly
+	 * Function which marks a batch as failed and sends notifications
+	 * accordingly
 	 */
 	exports.failBatch = function(loadState, config, thisBatchId, s3Info, manifestInfo) {
 		if (config.failedManifestKey && manifestInfo) {
@@ -895,7 +965,8 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * Function which closes the batch to mark it as done, including notifications
+	 * Function which closes the batch to mark it as done, including
+	 * notifications
 	 */
 	exports.closeBatch = function(batchError, config, thisBatchId, s3Info, manifestInfo) {
 		var batchEndStatus;
@@ -1011,8 +1082,8 @@ exports.handler = function(event, context) {
 			}
 		} else {
 			if (config.successTopicARN) {
-				exports.sendSNS(config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody,
-						function() {
+				exports.sendSNS(config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK",
+						messageBody, function() {
 							context.done(null, null);
 						}, function(err) {
 							console.log(err);
@@ -1082,7 +1153,8 @@ exports.handler = function(event, context) {
 					var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
 
 					// if the event didn't have a prefix, and is just in the
-					// bucket, then just use the bucket name, otherwise add the prefix
+					// bucket, then just use the bucket name, otherwise add the
+					// prefix
 					if (searchKey && searchKey !== null && searchKey !== "") {
 						var regex = /(=\d+)+/;
 						// transform hive style dynamic prefixes into static
@@ -1126,11 +1198,12 @@ exports.handler = function(event, context) {
 									// sleep for bounded jitter time up to 1
 									// second and then retry
 									var timeout = common.randomInt(0, 1000);
-									console.log(provisionedThroughputExceeded + " while accessing Configuration. Retrying in " + timeout
-											+ " ms");
+									console.log(provisionedThroughputExceeded
+											+ " while accessing Configuration. Retrying in " + timeout + " ms");
 									setTimeout(callback(), timeout);
 								} else {
-									// some other error - call the error callback
+									// some other error - call the error
+									// callback
 									callback(err);
 								}
 							} else {

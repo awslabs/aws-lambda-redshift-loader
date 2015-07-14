@@ -56,8 +56,8 @@ var qs = [];
 q_region = function(callback) {
 	rl.question('Enter the Region for the Configuration > ', function(answer) {
 		if (common.blank(answer) !== null) {
-			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1",
-					"sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer.toLowerCase(), rl);
+			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1",
+					"eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer.toLowerCase(), rl);
 
 			setRegion = answer.toLowerCase();
 
@@ -187,8 +187,8 @@ q_truncateTable = function(callback) {
 };
 
 q_df = function(callback) {
-	rl.question('Enter the Data Format (CSV or JSON) > ', function(answer) {
-		common.validateArrayContains([ 'CSV', 'JSON' ], answer.toUpperCase(), rl);
+	rl.question('Enter the Data Format (CSV, JSON or AVRO) > ', function(answer) {
+		common.validateArrayContains([ 'CSV', 'JSON', 'AVRO' ], answer.toUpperCase(), rl);
 		dynamoConfig.Item.dataFormat = {
 			S : answer.toUpperCase()
 		};
@@ -211,7 +211,7 @@ q_csvDelimiter = function(callback) {
 };
 
 q_jsonPaths = function(callback) {
-	if (dynamoConfig.Item.dataFormat.S === 'JSON') {
+	if (dynamoConfig.Item.dataFormat.S === 'JSON' || dynamoConfig.Item.dataFormat.S === 'AVRO') {
 		rl.question('Enter the JSON Paths File Location on S3 (or NULL for Auto) > ', function(answer) {
 			if (common.blank(answer) !== null) {
 				dynamoConfig.Item.jsonPath = {
