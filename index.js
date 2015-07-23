@@ -787,7 +787,7 @@ exports.handler = function(event, context) {
 				}
 
 				// build the final copy command
-				copyCommand = copyCommand + "with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+				copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
 
 				if (debug) {
 					console.log(copyCommand);
