@@ -745,7 +745,7 @@ exports.handler = function(event, context) {
 					if (config.jsonPath !== undefined) {
 						copyOptions = copyOptions + ' \'' + config.jsonPath.S + '\' \n';
 					} else {
-						copyOptions = copyOptions + ' ' + config.dataFormat.S + ' \'auto\' \n';
+						copyOptions = copyOptions + ' \'auto\' \n';
 					}
 				} else {
 					callback(null, {
