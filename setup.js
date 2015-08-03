@@ -180,10 +180,14 @@ q_table = function(callback) {
 
 q_columnList = function(callback) {
 	rl.question('Enter the comma-delimited column list (optional) > ', function(answer) {
-		dynamoConfig.Item.loadClusters.L[0].M.columnList = {
-			S : answer
-		};
-		callback(null);
+		if (answer && answer !== null && answer !== "") {
+			dynamoConfig.Item.loadClusters.L[0].M.columnList = {
+				S : answer
+			};
+			callback(null);
+		} else {
+			callback(null);
+		}
 	});
 };
 
