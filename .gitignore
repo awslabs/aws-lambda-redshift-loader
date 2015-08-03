@@ -1,2 +1,5 @@
 node_modules/
 build.sh
+*.iml
+.DS_Store
+.idea
