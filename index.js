@@ -734,7 +734,14 @@ exports.handler = function(event, context) {
 				// create the credentials section
 				var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[0].toString();
 
-				copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
+                if (typeof clusterInfo.columnList === 'undefined') {
+                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://'
+                                        + manifestInfo.manifestPath + '\'';
+                } else {
+                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S
+                						+ ') from \'s3://' + manifestInfo.manifestPath + '\'';
+                }
+
 
 				// add data formatting directives to copy options
 				if (config.dataFormat.S === 'CSV') {

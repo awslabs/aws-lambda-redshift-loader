@@ -177,6 +177,20 @@ q_table = function(callback) {
 	});
 };
 
+
+q_columnList = function(callback) {
+	rl.question('Enter the comma-delimited column list (optional) > ', function(answer) {
+		if (answer && answer !== null && answer !== "") {
+			dynamoConfig.Item.loadClusters.L[0].M.columnList = {
+				S : answer
+			};
+			callback(null);
+		} else {
+			callback(null);
+		}
+	});
+};
+
 q_truncateTable = function(callback) {
 	rl.question('Should the Table be Truncated before Load? (Y/N) > ', function(answer) {
 		dynamoConfig.Item.loadClusters.L[0].M.truncateTarget = {
@@ -386,6 +400,7 @@ qs.push(q_clusterEndpoint);
 qs.push(q_clusterPort);
 qs.push(q_clusterDB);
 qs.push(q_table);
+qs.push(q_columnList);
 qs.push(q_truncateTable);
 qs.push(q_userName);
 qs.push(q_userPwd);
