@@ -7,7 +7,7 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
-var debug = true;
+var debug = false;
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
 
@@ -233,8 +233,13 @@ exports.handler = function(event, context) {
 										dynamoDB.getItem(configReloadRequest, function(err, data) {
 											configReloads++;
 											if (err) {
-												console.log(err);
-												callback(err);
+												if (err === provisionedThroughputExceeded) {
+													console.log("Provisioned Throughput Exceeded on reload of " + configTable + " due to locked batch write");
+													callback();
+												} else {
+													console.log(err);
+													callback(err);
+												}
 											} else {
 												/*
 												 * reset the batch ID to the
@@ -422,8 +427,13 @@ exports.handler = function(event, context) {
 
 		dynamoDB.getItem(currentBatchRequest, function(err, data) {
 			if (err) {
-				console.log(err);
-				context.done(error, err);
+				if (err === provisionedThroughputExceeded) {
+					console.log("Provisioned Throughput Exceeded on read of " + batchTable);
+					callback();
+				} else {
+					console.log(err);
+					context.done(error, err);
+				}
 			} else if (!data || !data.Item) {
 				var msg = "No open pending Batch " + thisBatchId;
 				console.log(msg);
@@ -500,6 +510,9 @@ exports.handler = function(event, context) {
 								 * quietly
 								 */
 								context.done(null, null);
+							} else if (err.code === provisionedThroughputExceeded) {
+								console.log("Provisioned Throughput Exceeded on " + batchTable + " while trying to lock Batch");
+								context.done(error, err);
 							} else {
 								console.log("Unable to lock Batch " + thisBatchId);
 								context.done(error, err);
@@ -1147,7 +1160,7 @@ exports.handler = function(event, context) {
 									// sleep for bounded jitter time up to 1
 									// second and then retry
 									var timeout = common.randomInt(0, 1000);
-									console.log(provisionedThroughputExceeded + " while accessing Configuration. Retrying in " + timeout + " ms");
+									console.log(provisionedThroughputExceeded + " while accessing " + configTable + ". Retrying in " + timeout + " ms");
 									setTimeout(callback(), timeout);
 								} else {
 									// some other error - call the error
