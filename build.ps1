@@ -17,6 +17,6 @@ if($deploy.IsPresent) {
 	Remove-LMFunction -FunctionName $functionname -Force
 
 	Publish-LMFunction -FunctionName $functionname -FunctionZip $zipFile -Handler "index.handler" `
-	 -Runtime nodejs -Role $role_arn -Description "loads the unzipped csv's from billingUnzip into redshift tables" `
+	 -Runtime nodejs -Role $role_arn  `
 	 -MemorySize 128 -Timeout 60 -region us-west-2
 }
