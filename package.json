@@ -30,7 +30,7 @@
         }
     ],
     "files": [
-        "addAdditionalClusterEndpoint.js",
+              "addAdditionalClusterEndpoint.js",
         "common.js",
         "constants.js",
         "describeBatch.js",
@@ -46,8 +46,7 @@
         "reprocessBatch.js",
         "setup.js",
         "unlockBatch.js",
-        "upgrades.js",
-        "build.sh"
+        "upgrades.js"
     ],
     "repository": {
         "type": "git",
