@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <Name>aws-lambda-redshift-loader-cdn</Name>
+    <RootNamespace>aws-lambda-redshift-loader-cdn</RootNamespace>
+    <StartupFile>test.js</StartupFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{99999999-9999-9999-9999-999999999999}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{7990aba7-2c25-4d6f-9c3c-fe5951620b07}</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartWebBrowser>False</StartWebBrowser>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <ProjectTypeGuids>{3AF33F2E-1136-4D97-BBB7-1795711AC8B8};{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}</ProjectTypeGuids>
+    <ProjectView>ShowAllFiles</ProjectView>
+    <StartWebBrowser>false</StartWebBrowser>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="addAdditionalClusterEndpoint.js" />
+    <Compile Include="common.js" />
+    <Compile Include="constants.js" />
+    <Compile Include="describeBatch.js" />
+    <Compile Include="encryptValue.js" />
+    <Compile Include="index.js" />
+    <Compile Include="kmsCrypto.js" />
+    <Compile Include="processedFiles.js" />
+    <Compile Include="queryBatches.js" />
+    <Compile Include="reprocessBatch.js" />
+    <Compile Include="sample\scripts\createSampleConfig.js" />
+    <Compile Include="sample\scripts\dropSample.js" />
+    <Compile Include="setup.js" />
+    <Compile Include="test.js" />
+    <Compile Include="unlockBatch.js" />
+    <Compile Include="upgrades.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Architecture.png" />
+    <Content Include="build.sh" />
+    <Content Include="generate-trigger-file.py" />
+    <Content Include="LICENSE.txt" />
+    <Content Include="NOTICE.txt" />
+    <Content Include="package.json" />
+    <Content Include="README.md" />
+    <Content Include="sample\data\sample-redshift-file-for-lambda-loader1.csv" />
+    <Content Include="sample\data\sample-redshift-file-for-lambda-loader2.csv" />
+    <Content Include="sample\data\sample-redshift-file-for-lambda-loader3.csv" />
+    <Content Include="sample\data\sample-redshift-file-for-lambda-loader4.csv" />
+    <Content Include="sample\data\sample-redshift-file-for-lambda-loader5.csv" />
+    <Content Include="sample\README.md" />
+    <Content Include="sample\scripts\cleanup.sh" />
+    <Content Include="sample\scripts\configureSample.sh" />
+    <Content Include="sample\scripts\createRedshiftTable.sql" />
+    <Content Include="sample\scripts\createRedshiftUser.sql" />
+    <Content Include="sample\scripts\dropRedshiftTable.sql" />
+    <Content Include="sample\scripts\dropRedshiftUser.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="dist\" />
+    <Folder Include="sample\" />
+    <Folder Include="sample\data\" />
+    <Folder Include="sample\scripts\" />
+  </ItemGroup>
+  <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsTools.targets" />
+</Project>
