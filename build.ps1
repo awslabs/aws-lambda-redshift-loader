@@ -12,11 +12,30 @@ Write-Zip -Path  index.js,common.js,constants.js, kmsCrypto.js, upgrades.js, *.t
 
 
 if($deploy.IsPresent) {
-	$zipFile = Resolve-Path "dist\AWSLambdaRedshiftLoader-$version.zip"
+	$zipFilePath = Resolve-Path "dist\AWSLambdaRedshiftLoader-$version.zip"
 
-	Remove-LMFunction -FunctionName $functionname -Force
+	Try
+	{
+		$deployedFn =  Get-LMFunction -FunctionName $functionname
+		"Function Exists - trying to update"
+		try{
+			[system.io.stream]$zipStream = [system.io.File]::OpenRead($zipFilePath)
+			$ms = new-Object IO.MemoryStream
+			$zipStream.CopyTo($ms);
+			Update-LMFunctionCode -FunctionName $functionname -ZipFile $ms
+		}
+		catch{
+			$ErrorMessage = $_.Exception.Message
+			Write-Host $ErrorMessage
+			Write-Host  $_.Exception
+			break
+		}
 
-	Publish-LMFunction -FunctionName $functionname -FunctionZip $zipFile -Handler "index.handler" `
-	 -Runtime nodejs -Role $role_arn  `
+	}
+	Catch [InvalidOperationException]{
+		"Function is New - trying to Publish"
+		Publish-LMFunction -FunctionName $functionname -FunctionZip $zipFilePath -Handler "index.handler" `
+			 -Runtime nodejs -Role $role_arn -Description "loads the unzipped csv's from billingUnzip into redshift tables" `
 	 -MemorySize 128 -Timeout 60 -region us-west-2
+	}
 }
