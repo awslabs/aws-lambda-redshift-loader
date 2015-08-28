@@ -1167,7 +1167,7 @@ exports.handler = function(event, context) {
 									// second and then retry
 									var timeout = common.randomInt(0, 1000);
 									console.log(provisionedThroughputExceeded + " while accessing " + configTable + ". Retrying in " + timeout + " ms");
-									setTimeout(callback(), timeout);
+									setTimeout(callback, timeout);
 								} else {
 									// some other error - call the error
 									// callback
