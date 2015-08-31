@@ -31,7 +31,7 @@ Input file locations are buffered up to a specified batch size that you control,
 you can specify a time-based threshold which triggers a load. 
 
 You can specify any of the many COPY options available, and we support loading 
-both CSV files (of any delimiter), as well as JSON files (with or without JSON 
+CSV files (of any delimiter), AVRO files, as well as JSON files (with or without JSON
 paths specifications). All Passwords and Access Keys are encrypted for security. 
 With AWS Lambda you get automatic scaling, high availability, and built in Amazon 
 CloudWatch Logging.
@@ -380,7 +380,7 @@ Enter the Database Username | Y | The username which should be used to connect t
 Enter the Database Password | Y | The password for the database user. Will be encrypted before storage in Dynamo DB.
 Enter the Table to be Loaded | Y | The Table Name to be loaded with the input data.
 Should the Table be Truncated before Load? (Y/N) | N | Option to truncate the table prior to loading. Use this option if you will subsequently process the input patch and only want to see 'new' data with this ELT process.
-Enter the Data Format (CSV or JSON) | Y | Whether the data format is Character Separated Values or JSON data (http://docs.aws.amazon.com/redshift/latest/dg/copy-usage_notes-copy-from-json.html).
+Enter the Data Format (CSV, JSON or AVRO) | Y | Whether the data format is Character Separated Values, AVRO or JSON data (http://docs.aws.amazon.com/redshift/latest/dg/copy-usage_notes-copy-from-json.html).
 If CSV, Enter the CSV Delimiter | Yes if Data Format = CSV | Single character delimiter value, such as ',' (comma) or '|' (pipe).
 If JSON, Enter the JSON Paths File Location on S3 (or NULL for Auto) | Yes if Data Format = JSON | Location of the JSON paths file to use to map the file attributes to the database table. If not filled, the COPY command uses option 'json = auto' and the file attributes must have the same name as the column names in the target table.
 Enter the S3 Bucket for Redshift COPY Manifests | Y | The S3 Bucket in which to store the manifest files used to perform the COPY. Should not be the input location for the load.
