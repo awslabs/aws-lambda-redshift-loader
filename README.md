@@ -282,6 +282,8 @@ If so, use the 'processedFiles.js' script to query or delete processed files ent
 The script takes an 'operation type' and 'filename' as arguments; use -q to query 
 if a file has been processed, and -d to delete a given file entry. An example of 
 the processed files store can be seen below:
+
+![Processed Files Table](ProcessedFilesTable.png)
  
 ## Reprocessing a Batch
 If you ever need to reprocess a batch - for example if it failed to load the required 
