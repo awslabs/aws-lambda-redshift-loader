@@ -724,7 +724,7 @@ exports.handler = function(event, context) {
 	 */
 	exports.loadCluster = function(config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
 		/* build the redshift copy command */
-		var copyCommand = '';
+		var copyCommand = 'set statement_timeout to 60000;\n';
 		var copyOptions = "manifest\n";
 
 		// add the truncate option if requested
