@@ -23,12 +23,7 @@
     },
     "lib": "./lib",
     "main": "./index.js",
-    "licenses": [
-        {
-            "type": "Amazon Software License",
-            "url": "https://http://aws.amazon.com/asl"
-        }
-    ],
+    "license" : "SEE LICENSE IN LICENSE.txt",
     "files": [
         "addAdditionalClusterEndpoint.js",
         "common.js",
@@ -54,3 +49,4 @@
         "url": "http://github.com/awslabs/aws-lambda-redshift-loader"
     }
 }
+        

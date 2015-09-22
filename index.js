@@ -766,7 +766,7 @@ exports.handler = function(event, context) {
 						} else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
 							copyOptions = copyOptions + ' ' + config.dataFormat.S;
 
-							if (config.jsonPath !== undefined) {
+							if (!(config.jsonPath === undefined || config.jsonPath === null)) {
 								copyOptions = copyOptions + ' \'' + config.jsonPath.S + '\' \n';
 							} else {
 								copyOptions = copyOptions + ' \'auto\' \n';
@@ -870,7 +870,7 @@ exports.handler = function(event, context) {
 	 */
 	exports.failBatch = function(loadState, config, thisBatchId, s3Info, manifestInfo) {
 		console.log(loadState);
-		
+
 		if (config.failedManifestKey && manifestInfo) {
 			// copy the manifest to the failed location
 			manifestInfo.failedManifestPrefix = manifestInfo.manifestPrefix.replace(manifestInfo.manifestKey + '/', config.failedManifestKey.S + '/');
