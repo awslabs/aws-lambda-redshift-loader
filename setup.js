@@ -226,7 +226,7 @@ q_csvDelimiter = function(callback) {
 
 q_jsonPaths = function(callback) {
 	if (dynamoConfig.Item.dataFormat.S === 'JSON' || dynamoConfig.Item.dataFormat.S === 'AVRO') {
-		rl.question('Enter the JSON Paths File Location on S3 (or NULL for Auto) > ', function(answer) {
+		rl.question('Enter the JSON Paths File Location on S3 (or 'auto' instead of JSON Paths File) > ', function(answer) {
 			if (common.blank(answer) !== null) {
 				dynamoConfig.Item.jsonPath = {
 					S : answer
