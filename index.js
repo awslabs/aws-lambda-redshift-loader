@@ -761,6 +761,7 @@ exports.handler = function(event, context) {
 						}
 
 						// add data formatting directives to copy options
+						copyOptions = copyOptions + ' format '
 						if (config.dataFormat.S === 'CSV') {
 							copyOptions = copyOptions + ' csv delimiter \'' + config.csvDelimiter.S + '\'\n';
 						} else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
