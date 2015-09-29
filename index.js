@@ -725,7 +725,7 @@ exports.handler = function(event, context) {
 	exports.loadCluster = function(config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
 		/* build the redshift copy command */
 		var copyCommand = 'set statement_timeout to 60000;\n';
-		var copyOptions = "manifest\n";
+		var copyOptions = "manifest\nformat ";
 
 		// add the truncate option if requested
 		if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
@@ -1110,8 +1110,7 @@ exports.handler = function(event, context) {
 					inputInfo.key = decodeURIComponent(r.s3.object.key);
 
 					// remove the bucket name from the key, if we have
-					// received it
-					// - happens on object copy
+					// received it - this happens on object copy
 					inputInfo.key = inputInfo.key.replace(inputInfo.bucket + "/", "");
 
 					var keyComponents = inputInfo.key.split('/');
@@ -1120,19 +1119,21 @@ exports.handler = function(event, context) {
 					// remove the filename from the prefix value
 					var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
 
-					// if the event didn't have a prefix, and is just in the
-					// bucket, then just use the bucket name, otherwise add the
-					// prefix
+					// transform hive style dynamic prefixes into static
+					// match prefixes
 					if (searchKey && searchKey !== null && searchKey !== "") {
-						var regex = /(=\d+)+/;
-						// transform hive style dynamic prefixes into static
-						// match prefixes
-						do {
-							searchKey = searchKey.replace(regex, "=*");
-						} while (searchKey.match(regex) !== null);
+						var tokeniseSearchKey = searchKey.split('/');
+						var regex = /\=(.*)/;
 
-						searchKey = "/" + searchKey;
+						var processedTokens = tokeniseSearchKey.map(function(item) {
+							if (item) {
+								return item.replace(regex, "=*");
+							}
+						});
+
+						searchKey = '/' + processedTokens.join('/');
 					}
+
 					inputInfo.prefix = inputInfo.bucket + searchKey;
 
 					// load the configuration for this prefix
