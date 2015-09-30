@@ -179,7 +179,7 @@ the setup script automatically provisions the following tables:
 
 *** IMPORTANT ***
 The tables used by this function are created with a max read & write per-second rate
-of 5. This means that you will be able to accomodate 5 concurrent file uploads
+of 5. This means that you will be able to accommodate 5 concurrent file uploads
 per second being managed by ALL input locations which are event sources to this
 Lambda function. If you require more than 5 concurrent invocations/second, then 
 you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
