@@ -6,7 +6,7 @@
         http://aws.amazon.com/asl/
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
-*/
+ */
 
 var lambda = require('./index');
 
@@ -38,7 +38,7 @@ event = {
 				"arn" : "arn:aws:s3:::mybucket"
 			},
 			"object" : {
-				"key" : "input/sample-redshift-file+for-lambda-loader22.csv",
+				"key" : "input/sample-redshift-file+for-lambda-loader38.csv",
 				"size" : 1024,
 				"eTag" : "d41d8cd98f00b204e9800998ecf8427e"
 			}
@@ -56,5 +56,9 @@ context.done = function(status, message) {
 		process.exit(0);
 	}
 };
+
+context.getRemainingTimeInMillis = function() {
+	return 60000;
+}
 
 lambda.handler(event, context);

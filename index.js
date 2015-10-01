@@ -710,7 +710,7 @@ exports.handler = function(event, context) {
 							exports.closeBatch(null, config, thisBatchId, s3Info, manifestInfo, loadState);
 						} else {
 							// close the batch as failure
-							exports.failBatch(loadState, config, thisBatchId, s3Info, manifestInfo, loadState);
+							exports.failBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
 						}
 					}
 				});
@@ -724,8 +724,26 @@ exports.handler = function(event, context) {
 	 */
 	exports.loadCluster = function(config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
 		/* build the redshift copy command */
-		var copyCommand = 'set statement_timeout to 60000;\n';
-		var copyOptions = "manifest\nformat ";
+		var copyCommand = '';
+
+		// set the statement timeout to 10 seconds less than the remaining
+		// execution time on the lambda function, or 60 seconds if we can't
+		// resolve the time remaining. fail the lambda function if we have less
+		// than 5 seconds remaining
+		var remainingMillis;
+		if (context) {
+			remainingMillis = context.getRemainingTimeInMillis() - 10000;
+
+			if (remainingMillis < 5000) {
+				exports.failBatch("Remaining duration of " + remainingMillis + ' insufficient to load cluster', config, thisBatchId, s3Info, manifestInfo);
+			} else {
+				copyCommand = 'set statement_timeout to ' + (remainingMillis) + ';\n';
+			}
+		} else {
+			copyCommand = 'set statement_timeout to 60000;\n';
+		}
+
+		var copyOptions = "manifest ";
 
 		// add the truncate option if requested
 		if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
@@ -742,106 +760,106 @@ exports.handler = function(event, context) {
 		}
 
 		// decrypt the encrypted items
-		kmsCrypto.decryptAll(encryptedItems,
-				function(err, decryptedConfigItems) {
-					if (err) {
-						callback(err, {
-							status : ERROR,
-							cluster : clusterInfo.clusterEndpoint.S
-						});
-					} else {
-						// create the credentials section
-						var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[0].toString();
-
-						if (typeof clusterInfo.columnList === 'undefined') {
-							copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
-						} else {
-							copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://'
-									+ manifestInfo.manifestPath + '\'';
-						}
-
-						// add data formatting directives to copy options
-						if (config.dataFormat.S === 'CSV') {
-							copyOptions = copyOptions + ' csv delimiter \'' + config.csvDelimiter.S + '\'\n';
-						} else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
-							copyOptions = copyOptions + ' ' + config.dataFormat.S;
-
-							if (!(config.jsonPath === undefined || config.jsonPath === null)) {
-								copyOptions = copyOptions + ' \'' + config.jsonPath.S + '\' \n';
-							} else {
-								copyOptions = copyOptions + ' \'auto\' \n';
-							}
-						} else {
-							callback(null, {
-								status : ERROR,
-								error : 'Unsupported data format ' + config.dataFormat.S,
-								cluster : clusterInfo.clusterEndpoint.S
-							});
-						}
-
-						// add compression directives
-						if (config.compression !== undefined) {
-							copyOptions = copyOptions + ' ' + config.compression.S + '\n';
-						}
-
-						// add copy options
-						if (config.copyOptions !== undefined) {
-							copyOptions = copyOptions + config.copyOptions.S + '\n';
-						}
-
-						// add the encryption option to the copy command, and
-						// the master
-						// symmetric key clause to the credentials
-						if (config.masterSymmetricKey) {
-							copyOptions = copyOptions + "encrypted\n";
-
-							if (decryptedConfigItems.length === 3) {
-								credentials = credentials + ";master_symmetric_key=" + decryptedConfigItems[2].toString();
-							} else {
-								console.log(JSON.stringify(decryptedConfigItems));
-
-								// we didn't get a decrypted symmetric key back
-								// so fail
-								callback(null, {
-									status : ERROR,
-									error : "KMS did not return a Decrypted Master Symmetric Key Value from: " + config.masterSymmetricKey.S,
-									cluster : clusterInfo.clusterEndpoint.S
-								});
-							}
-						}
-
-						// build the final copy command
-						copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
-
-						if (debug) {
-							console.log(copyCommand);
-						}
-
-						// build the connection string
-						var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[1].toString()) + "@"
-								+ clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N;
-						if (clusterInfo.clusterDB) {
-							dbString = dbString + '/' + clusterInfo.clusterDB.S;
-						}
-						console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
-
-						/*
-						 * connect to database and run the copy command
-						 */
-						pg.connect(dbString, function(err, client, done) {
+		kmsCrypto
+				.decryptAll(encryptedItems,
+						function(err, decryptedConfigItems) {
 							if (err) {
-								callback(null, {
+								callback(err, {
 									status : ERROR,
-									error : err,
 									cluster : clusterInfo.clusterEndpoint.S
 								});
 							} else {
-								client.query(copyCommand, function(err, result) {
-									// release the client thread back to
-									// the pool
-									done();
+								// create the credentials section
+								var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[0].toString();
 
-									// handle errors and cleanup
+								if (typeof clusterInfo.columnList === 'undefined') {
+									copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
+								} else {
+									copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://'
+											+ manifestInfo.manifestPath + '\'';
+								}
+
+								// add data formatting directives to copy
+								// options
+								if (config.dataFormat.S === 'CSV') {
+									// if removequotes or escape has been used
+									// in copy
+									// options, then we wont use the CSV
+									// formatter
+									if (!(config.copyOptions && (config.copyOptions.S.toUpperCase().indexOf('(REMOVEQUOTES') > -1 || config.copyOptions.S.toUpperCase().indexOf(
+											'ESCAPE') > -1))) {
+										copyOptions = copyOptions + 'format csv ';
+									}
+
+									copyOptions = copyOptions + 'delimiter \'' + config.csvDelimiter.S + '\'\n';
+								} else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
+									copyOptions = copyOptions + ' format ' + config.dataFormat.S;
+
+									if (!(config.jsonPath === undefined || config.jsonPath === null)) {
+										copyOptions = copyOptions + ' \'' + config.jsonPath.S + '\' \n';
+									} else {
+										copyOptions = copyOptions + ' \'auto\' \n';
+									}
+								} else {
+									callback(null, {
+										status : ERROR,
+										error : 'Unsupported data format ' + config.dataFormat.S,
+										cluster : clusterInfo.clusterEndpoint.S
+									});
+								}
+
+								// add compression directives
+								if (config.compression !== undefined) {
+									copyOptions = copyOptions + ' ' + config.compression.S + '\n';
+								}
+
+								// add copy options
+								if (config.copyOptions !== undefined) {
+									copyOptions = copyOptions + config.copyOptions.S + '\n';
+								}
+
+								// add the encryption option to the copy
+								// command, and
+								// the master
+								// symmetric key clause to the credentials
+								if (config.masterSymmetricKey) {
+									copyOptions = copyOptions + "encrypted\n";
+
+									if (decryptedConfigItems.length === 3) {
+										credentials = credentials + ";master_symmetric_key=" + decryptedConfigItems[2].toString();
+									} else {
+										console.log(JSON.stringify(decryptedConfigItems));
+
+										// we didn't get a decrypted symmetric
+										// key back
+										// so fail
+										callback(null, {
+											status : ERROR,
+											error : "KMS did not return a Decrypted Master Symmetric Key Value from: " + config.masterSymmetricKey.S,
+											cluster : clusterInfo.clusterEndpoint.S
+										});
+									}
+								}
+
+								// build the final copy command
+								copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+
+								if (debug) {
+									console.log(copyCommand);
+								}
+
+								// build the connection string
+								var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[1].toString()) + "@"
+										+ clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N;
+								if (clusterInfo.clusterDB) {
+									dbString = dbString + '/' + clusterInfo.clusterDB.S;
+								}
+								console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
+
+								/*
+								 * connect to database and run the copy command
+								 */
+								pg.connect(dbString, function(err, client, done) {
 									if (err) {
 										callback(null, {
 											status : ERROR,
@@ -849,19 +867,32 @@ exports.handler = function(event, context) {
 											cluster : clusterInfo.clusterEndpoint.S
 										});
 									} else {
-										console.log("Load Complete");
+										client.query(copyCommand, function(err, result) {
+											// release the client thread back to
+											// the pool
+											done();
 
-										callback(null, {
-											status : OK,
-											error : null,
-											cluster : clusterInfo.clusterEndpoint.S
+											// handle errors and cleanup
+											if (err) {
+												callback(null, {
+													status : ERROR,
+													error : err,
+													cluster : clusterInfo.clusterEndpoint.S
+												});
+											} else {
+												console.log("Load Complete");
+
+												callback(null, {
+													status : OK,
+													error : null,
+													cluster : clusterInfo.clusterEndpoint.S
+												});
+											}
 										});
 									}
 								});
 							}
 						});
-					}
-				});
 	};
 
 	/**
@@ -889,8 +920,7 @@ exports.handler = function(event, context) {
 					console.log('Created new Failed Manifest ' + manifestInfo.failedManifestPath);
 
 					// update the batch entry showing the failed
-					// manifest
-					// location
+					// manifest location
 					var manifestModification = {
 						Key : {
 							batchId : {
