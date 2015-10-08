@@ -75,7 +75,7 @@ To deploy the function:
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and enter the name MyLambdaDBLoader (for example).
 3.	Under Code entry type select Upload a zip file and upload the [AWSLambdaRedshiftLoader-2.0.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.0.0.zip) from the dist folder
-4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role.  We also recommend using the max timeout for the function, which in preview is 60 seconds.
+4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role.  We also recommend using the max timeout for the function to accomodate long COPY times.
 
 Next, configure an event source, which delivers S3 events to your AWS Lambda function.
 
