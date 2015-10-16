@@ -79,8 +79,7 @@ var getOrCreateMasterKey = function(callback) {
 						};
 						kms.createAlias(createAliasParams, function(err, createAliasData) {
 							if (err) {
-								console.log("Error during creation of Alias " + moduleKeyName + " for Master Key "
-										+ createKeyData.KeyMetadata.Arn);
+								console.log("Error during creation of Alias " + moduleKeyName + " for Master Key " + createKeyData.KeyMetadata.Arn);
 								return callback(err);
 							} else {
 								// invoke
@@ -159,6 +158,25 @@ var encryptAll = function(plaintextArray, afterEncryptionCallback) {
 };
 exports.encryptAll = encryptAll;
 
+var encryptMap = function(valueMap, afterEncryptionCallback) {
+	var encryptedValueMap = {};
+
+	async.each(Object.keys(valueMap), function(key, callback) {
+		encrypt(valueMap[key], function(err, ciphertext) {
+			if (err) {
+				callback(err);
+			} else {
+				encryptedValueMap[key] = ciphertext;
+				callback();
+			}
+		});
+	}, function(err) {
+		// call the after decryption callback with the result data
+		return afterEncryptionCallback(err, encryptedValueMap);
+	});
+};
+exports.encryptMap = encryptMap;
+
 /**
  * Function to decrypt a value using the module's master key<br>
  * Parameters:
@@ -209,6 +227,27 @@ var decryptAll = function(encryptedArray, afterDecryptionCallback) {
 	});
 };
 exports.decryptAll = decryptAll;
+
+var decryptMap = function(encryptedValueMap, afterDecryptionCallback) {
+	var decryptedValueMap = {};
+
+	async.each(Object.keys(encryptedValueMap), function(key, callback) {
+		// decrypt the value using internal decrypt
+		decrypt(encryptedValueMap[key], function(err, plaintext) {
+			if (err) {
+				console.log(JSON.stringify(err));
+				callback(err);
+			} else {
+				decryptedValueMap[key] = plaintext;
+				callback();
+			}
+		});
+	}, function(err) {
+		// call the after decryption callback with the result data
+		return afterDecryptionCallback(err, decryptedValueMap);
+	});
+};
+exports.decryptMap = decryptMap;
 
 var bufferToString = function(buffer) {
 	return JSON.stringify(buffer);

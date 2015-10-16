@@ -555,7 +555,7 @@ exports.handler = function(event, context) {
 										lastBatchRotation : {
 											Action : 'PUT',
 											Value : {
-												N : '' + common.now()
+												S : common.getFormattedDate()
 											}
 										}
 									}
@@ -750,18 +750,37 @@ exports.handler = function(event, context) {
 			copyCommand = 'truncate table ' + clusterInfo.targetTable.S + ';\n';
 		}
 
-		var encryptedItems = [ kmsCrypto.stringToBuffer(config.secretKeyForS3.S), kmsCrypto.stringToBuffer(clusterInfo.connectPassword.S) ];
+		var encryptedItems = {};
+		var useLambdaCredentialsToLoad = true;
+		const
+		s3secretKeyMapEntry = "s3secretKey";
+		const
+		passwordKeyMapEntry = "clusterPassword";
+		const
+		symmetricKeyMapEntry = "symmetricKey";
+
+		if (config.secretKeyForS3) {
+			encryptedItems[s3secretKeyMapEntry] = kmsCrypto.stringToBuffer(config.secretKeyForS3.S);
+			useLambdaCredentialsToLoad = false;
+		}
+
+		if (debug) {
+			console.log("Loading Cluster " + clusterInfo.clusterEndpoint.S + " with " + (useLambdaCredentialsToLoad == true ? "Lambda" : "configured") + " credentials");
+		}
+
+		// add the cluster password
+		encryptedItems[passwordKeyMapEntry] = kmsCrypto.stringToBuffer(clusterInfo.connectPassword.S);
 
 		// add the master encryption key to the list of items to be decrypted,
-		// if
-		// there is one
+		// if there is one
 		if (config.masterSymmetricKey) {
-			encryptedItems[encryptedItems.length] = kmsCrypto.stringToBuffer(config.masterSymmetricKey.S);
+			encryptedItems[symmetricKeyMapEntry] = kmsCrypto.stringToBuffer(config.masterSymmetricKey.S);
 		}
 
 		// decrypt the encrypted items
 		kmsCrypto
-				.decryptAll(encryptedItems,
+				.decryptMap(
+						encryptedItems,
 						function(err, decryptedConfigItems) {
 							if (err) {
 								callback(err, {
@@ -770,7 +789,14 @@ exports.handler = function(event, context) {
 								});
 							} else {
 								// create the credentials section
-								var credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[0].toString();
+								var credentials;
+
+								if (useLambdaCredentialsToLoad === true) {
+									credentials = 'aws_access_key_id=' + aws.config.credentials.accessKeyId + ';aws_secret_access_key=' + aws.config.credentials.secretAccessKey
+											+ ';token=' + aws.config.credentials.sessionToken;
+								} else {
+									credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[s3secretKeyMapEntry].toString();
+								}
 
 								if (typeof clusterInfo.columnList === 'undefined') {
 									copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
@@ -783,8 +809,7 @@ exports.handler = function(event, context) {
 								// options
 								if (config.dataFormat.S === 'CSV') {
 									// if removequotes or escape has been used
-									// in copy
-									// options, then we wont use the CSV
+									// in copy options, then we wont use the CSV
 									// formatter
 									if (!(config.copyOptions && (config.copyOptions.S.toUpperCase().indexOf('(REMOVEQUOTES') > -1 || config.copyOptions.S.toUpperCase().indexOf(
 											'ESCAPE') > -1))) {
@@ -819,14 +844,13 @@ exports.handler = function(event, context) {
 								}
 
 								// add the encryption option to the copy
-								// command, and
-								// the master
+								// command, and the master
 								// symmetric key clause to the credentials
 								if (config.masterSymmetricKey) {
 									copyOptions = copyOptions + "encrypted\n";
 
-									if (decryptedConfigItems.length === 3) {
-										credentials = credentials + ";master_symmetric_key=" + decryptedConfigItems[2].toString();
+									if (!decryptedConfigItems[symmetricKeyMapEntry]) {
+										credentials = credentials + ";master_symmetric_key=" + decryptedConfigItems[symmetricKeyMapEntry].toString();
 									} else {
 										console.log(JSON.stringify(decryptedConfigItems));
 
@@ -849,7 +873,7 @@ exports.handler = function(event, context) {
 								}
 
 								// build the connection string
-								var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[1].toString()) + "@"
+								var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString()) + "@"
 										+ clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N;
 								if (clusterInfo.clusterDB) {
 									dbString = dbString + '/' + clusterInfo.clusterDB.S;

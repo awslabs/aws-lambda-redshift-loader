@@ -2,7 +2,9 @@
 
 With this AWS Lambda function, it's never been easier to get file data into Amazon 
 Redshift. You simply push files into a variety of locations on Amazon S3, and 
-have them automatically loaded into your Amazon Redshift clusters. 
+have them automatically loaded into your Amazon Redshift clusters.
+
+For automated delivery of streaming data to S3 and Redshift, also consider using Amazon Kinesis Firehose: https://aws.amazon.com/kinesis/firehose 
 
 ## Using AWS Lambda with Amazon Redshift
 Amazon Redshift is a fully managed petabyte scale data warehouse available for 
@@ -25,7 +27,7 @@ hosted and scaled, while providing you with a fine-grained pricing structure.
 ![Loader Architecture](Architecture.png)
 
 The function maintains a list of all the files to be loaded from S3 into Amazon 
-Redshift with DynamoDB. This list allows us to confirm that a file is loaded 
+Redshift using a DynamoDB table. This list allows us to confirm that a file is loaded 
 only one time, and allows you to determine when a file was loaded and into which table. 
 Input file locations are buffered up to a specified batch size that you control, or 
 you can specify a time-based threshold which triggers a load. 
@@ -39,7 +41,7 @@ CloudWatch Logging.
 Finally, we've provided tools to manage the status of your load processes, with 
 built in configuration management and the ability to monitor batch status and 
 troubleshoot issues. We also support sending notifications of load status through 
-Simple Notification Service  (SNS) (http://aws.amazon.com/sns), so you have visibility 
+Simple Notification Service - SNS (http://aws.amazon.com/sns), so you have visibility 
 into how your loads are progressing over time.
 
 ## Getting Access to the AWS Lambda Redshift Database Loader
@@ -74,7 +76,7 @@ To deploy the function:
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and enter the name MyLambdaDBLoader (for example).
-3.	Under Code entry type select Upload a zip file and upload the [AWSLambdaRedshiftLoader-2.0.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.0.0.zip) from the dist folder
+3.	Under Code entry type select Upload a zip file and upload the [AWSLambdaRedshiftLoader-2.1.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.1.0.zip) from the dist folder
 4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role.  We also recommend using the max timeout for the function to accomodate long COPY times.
 
 Next, configure an event source, which delivers S3 events to your AWS Lambda function.
@@ -90,21 +92,22 @@ We previously released version 1.0 in distribution AWSLambdaRedshiftLoader.zip,
 which didn't use the Amazon Key Management Service for encryption. If you've 
 previously deployed and used version 1.0 and want to upgrade to version 1.1, 
 then you'll need to recreate your configuration by running `node setup.js` and 
-reentering the previous values including connection password and S3 Secret Key. 
+reentering the previous values including connection password, symmetric encryption key, and optionally an S3 Secret Key. 
 You'll also need to upgrade the IAM policy for the Lambda Execution Role as listed 
-below, as it now has permissions to talk to the Key Management Service.
+below, as it now requires permissions to talk to the Key Management Service.
 
-Futhermore, version 2.0.0 adds support for loading multiple Redshift clusters in 
-parallel. You can deploy the 2.0.0 version with a 1.1x configuration, and the 
+Furthermore, version 2.0.0 adds support for loading multiple Redshift clusters in 
+parallel. You can deploy the 2.x versions with a 1.1x configuration, and the 
 Lambda function will transparently upgrade your configuration to a 2.x compatible 
-format. This uses a loadClusters List type in Dynamo DB to track all clusters to 
+format. This uses a loadClusters List type in DynamoDB to track all clusters to 
 be loaded.
 
 ## Getting Started - Lambda Execution Role
 You also need to add an IAM policy as shown below to the role that AWS Lambda 
 uses when it runs. Once your function is deployed, add the following policy to 
-the lambda_exec_role to enable AWS Lambda to call SNS, use DynamoDB, write Manifest 
-files to S3, and perform encryption with the AWS Key Management Service:
+the `LambdaExecRole` to enable AWS Lambda to call SNS, use DynamoDB, write Manifest 
+files to S3, perform encryption with the AWS Key Management Service, and pass STS temporary
+credentials to Redshift for the COPY command:
 
 ```
 {
@@ -186,28 +189,30 @@ you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
 the Write IOPS on LambdaRedshiftBatches and LambdaRedshiftProcessedFiles to the 
 maximum number of files to be concurrently processed by all Configurations.
 
-Also please NOTE that AWS Lambda only allows 100 concurrent function invocations
-as of 17 Apr 2015, so more than 100 concurrent files will result in Lambda throttling
-and there will NOT be any database load done, nor will CloudWatch logs be generated.
+# Security
+The database password, as well as the a master symmetric key used for encryption 
+will be encrypted by the Amazon Key Management Service (https://aws.amazon.com/kms). This encryption is done with a KMS  
+Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
 
-The database password, as well as the secret key used by Amazon Redshift to access 
-S3 will be encrypted by the Amazon Key Management Service. Setup will create a 
-new Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
+When the Redshift COPY command is created, by default the Lambda function will use a
+temporary STS token as credentials for Redshift to use when accessing S3. You can also optionally configure
+an Access Key and Secret Key which will be used instead, and
+the setup utility will encrypt the secret key.
+
+## Loading multiple Redshift Clusters concurrently
+Version 2.0.0 adds the ability to load multiple clusters at the same time. To 
+configure an additional cluster, you must first have deployed the 
+```AWSLambdaRedshiftLoader-2.1.0.zip``` and had your configuration upgraded to 2.x 
+format (you will see a new loadClusters List type in your configuration). You 
+can then use the ```addAdditionalClusterEndpoint.js``` to add new clusters into 
+a single configuration. This will require you enter the vital details for the 
+cluster including endpoint address and port, DB name and password.
 
 You are now ready to go. Simply place files that meet the configured format into 
 S3 at the location that you configured as the input location, and watch as AWS 
 Lambda loads them into your Amazon Redshift Cluster. You are charged by the number 
 of input files that are processed, plus a small charge for DynamoDB. You now have 
 a highly available load framework which doesn't require you manage servers!
-
-## Loading multiple Redshift Clusters concurrently
-Version 2.0.0 adds the ability to load multiple clusters at the same time. To 
-configure an additional cluster, you must first have deployed the 
-AWSLambdaRedshiftLoader-2.0.0.zip and had your configuration upgraded to 2.x 
-format (you will see a new loadClusters List type in your configuration). You 
-can then use the ```addAdditionalClusterEndpoint.js``` to add new clusters into 
-a single configuration. This will require you enter the vital details for the 
-cluster including endpoint address and port, DB name and password.
 
 ## Viewing Previous Batches & Status
 If you ever need to see what happened to batch loads into your Cluster, you can 
@@ -388,8 +393,8 @@ If JSON, Enter the JSON Paths File Location on S3 (or NULL for Auto) | Yes if Da
 Enter the S3 Bucket for Redshift COPY Manifests | Y | The S3 Bucket in which to store the manifest files used to perform the COPY. Should not be the input location for the load.
 Enter the Prefix for Redshift COPY Manifests| Y | The prefix for COPY manifests.
 Enter the Prefix to use for Failed Load Manifest Storage | N | On failure of a COPY, you can elect to have the manifest file copied to an alternative location. Enter that prefix, which will be in the same bucket as the rest of your COPY manifests.
-Enter the Access Key used by Redshift to get data from S3 | Y | Amazon Redshift must provide credentials to S3 to be allowed to read data. Enter the Access Key for the Account or IAM user that Amazon Redshift should use.
-Enter the Secret Key used by Redshift to get data from S3 | Y | The Secret Key for the Access Key used to get data from S3. Will be encrypted prior to storage in DynamoDB.
+Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | Amazon Redshift must provide credentials to S3 to be allowed to read data. Enter the Access Key for the Account or IAM user that Amazon Redshift should use.
+Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | The Secret Key for the Access Key used to get data from S3. Will be encrypted prior to storage in DynamoDB.
 Enter the SNS Topic ARN for Failed Loads | N | If you want notifications to be sent to an SNS Topic on successful Load, enter the ARN here. This would be in format 'arn:aws:sns:<region>:<account number>:<topic name>.
 Enter the SNS Topic ARN for Successful Loads  | N | SNS Topic ARN for notifications when a batch COPY fails.
 How many files should be buffered before loading? | Y | Enter the number of files placed into the input location before a COPY of the current open batch should be performed. Recommended to be an even multiple of the number of CPU's in your cluster. You should set the multiple such that this count causes loads to be every 2-5 minutes.
