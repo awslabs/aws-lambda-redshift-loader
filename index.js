@@ -811,7 +811,7 @@ exports.handler = function(event, context) {
 									// if removequotes or escape has been used
 									// in copy options, then we wont use the CSV
 									// formatter
-									if (!(config.copyOptions && (config.copyOptions.S.toUpperCase().indexOf('(REMOVEQUOTES') > -1 || config.copyOptions.S.toUpperCase().indexOf(
+									if (!(config.copyOptions && (config.copyOptions.S.toUpperCase().indexOf('REMOVEQUOTES') > -1 || config.copyOptions.S.toUpperCase().indexOf(
 											'ESCAPE') > -1))) {
 										copyOptions = copyOptions + 'format csv ';
 									}
