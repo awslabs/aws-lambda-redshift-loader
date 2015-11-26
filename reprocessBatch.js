@@ -9,11 +9,12 @@
  */
 
 var aws = require('aws-sdk');
+var async = require('async');
 require('./constants');
+var common = require('./common');
 
 if (process.argv.length < 4) {
-	console
-			.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
+	console.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
 	process.exit(ERROR);
 }
 var setRegion = process.argv[2];
@@ -30,14 +31,12 @@ var s3 = new aws.S3({
 	region : setRegion
 });
 
-var batchEntries = undefined;
-
-var processFile = function(index, thisBatchId) {
+var processFile = function(batchEntry, callback) {
 	// delete the processed file entry
 	var fileItem = {
 		Key : {
 			loadFile : {
-				S : batchEntries[index]
+				S : batchEntry
 			}
 		},
 		TableName : filesTable
@@ -46,44 +45,90 @@ var processFile = function(index, thisBatchId) {
 		if (err) {
 			console.log(filesTable + " Delete Error");
 			console.log(err);
-			process.exit(ERROR);
+			callback(err);
 		} else {
 			// issue a same source/target copy command to S3, which will cause
 			// Lambda to get a new event
-			var bucketName = batchEntries[index].split("/")[0];
-			var fileKey = batchEntries[index].replace(bucketName + "\/", "");
+			var bucketName = batchEntry.split("/")[0];
+			var fileKey = batchEntry.replace(bucketName + "\/", "");
 			var copySpec = {
 				Metadata : {
-					CopyReason : "AWS Lambda Redshift Loader Reprocess Batch "
-							+ thisBatchId
+					CopyReason : "AWS Lambda Redshift Loader Reprocess Batch " + thisBatchId
 				},
 				MetadataDirective : "REPLACE",
 				Bucket : bucketName,
 				Key : fileKey,
-				CopySource : batchEntries[index]
+				CopySource : batchEntry
 			};
 
 			s3.copyObject(copySpec, function(err, data) {
 				if (err) {
 					console.log(err);
-					process.exit(ERROR);
+					callback(err);
 				} else {
-					console.log("Submitted reprocess request for "
-							+ batchEntries[index]);
+					console.log("Submitted reprocess request for " + batchEntry);
 
-					if (index + 1 < batchEntries.length) {
-						// call this function with the next file entry index as
-						// a reference
-						processFile(index + 1);
-					} else {
-						console.log("Processed " + batchEntries.length
-								+ " Files");
-						process.exit(OK);
-					}
+					// done - call the callback
+					callback();
 				}
 			});
 		}
 	});
+};
+
+var updateBatchStatus = function(thisBatchId, err, results) {
+	if (err) {
+		console.log(JSON.stringify(err));
+		process.exit(ERROR);
+	} else {
+		var updateBatchStatus = {
+			Key : {
+				batchId : {
+					S : thisBatchId,
+				},
+				s3Prefix : {
+					S : prefix
+				}
+			},
+			TableName : batchTable,
+			AttributeUpdates : {
+				status : {
+					Action : 'PUT',
+					Value : {
+						S : 'reprocessed'
+					}
+				},
+				lastUpdate : {
+					Action : 'PUT',
+					Value : {
+						N : '' + common.now()
+					}
+				}
+			},
+			// the batch to be unlocked must be in locked or error state - we
+			// can't reopen 'complete' batches
+			Expected : {
+				status : {
+					AttributeValueList : [ {
+						S : 'locked'
+					}, {
+						S : 'error'
+					} ],
+					ComparisonOperator : 'IN'
+				}
+			}
+		};
+
+		dynamoDB.updateItem(updateBatchStatus, function(err, data) {
+			if (err) {
+				console.log(JSON.stringify(err));
+				process.exit(ERROR);
+			} else {
+				console.log("Batch " + thisBatchId + " Submitted for Reprocessing");
+				process.exit(OK);
+			}
+		})
+	}
 };
 
 // fetch the batch
@@ -112,16 +157,16 @@ dynamoDB.getItem(getBatch, function(err, data) {
 			} else {
 				// load the global batch entries so that we can process it in
 				// callbacks
-				batchEntries = data.Item.entries.SS;
+				var batchEntries = data.Item.entries.SS;
 
-				// call processFile with 0 index to tell it to process the first
-				// item in
-				// the array
-				processFile(0, thisBatchId);
+				if (!data.Item.entries.SS) {
+					console.log("Batch is Empty!");
+				} else {
+					async.map(data.Item.entries.SS, processFile, updateBatchStatus.bind(undefined, thisBatchId));
+				}
 			}
 		} else {
-			console.log("Unable to retrieve batch " + thisBatchId
-					+ " for prefix " + prefix);
+			console.log("Unable to retrieve batch " + thisBatchId + " for prefix " + prefix);
 			process.exit(ERROR);
 		}
 	}
