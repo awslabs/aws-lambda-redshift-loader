@@ -271,7 +271,6 @@ q_failedManifestPrefix = function(callback) {
 
 q_accessKey = function(callback) {
 	rl.question('Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-		common.validateNotNull(answer, 'You Must Provide an Access Key', rl);
 		dynamoConfig.Item.accessKeyForS3 = {
 			S : answer
 		};
@@ -281,8 +280,6 @@ q_accessKey = function(callback) {
 
 q_secretKey = function(callback) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-		common.validateNotNull(answer, 'You Must Provide a Secret Key', rl);
-
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
 			if (err) {
 				console.log(JSON.stringify(err));
