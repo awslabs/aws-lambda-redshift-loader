@@ -9,7 +9,7 @@
  */
 
 /**
- * Ask questions of the end user via STDIN and then setup the dynamo DB table
+ * Ask questions of the end user via STDIN and then setup the DynamoDB table
  * entry for the configuration when done
  */
 var pjson = require('./package.json');
@@ -271,6 +271,8 @@ q_failedManifestPrefix = function(callback) {
 
 q_accessKey = function(callback) {
 	rl.question('Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
+                if (!answer) callback(null);
+
 		dynamoConfig.Item.accessKeyForS3 = {
 			S : answer
 		};
@@ -280,6 +282,8 @@ q_accessKey = function(callback) {
 
 q_secretKey = function(callback) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
+                if (!answer) callback(null);
+
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
 			if (err) {
 				console.log(JSON.stringify(err));
