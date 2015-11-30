@@ -56,8 +56,8 @@ var qs = [];
 q_region = function(callback) {
 	rl.question('Enter the Region for the Configuration > ', function(answer) {
 		if (common.blank(answer) !== null) {
-			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1",
-					"eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer.toLowerCase(), rl);
+			common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ],
+					answer.toLowerCase(), rl);
 
 			setRegion = answer.toLowerCase();
 
@@ -177,7 +177,6 @@ q_table = function(callback) {
 	});
 };
 
-
 q_columnList = function(callback) {
 	rl.question('Enter the comma-delimited column list (optional) > ', function(answer) {
 		if (answer && answer !== null && answer !== "") {
@@ -271,30 +270,34 @@ q_failedManifestPrefix = function(callback) {
 
 q_accessKey = function(callback) {
 	rl.question('Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-                if (!answer) callback(null);
-
-		dynamoConfig.Item.accessKeyForS3 = {
-			S : answer
-		};
-		callback(null);
+		if (!answer) {
+			callback(null);
+		} else {
+			dynamoConfig.Item.accessKeyForS3 = {
+				S : answer
+			};
+			callback(null);
+		}
 	});
 };
 
 q_secretKey = function(callback) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-                if (!answer) callback(null);
-
-		kmsCrypto.encrypt(answer, function(err, ciphertext) {
-			if (err) {
-				console.log(JSON.stringify(err));
-				process.exit(ERROR);
-			} else {
-				dynamoConfig.Item.secretKeyForS3 = {
-					S : kmsCrypto.toLambdaStringFormat(ciphertext)
-				};
-				callback(null);
-			}
-		});
+		if (!answer) {
+			callback(null);
+		} else {
+			kmsCrypto.encrypt(answer, function(err, ciphertext) {
+				if (err) {
+					console.log(JSON.stringify(err));
+					process.exit(ERROR);
+				} else {
+					dynamoConfig.Item.secretKeyForS3 = {
+						S : kmsCrypto.toLambdaStringFormat(ciphertext)
+					};
+					callback(null);
+				}
+			});
+		}
 	});
 };
 
