@@ -41,6 +41,120 @@ var uuid = require('node-uuid');
 var pg = require('pg');
 var upgrade = require('./upgrades');
 
+String.prototype.shortenPrefix = function() {
+	var tokens = this.split("/");
+
+	if (tokens && tokens.length > 0) {
+		return tokens.slice(0, tokens.length - 1).join("/");
+	} else {
+		return;
+	}
+};
+
+String.prototype.transformHiveStylePrefix = function() {
+	// transform hive style dynamic prefixes into static
+	// match prefixes
+
+	var tokeniseSearchKey = this.split('/');
+	var regex = /\=(.*)/;
+
+	var processedTokens = tokeniseSearchKey.map(function(item) {
+		if (item) {
+			return item.replace(regex, "=*");
+		}
+	});
+
+	return processedTokens.join('/');
+};
+
+exports.getConfigWithRetry = function(prefix, callback) {
+	var proceed = false;
+	var lookupConfigTries = 10;
+	var tryNumber = 0;
+	var configData = null;
+
+	var dynamoLookup = {
+		Key : {
+			s3Prefix : {
+				S : prefix
+			}
+		},
+		TableName : configTable,
+		ConsistentRead : true
+	};
+
+	async.whilst(function() {
+		// return OK if the proceed flag has been set, or if
+		// we've hit the retry count
+		return !proceed && tryNumber < lookupConfigTries;
+	}, function(callback) {
+		tryNumber++;
+
+		// lookup the configuration item, and run
+		// foundConfig on completion
+		dynamoDB.getItem(dynamoLookup, function(err, data) {
+			if (err) {
+				if (err.code === provisionedThroughputExceeded) {
+					// sleep for bounded jitter time up to 1
+					// second and then retry
+					var timeout = common.randomInt(0, 1000);
+					console.log(provisionedThroughputExceeded + " while accessing " + configTable + ". Retrying in " + timeout + " ms");
+					setTimeout(callback, timeout);
+				} else {
+					// some other error - call the error
+					// callback
+					callback(err);
+				}
+			} else {
+				configData = data;
+				proceed = true;
+				callback(null);
+			}
+		});
+	}, function(err) {
+		if (err) {
+			callback(err);
+		} else {
+			callback(null, configData);
+		}
+	});
+};
+
+exports.resolveConfig = function(prefix, successCallback, noConfigFoundCallback) {
+	var searchPrefix = prefix;
+	var config;
+
+	async.until(function() {
+		// run until we have found a configuration item, or the search
+		// prefix is undefined due to the shortening being completed
+		return config || !searchPrefix;
+	}, function(untilCallback) {
+		// query for the prefix, implementing a reduce by '/' each time,
+		// such that we load the most specific config first
+		exports.getConfigWithRetry(searchPrefix, function(err, data) {
+			if (err) {
+				untilCallback(err);
+			} else {
+				if (data.Item) {
+					// set the config = this will cause the 'until' to
+					// complete
+					config = data;
+				} else {
+					// reduce the search prefix by one prefix item
+					searchPrefix = searchPrefix.shortenPrefix();
+				}
+				untilCallback();
+			}
+		});
+	}, function(err) {
+		if (config) {
+			successCallback(err, config);
+		} else {
+			noConfigFoundCallback(err);
+		}
+	});
+};
+
 // main function for AWS Lambda
 exports.handler = function(event, context) {
 	/** runtime functions * */
@@ -63,48 +177,40 @@ exports.handler = function(event, context) {
 	exports.foundConfig = function(s3Info, err, data) {
 		if (err) {
 			console.log(err);
-			var msg = 'Error getting Redshift Configuration for ' + s3Info.prefix + ' from Dynamo DB ';
+			var msg = 'Error getting Redshift Configuration for ' + s3Info.prefix + ' from DynamoDB ';
 			console.log(msg);
 			context.done(error, msg);
 		}
 
-		if (!data || !data.Item) {
-			// finish with no exception - where this file sits
-			// in the S3
-			// structure is not configured for redshift loads
-			console.log("No Configuration Found for " + s3Info.prefix);
+		console.log("Found Redshift Load Configuration for " + s3Info.prefix);
 
-			context.done(null, null);
-		} else {
-			console.log("Found Redshift Load Configuration for " + s3Info.prefix);
+		var config = data.Item;
+		var thisBatchId = config.currentBatch.S;
 
-			var config = data.Item;
-			var thisBatchId = config.currentBatch.S;
-
-			// run all configuration upgrades required
-			exports.upgradeConfig(s3Info, config, function(err, s3Info, config) {
-				if (err) {
-					console.log(err);
-					context.done(error, err);
-				} else {
-					if (config.filenameFilterRegex) {
-						if (s3Info.key.match(config.filenameFilterRegex.S)) {
-							exports.checkFileProcessed(config, thisBatchId, s3Info);
-						} else {
-							console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + config.filenameFilterRegex.S + '\'');
-
-							// scan the current batch to decide
-							// if it needs to be
-							// flushed due to batch timeout
-							exports.processPendingBatch(config, thisBatchId, s3Info);
-						}
-					} else {
-						// no filter, so we'll load the data
+		// run all configuration upgrades required
+		exports.upgradeConfig(s3Info, config, function(err, s3Info, config) {
+			if (err) {
+				console.log(err);
+				context.done(error, err);
+			} else {
+				if (config.filenameFilterRegex) {
+					if (s3Info.key.match(config.filenameFilterRegex.S)) {
 						exports.checkFileProcessed(config, thisBatchId, s3Info);
+					} else {
+						console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + config.filenameFilterRegex.S + '\'');
+
+						// scan the current batch to decide
+						// if it needs to be
+						// flushed due to batch timeout
+						exports.processPendingBatch(config, thisBatchId, s3Info);
 					}
+				} else {
+					// no filter, so we'll load the data
+					exports.checkFileProcessed(config, thisBatchId, s3Info);
 				}
-			});
-		}
+			}
+		});
+
 	};
 
 	/*
@@ -1082,7 +1188,8 @@ exports.handler = function(event, context) {
 			error : errorMessage,
 			status : statusMessage,
 			batchId : thisBatchId,
-			s3Prefix : s3Info.prefix
+			s3Prefix : s3Info.prefix,
+			key: s3Info.key
 		};
 
 		if (manifestInfo) {
@@ -1121,8 +1228,10 @@ exports.handler = function(event, context) {
 	};
 	/* end of runtime functions */
 
-	// commented out event logger, for debugging if needed
-	// console.log(JSON.stringify(event));
+	if (debug === true) {
+		console.log(JSON.stringify(event));
+	}
+
 	if (!event.Records) {
 		// filter out unsupported events
 		console.log("Event type unsupported by Lambda Redshift Loader");
@@ -1174,76 +1283,34 @@ exports.handler = function(event, context) {
 					var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
 
 					// transform hive style dynamic prefixes into static
-					// match prefixes
-					if (searchKey && searchKey !== null && searchKey !== "") {
-						var tokeniseSearchKey = searchKey.split('/');
-						var regex = /\=(.*)/;
+					// match prefixes and set the prefix in inputInfo
+					inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
 
-						var processedTokens = tokeniseSearchKey.map(function(item) {
-							if (item) {
-								return item.replace(regex, "=*");
-							}
-						});
-
-						searchKey = '/' + processedTokens.join('/');
-					}
-
-					inputInfo.prefix = inputInfo.bucket + searchKey;
-
-					// load the configuration for this prefix
-					var dynamoLookup = {
-						Key : {
-							s3Prefix : {
-								S : inputInfo.prefix
-							}
-						},
-						TableName : configTable,
-						ConsistentRead : true
-					};
-
-					var proceed = false;
-					var lookupConfigTries = 10;
-					var tryNumber = 0;
-					var configData = null;
-
-					async.whilst(function() {
-						// return OK if the proceed flag has been set, or if
-						// we've hit the retry count
-						return !proceed && tryNumber < lookupConfigTries;
-					}, function(callback) {
-						tryNumber++;
-
-						// lookup the configuration item, and run
-						// foundConfig on completion
-						dynamoDB.getItem(dynamoLookup, function(err, data) {
-							if (err) {
-								if (err.code === provisionedThroughputExceeded) {
-									// sleep for bounded jitter time up to 1
-									// second and then retry
-									var timeout = common.randomInt(0, 1000);
-									console.log(provisionedThroughputExceeded + " while accessing " + configTable + ". Retrying in " + timeout + " ms");
-									setTimeout(callback, timeout);
-								} else {
-									// some other error - call the error
-									// callback
-									callback(err);
-								}
-							} else {
-								configData = data;
-								proceed = true;
-								callback(null);
-							}
-						});
-					}, function(err) {
+					exports.resolveConfig(inputInfo.prefix, function(err, configData) {
+						/*
+						 * we did get a configuration found by the resolveConfig
+						 * method
+						 */
 						if (err) {
-							// fail the context as we haven't been able to
-							// lookup the onfiguration
 							console.log(err);
 							context.done(error, err);
 						} else {
+							// update the inputInfo prefix to match the resolved
+							// config entry
+							inputInfo.prefix = configData.Item.s3Prefix.S;
+
+							console.log(JSON.stringify(inputInfo));
+
 							// call the foundConfig method with the data item
 							exports.foundConfig(inputInfo, null, configData);
 						}
+					}, function(err) {
+						// finish with no exception - where this file sits
+						// in the S3
+						// structure is not configured for redshift loads
+						console.log("No Configuration Found for " + inputInfo.prefix);
+
+						context.done(null, null);
 					});
 				}
 			}

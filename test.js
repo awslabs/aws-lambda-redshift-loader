@@ -31,14 +31,14 @@ event = {
 			"s3SchemaVersion" : "1.0",
 			"configurationId" : "testConfigRule",
 			"bucket" : {
-				"name" : "lambda-redshift-loader-test",
+				"name" : "energy-streaming-demo",
 				"ownerIdentity" : {
 					"principalId" : "A3NL1KOZZKExample"
 				},
 				"arn" : "arn:aws:s3:::mybucket"
 			},
 			"object" : {
-				"key" : "input/sample-redshift-file+for-lambda-loader38.csv",
+				"key" : "data/csv/capture_date=2015-09-28/capture_time=15/extraPrefixForTesting/part-00000",
 				"size" : 1024,
 				"eTag" : "d41d8cd98f00b204e9800998ecf8427e"
 			}
@@ -48,7 +48,7 @@ event = {
 
 function context() {}
 context.done = function(status, message) {
-	console.log("Context Closure Message: " + message);
+	console.log("Context Closure Message: " + JSON.stringify(message));
 
 	if (status && status !== null) {
 		process.exit(-1);

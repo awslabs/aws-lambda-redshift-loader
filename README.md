@@ -4,7 +4,7 @@ With this AWS Lambda function, it's never been easier to get file data into Amaz
 Redshift. You simply push files into a variety of locations on Amazon S3, and 
 have them automatically loaded into your Amazon Redshift clusters.
 
-For automated delivery of streaming data to S3 and Redshift, also consider using Amazon Kinesis Firehose: https://aws.amazon.com/kinesis/firehose 
+For automated delivery of streaming data to S3 and subsequently to Redshift, also consider using [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose).
 
 ## Using AWS Lambda with Amazon Redshift
 Amazon Redshift is a fully managed petabyte scale data warehouse available for 
@@ -76,13 +76,9 @@ To deploy the function:
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and enter the name MyLambdaDBLoader (for example).
-3.	Under Code entry type select Upload a zip file and upload the [AWSLambdaRedshiftLoader-2.1.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.1.0.zip) from the dist folder
-4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role.  We also recommend using the max timeout for the function to accomodate long COPY times.
-
-Next, configure an event source, which delivers S3 events to your AWS Lambda function.
-
-1.	On the deployed function, select Configure Event Source and select the bucket you want to use for input data. Select either the lambda_invoke_role or use the Create/Select function to create the default invocation role. Ensure that you have selected 'Object Created' or the 'ObjectCreated:*' notification type.
-2.	Click Submit to save the changes.
+3.	Under Code entry type select 'Upload a zip file' and upload the [AWSLambdaRedshiftLoader-2.2.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.2.0.zip) from your local ```dist``` folder
+4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role (required permissions below).  We also recommend using the max timeout for the function to accomodate long COPY times.
+5.	On the deployed function, select Configure Event Source and select the bucket you want to use for input data. Ensure that you have selected 'Object Created' or the 'ObjectCreated:*' notification type.
 
 When you're done, you'll see that the AWS Lambda function is deployed and you 
 can submit test events and view the CloudWatch Logging log streams.
@@ -147,11 +143,11 @@ credentials to Redshift for the COPY command:
 }
 ```
 
-## Getting Started - Support for Notifications
+## Getting Started - Support for Notifications & Complex Workflows
 This function can send notifications on completion of batch processing. Using SNS, 
 you can then receive notifications through email and HTTP Push to an application, 
 or put them into a queue for later processing. You can even invoke additional Lambda
-functions to complete your data load workflow using an SNS Event Source for another
+functions to complete your data load workflow using an [SNS Event Sources](http://docs.aws.amazon.com/sns/latest/dg/sns-lambda.html) for another
 AWS Lambda function. If you would like to receive SNS notifications for succeeded 
 loads, failed loads, or both, create SNS Topics and take note of their ID's in the 
 form of Amazon Resource Notations (ARN). 
@@ -164,8 +160,8 @@ and configure it with credentials as outlined at http://docs.aws.amazon.com/AWSJ
 `cd aws-lambda-redshift-loader && npm install`
 
 In order to ensure communication with the correct AWS Region, you'll need to set 
-an environment variable ```AWS_REGION``` to the desired location. For example, 
-for US East use 'us-east=1', and for EU West 1 use 'eu-west-1'.
+an environment variable `AWS_REGION` to the desired location. For example, 
+for US East use `us-east-1`, and for Dublin use `eu-west-1`.
 
 ```export AWS_REGION=eu-central-1``` 
 
@@ -189,9 +185,32 @@ you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
 the Write IOPS on LambdaRedshiftBatches and LambdaRedshiftProcessedFiles to the 
 maximum number of files to be concurrently processed by all Configurations.
 
+## The Configuration S3 Prefix
+
+When you enter the configuration, you must provide an S3 Prefix. This is used by the function to resolve which configuration to use for an incoming event. There are two dimensions of dynamic resolution provided which will help you respond to events where the path is variable over time or from provider:
+
+### Hive Partitioning Style Wildcards
+
+You may have implemented a great practice of segregating S3 objects using time oriented buckets. Data for January 2016 sits in a prefix ```mybucket/data/<type>/2016/01``` while data for Feburary is in ```mybucket/data/<type>/2016/02```. Rather than having to create one configuration per year and month, you can instead you Hive Partitioning style prefixes. If you place S3 objects into a prefix ```mybucket/data/<type>/yyyy=2016/dd=01```, you can then create a configuration with an S3 prefix ```mybucket/data/<type>/yyyy=*/dd=*```. The incoming event will be pre-processed and files which use this convention will always match the wildcard configuration.
+
+### S3 Prefix Matching
+
+In some cases, you may want to have a configuration for most parts of a prefix, but a special configuration for just a subset of the data within a Prefix. In addition to Hive partitioning style wildcards, you can also create configuration hierarchies. In the above example, if I wanted to process data from 2016 with a single configuration, but had special rules for February only, then you can create 2 configurations:
+
+* ```mybucket/data/<type>/2016``` This will match anything that is submitted for 2016, regardless of other information provided.
+* ```mybucket/data/<type>/2016/02``` This will only match input events that were submitted for February 2016, and give you the ability to provide a new configuration item. Some examples of matching are included below:
+
+| Input Prefix   | Matched Configuration    | 
+| :-----------   | :----------------------- | 
+| ```mybucket/data/uploads/2016/02/ELB``` | ```mybucket/data/uploads/2016/02``` |
+| ```mybucket/data/uploads/2016/01/ELB``` ```mybucket/data/uploads/2016/03/ELB``` ```mybucket/data/uploads/2016/04/ELB``` ```mybucket/data/uploads/2016/.../ELB``` ```mybucket/data/uploads/2016/12/ELB``` | ```mybucket/data/uploads/2016``` |
+| ```vendor-uploads/inbound/unregistered-new-data-feed/csv/upload.zip``` | ```vendor-uploads/inbound/``` |
+| ```vendor-uploads/inbound/vendor1/csv/upload.zip``` | ```vendor-uploads/inbound/vendor1``` |
+| ```vendor-uploads/inbound/vendor2/csv/upload.zip``` | ```vendor-uploads/inbound/vendor2``` |
+
 # Security
 The database password, as well as the a master symmetric key used for encryption 
-will be encrypted by the Amazon Key Management Service (https://aws.amazon.com/kms). This encryption is done with a KMS  
+will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS  
 Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
 
 When the Redshift COPY command is created, by default the Lambda function will use a
@@ -213,6 +232,7 @@ S3 at the location that you configured as the input location, and watch as AWS
 Lambda loads them into your Amazon Redshift Cluster. You are charged by the number 
 of input files that are processed, plus a small charge for DynamoDB. You now have 
 a highly available load framework which doesn't require you manage servers!
+
 
 ## Viewing Previous Batches & Status
 If you ever need to see what happened to batch loads into your Cluster, you can 
@@ -395,7 +415,7 @@ Enter the Prefix for Redshift COPY Manifests| Y | The prefix for COPY manifests.
 Enter the Prefix to use for Failed Load Manifest Storage | N | On failure of a COPY, you can elect to have the manifest file copied to an alternative location. Enter that prefix, which will be in the same bucket as the rest of your COPY manifests.
 Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | Amazon Redshift must provide credentials to S3 to be allowed to read data. Enter the Access Key for the Account or IAM user that Amazon Redshift should use.
 Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | The Secret Key for the Access Key used to get data from S3. Will be encrypted prior to storage in DynamoDB.
-Enter the SNS Topic ARN for Failed Loads | N | If you want notifications to be sent to an SNS Topic on successful Load, enter the ARN here. This would be in format 'arn:aws:sns:<region>:<account number>:<topic name>.
+Enter the SNS Topic ARN for Failed Loads | N | If you want notifications to be sent to an SNS Topic on successful Load, enter the ARN here. This would be in format ```arn:aws:sns:<region>:<account number>:<topic name>```.
 Enter the SNS Topic ARN for Successful Loads  | N | SNS Topic ARN for notifications when a batch COPY fails.
 How many files should be buffered before loading? | Y | Enter the number of files placed into the input location before a COPY of the current open batch should be performed. Recommended to be an even multiple of the number of CPU's in your cluster. You should set the multiple such that this count causes loads to be every 2-5 minutes.
 How old should we allow a Batch to be before loading (seconds)? | N | AWS Lambda will attempt to sweep out 'old' batches using this value as the number of seconds old a batch can be before loading. This 'sweep' is on every S3 event on the input location, regardless of whether it matches the Filename Filter Regex. Not recommended to be below 120.
