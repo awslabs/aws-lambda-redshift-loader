@@ -398,7 +398,7 @@ WorkLoadManagement queue slots.
 Item | Required | Notes
 :---- | :--------: | :-----
 Enter the Region for the Redshift Load Configuration| Y | Any AWS Region from http://docs.aws.amazon.com/general/latest/gr/rande.html, using the short name (for example us-east-1 for US East 1)
-Enter the S3 Bucket & Prefix to watch for files | Y | An S3 Path in format <bucket name>/<prefix>. Prefix is optional
+Enter the S3 Bucket & Prefix to watch for files | Y | An S3 Path in format `<bucket name>/<prefix>`. Prefix is optional
 Enter a Filename Filter Regex | N | A Regular Expression used to filter files which appeared in the input prefix before they are processed.
 Enter the Cluster Endpoint | Y | The Amazon Redshift Endpoint Address for the Cluster to be loaded.
 Enter the Cluster Port | Y | The port on which you have configured your Amazon Redshift Cluster to run.
