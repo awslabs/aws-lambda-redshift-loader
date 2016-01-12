@@ -63,18 +63,18 @@ var rl = readline.createInterface({
 
 qs = [];
 
-q_region = function(i) {
+q_region = function(callback) {
 	rl.question('Enter the Region for the Redshift Load Configuration > ', function(answer) {
 		if (common.blank(answer) !== null) {
 			setRegion = answer;
 		} else {
 			console.log('Using the default region ' + setRegion);
 		}
-		qs[i + 1](i + 1);
+		callback();
 	});
 };
 
-q_s3Prefix = function(i) {
+q_s3Prefix = function(callback) {
 	rl.question('Enter the S3 Bucket to use for the Sample Input > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide an S3 Bucket Name');
 
@@ -87,11 +87,11 @@ q_s3Prefix = function(i) {
 			S : dynamoConfig.Item.s3Prefix.S.split("/")[0]
 		};
 
-		qs[i + 1](i + 1);
+		callback();
 	});
 };
 
-q_clusterEndpoint = function(i) {
+q_clusterEndpoint = function(callback) {
 	// use environment variable if we can
 	if (process.env['CLUSTER_ENDPOINT'] === undefined || process.env['CLUSTER_ENDPOINT'] === null) {
 		rl.question('Enter the Cluster Endpoint > ', function(answer) {
@@ -99,33 +99,33 @@ q_clusterEndpoint = function(i) {
 			dynamoConfig.Item.clusterEndpoint = {
 				S : answer
 			};
-			qs[i + 1](i + 1);
+			callback();
 		});
 	} else {
 		dynamoConfig.Item.clusterEndpoint = {
 			S : process.env['CLUSTER_ENDPOINT']
 		};
-		qs[i + 1](i + 1);
+		callback();
 	}
 };
 
-q_clusterPort = function(i) {
+q_clusterPort = function(callback) {
 	if (process.env['CLUSTER_PORT'] === undefined) {
 		rl.question('Enter the Cluster Port > ', function(answer) {
 			dynamoConfig.Item.clusterPort = {
 				N : '' + common.getIntValue(answer)
 			};
-			qs[i + 1](i + 1);
+			callback();
 		});
 	} else {
 		dynamoConfig.Item.clusterPort = {
 			N : process.env['CLUSTER_PORT']
 		};
-		qs[i + 1](i + 1);
+		callback();
 	}
 };
 
-q_clusterDB = function(i) {
+q_clusterDB = function(callback) {
 	if (process.env['CLUSTER_DB'] === undefined) {
 		rl.question('Enter the Database Name > ', function(answer) {
 			if (common.blank(answer) !== null) {
@@ -133,51 +133,50 @@ q_clusterDB = function(i) {
 					S : answer
 				};
 			}
-			qs[i + 1](i + 1);
+			callback();
 		});
 	} else {
 		dynamoConfig.Item.clusterDB = {
 			S : process.env['CLUSTER_DB']
 		};
-		qs[i + 1](i + 1);
+		callback();
 	}
 };
 
-q_accessKey = function(i) {
+q_accessKey = function(callback) {
 	rl.question('Enter the Access Key used by Redshift to get data from S3 > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide an Access Key');
 		dynamoConfig.Item.accessKeyForS3 = {
 			S : answer
 		};
-		qs[i + 1](i + 1);
+		callback();
 	});
 };
 
-q_secretKey = function(i) {
+q_secretKey = function(callback) {
 	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ', function(answer) {
 		common.validateNotNull(answer, 'You Must Provide a Secret Key');
 		kmsCrypto.encrypt(answer, function(err, ciphertext) {
 			dynamoConfig.Item.secretKeyForS3 = {
 				S : kmsCrypto.bufferToString(ciphertext)
 			};
-			qs[i + 1](i + 1);
+			callback();
 		});
 	});
 };
 
-last = function(i) {
+last = function(callback) {
 	rl.close();
 
-	setup();
+	setup(callback);
 };
 
-setup = function() {
+setup = function(callback) {
 	dynamoDB = new aws.DynamoDB({
 		apiVersion : '2012-08-10',
 		region : setRegion
 	});
-
-	var configWriter = common.writeConfig(setRegion, dynamoDB, dynamoConfig);
+	var configWriter = common.writeConfig(setRegion, dynamoDB, dynamoConfig, callback);
 	common.createTables(dynamoDB, configWriter);
 };
 
@@ -195,4 +194,4 @@ qs.push(last);
 
 // call the first function in the function list, to invoke the callback
 // reference chain
-qs[0](0);
+async.waterfall(qs);
