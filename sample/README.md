@@ -2,6 +2,8 @@ This sample includes the setup scripts to configure your database for loads of t
 
 To get started, deploy the desired zip file from the ‘dist’ folder to AWS Lambda as outlined in the Getting Started section, and install the dependent modules (`npm install`). You’ll also need to have an Amazon Redshift cluster set up, and have the cluster endpoint address, port, the database name in which you want to run the sample, and the Username & Password of a database user that can create a user specifically used for the sample. You’ll also need to have the Postgres command line client and a bash terminal.
 
+Today the included Client Tools such as this sample only run under pre-ES6 versions of Node (0.10 and 0.12 have been tested). NVM (https://github.com/creationix/nvm/blob/master/README.markdown) is a simple way to install and switch betweeb node versions.
+
 Once you are ready, just run the `configureSample.sh` in the sample/scripts directory using a Terminal program such as PuTTY. This requires arguments of the cluster endpoint address, port, db name, db user, and AWS region to be used (in that order), and will prompt for your DB user password. This script then:
 * Creates a database user called test_lambda_load_user, which you can drop after you are finished with the sample
 * Creates a database table owned by this new user called lambda_redshift_sample, which just has three integer columns

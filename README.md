@@ -83,7 +83,7 @@ To deploy the function:
 When you're done, you'll see that the AWS Lambda function is deployed and you 
 can submit test events and view the CloudWatch Logging log streams.
 
-### A Note on Versions
+### Lambda Function Versions
 We previously released version 1.0 in distribution AWSLambdaRedshiftLoader.zip, 
 which didn't use the Amazon Key Management Service for encryption. If you've 
 previously deployed and used version 1.0 and want to upgrade to version 1.1, 
@@ -155,7 +155,7 @@ form of Amazon Resource Notations (ARN).
 ## Getting Started - Entering the Configuration
 Now that your function is deployed, we need to create a configuration which tells 
 it how and if files should be loaded from S3. Simply install AWS SDK for Javascript 
-and configure it with credentials as outlined at http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-intro.html and http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html. You'll also need a local instance of Node.js and to install dependencies using the following command:
+and configure it with credentials as outlined at http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-intro.html and http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html. You'll also need a local instance of Node.js - today the included Client Tools such as `setup.js` only run under pre-ES6 versions of Node (0.10 and 0.12 have been tested). NVM (https://github.com/creationix/nvm/blob/master/README.markdown) is a simple way to install and switch betweeb node versions. Then install dependencies using the following command:
 
 `cd aws-lambda-redshift-loader && npm install`
 
