@@ -143,39 +143,6 @@ q_clusterDB = function(callback) {
 	}
 };
 
-q_accessKey = function(callback) {
-	rl.question('Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-		if (!answer) {
-			callback(null);
-		} else {
-			dynamoConfig.Item.accessKeyForS3 = {
-				S : answer
-			};
-			callback(null);
-		}
-	});
-};
-
-q_secretKey = function(callback) {
-	rl.question('Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
-		if (!answer) {
-			callback(null);
-		} else {
-			kmsCrypto.encrypt(answer, function(err, ciphertext) {
-				if (err) {
-					console.log(JSON.stringify(err));
-					process.exit(ERROR);
-				} else {
-					dynamoConfig.Item.secretKeyForS3 = {
-						S : kmsCrypto.toLambdaStringFormat(ciphertext)
-					};
-					callback(null);
-				}
-			});
-		}
-	});
-};
-
 last = function(callback) {
 	rl.close();
 
@@ -196,8 +163,6 @@ qs.push(q_s3Prefix);
 qs.push(q_clusterEndpoint);
 qs.push(q_clusterPort);
 qs.push(q_clusterDB);
-qs.push(q_accessKey);
-qs.push(q_secretKey);
 
 // always have to have the 'last' function added to halt the readline channel
 // and run the setup
