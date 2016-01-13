@@ -51,7 +51,7 @@ dynamoConfig = {
 
 kmsCrypto.encrypt("Change-me1!", function(err, ciphertext) {
 	dynamoConfig.Item.connectPassword = {
-		S : kmsCrypto.bufferToString(ciphertext)
+		S : kmsCrypto.toLambdaStringFormat(ciphertext)
 	};
 });
 
@@ -144,24 +144,35 @@ q_clusterDB = function(callback) {
 };
 
 q_accessKey = function(callback) {
-	rl.question('Enter the Access Key used by Redshift to get data from S3 > ', function(answer) {
-		common.validateNotNull(answer, 'You Must Provide an Access Key');
-		dynamoConfig.Item.accessKeyForS3 = {
-			S : answer
-		};
-		callback();
+	rl.question('Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
+		if (!answer) {
+			callback(null);
+		} else {
+			dynamoConfig.Item.accessKeyForS3 = {
+				S : answer
+			};
+			callback(null);
+		}
 	});
 };
 
 q_secretKey = function(callback) {
-	rl.question('Enter the Secret Key used by Redshift to get data from S3 > ', function(answer) {
-		common.validateNotNull(answer, 'You Must Provide a Secret Key');
-		kmsCrypto.encrypt(answer, function(err, ciphertext) {
-			dynamoConfig.Item.secretKeyForS3 = {
-				S : kmsCrypto.bufferToString(ciphertext)
-			};
-			callback();
-		});
+	rl.question('Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used > ', function(answer) {
+		if (!answer) {
+			callback(null);
+		} else {
+			kmsCrypto.encrypt(answer, function(err, ciphertext) {
+				if (err) {
+					console.log(JSON.stringify(err));
+					process.exit(ERROR);
+				} else {
+					dynamoConfig.Item.secretKeyForS3 = {
+						S : kmsCrypto.toLambdaStringFormat(ciphertext)
+					};
+					callback(null);
+				}
+			});
+		}
 	});
 };
 
