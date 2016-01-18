@@ -7,7 +7,7 @@ install-module pscx
 
 $version = (Get-content package.json -raw | ConvertFrom-Json).version
 
-Write-Zip -Path  index.js,common.js,constants.js, kmsCrypto.js, upgrades.js, *.txt, package.json, node_modules/, -OutputPath .\dist\AWSLambdaRedshiftLoader-$version.zip
+Write-Zip -Path  index.js,common.js,createS3TriggerFile.js,constants.js, kmsCrypto.js, upgrades.js, *.txt, package.json, node_modules/, -OutputPath .\dist\AWSLambdaRedshiftLoader-$version.zip
 
 
 
