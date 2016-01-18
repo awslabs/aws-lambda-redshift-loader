@@ -347,9 +347,24 @@ that files are loaded every N minutes, use the following process to force period
 
 When you create the configuration, add a filenameFilterRegex such as '.*\.csv', which 
 only loads CSV files that are put into the specified S3 prefix. Then every N minutes, 
-schedule the included dummy file generator through a CRON Job. 
+schedule one of the included trigger file generators to run:
 
-```./path/to/function/dir/generate-dummy-file.py <region> <input bucket> <input prefix> <local working directory>```
+### Using Scheduled Lambda Functions
+
+You can use an included Lambda function to generate trigger files into all configured prefixes that have a regular expression filter, by completing the following:
+
+* Create a new AWS Lambda Function, and deploy the same zip file from the `dist` folder as you did for the AWS Lambda Redshift Loader. However, when you configure the Handler name, use `createS3TriggerFile.handler`, and configure it with the timeout and RAM required.
+* In the AWS Web Console, select Services/CloudWatch, and in the left hand navigation select 'Events/Rules'
+* Choose Event Source = 'Schedule' and specify the interval for your trigger files to be gnerated
+* Add Target to be the Lambda function you previously configured
+
+Once done, you will see CloudWatch Logs being created on the configured schedule, and trigger files arriving in the specified prefixes
+
+### Through a CRON Job
+
+You can use a Python based script to generate trigger files to specific input buckets and prefixes, using the following utility:
+
+```./path/to/function/dir/generate-trigger-file.py <region> <input bucket> <input prefix> <local working directory>```
 
 * region - the region in which the input bucket for loads resides
 * input bucket - the bucket which is configured as an input location

@@ -560,7 +560,7 @@ exports.handler = function(event, context) {
 					doProcessBatch = true;
 				}
 
-				if (config.batchTimeoutSecs && config.batchTimeoutSecs.N) {
+				if (config.batchTimeoutSecs && config.batchTimeoutSecs.N && config.batchSize.N > 0) {
 					if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
 						console.log("Batch Size " + config.batchSize.N + " not reached but reached Age " + config.batchTimeoutSecs.N + " seconds");
 						doProcessBatch = true;

@@ -29,7 +29,7 @@ exports.handler = function(event, context) {
 		} else {
 			if (!data.Items) {
 				console.log("Looks like you don't have any configured Prefix entries!");
-				context.success();
+				context.succeed();
 			} else {
 				// create a trigger file entry for each prefix
 				async.each(data.Items, function(configItem, callback) {
@@ -42,13 +42,15 @@ exports.handler = function(event, context) {
 						var fileKey = configItem.s3Prefix.S.replace(bucketName + "\/", "");
 
 						// create a trigger file on S3
-						createTriggerFile(bucketName, fileKey, callback);
+						exports.createTriggerFile(bucketName, fileKey, callback);
+					} else {
+						callback();
 					}
 				}, function(err) {
 					if (err) {
 						context.fail(err);
 					} else {
-						context.success();
+						context.succeed();
 					}
 				});
 			}
@@ -57,7 +59,7 @@ exports.handler = function(event, context) {
 
 	/** function which will create a trigger file in the specified path */
 	exports.createTriggerFile = function(bucketName, fileKey, callback) {
-		var prefix = fileKey + "/lambda-redshift-trigger-file.trigger";
+		var prefix = fileKey + "/lambda-redshift-trigger-file.dummy";
 
 		var createParams = {
 			Bucket : bucketName,
