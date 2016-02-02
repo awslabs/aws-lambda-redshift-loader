@@ -5,7 +5,7 @@
 
         http://aws.amazon.com/asl/
 
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
+    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
 /**
@@ -198,6 +198,38 @@ q_truncateTable = function(callback) {
 		callback(null);
 	});
 };
+
+q_replaceRows = function(callback) {
+	if (dynamoConfig.Item.loadClusters.L[0].M.truncateTarget.BOOL === false) {
+		rl.question('Should rows be merged on basis certain columns values Y/N (No) > ', function(answer) {
+			if (common.blank(answer) == 'Y') {
+				dynamoConfig.Item.loadClusters.L[0].M.replaceRows = {
+					BOOL : common.getBooleanValue(answer)
+				};
+			}
+			callback(null);
+		});
+
+	}
+	else{
+		callback(null);
+	}
+};
+
+q_primaryColumns = function(callback) {
+	if (dynamoConfig.Item.loadClusters.L[0].M.replaceRows.BOOL === true) {
+		rl.question('Enter the primary columns (comma separated) for row replacement > ', function(answer) {
+			dynamoConfig.Item.loadClusters.L[0].M.primaryColumns = {
+				S : answer
+			};
+			callback(null);
+		});
+	} else {
+		callback(null);
+	}
+};
+
+
 
 q_df = function(callback) {
 	rl.question('Enter the Data Format (CSV, JSON or AVRO) > ', function(answer) {
@@ -406,6 +438,8 @@ qs.push(q_clusterDB);
 qs.push(q_table);
 qs.push(q_columnList);
 qs.push(q_truncateTable);
+qs.push(q_replaceRows);
+qs.push(q_primaryColumns);
 qs.push(q_userName);
 qs.push(q_userPwd);
 qs.push(q_df);

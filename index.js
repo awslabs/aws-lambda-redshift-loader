@@ -855,6 +855,13 @@ exports.handler = function(event, context) {
 		if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
 			copyCommand = 'truncate table ' + clusterInfo.targetTable.S + ';\n';
 		}
+		var targetTableName = clusterInfo.targetTable.S;
+		if (clusterInfo.replaceRows && clusterInfo.replaceRows.BOOL === true) {
+			targetTableName = "tmp_" + clusterInfo.targetTable.S.split('.').pop() + '_' + (new Date).getTime().toString();
+			copyCommand = copyCommand + "CREATE TEMP TABLE "+targetTableName+ " (LIKE " + clusterInfo.targetTable.S + ");\n"
+		}
+
+
 
 		var encryptedItems = {};
 		var useLambdaCredentialsToLoad = true;
@@ -905,9 +912,9 @@ exports.handler = function(event, context) {
 								}
 
 								if (typeof clusterInfo.columnList === 'undefined') {
-									copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
+									copyCommand = copyCommand + 'begin;\nCOPY ' + targetTableName + ' from \'s3://' + manifestInfo.manifestPath + '\'';
 								} else {
-									copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://'
+									copyCommand = copyCommand + 'begin;\nCOPY ' + targetTableName + ' (' + clusterInfo.columnList.S + ') from \'s3://'
 											+ manifestInfo.manifestPath + '\'';
 								}
 
@@ -972,8 +979,27 @@ exports.handler = function(event, context) {
 								}
 
 								// build the final copy command
-								copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+								copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\n";
+								if (clusterInfo.replaceRows && clusterInfo.replaceRows.BOOL === true) {
+									copyCommand = copyCommand + "DELETE FROM "+clusterInfo.targetTable.S+" USING "+targetTableName+" WHERE \n";
 
+
+									var primaryKeyColumns = clusterInfo.primaryColumns.S.split(',');
+									var primaryKeyColumnsLength = primaryKeyColumns.length;
+									var dstTable = clusterInfo.targetTable.S.split('.').pop();
+									for (var key in primaryKeyColumns) {
+										var columnName = primaryKeyColumns[key];
+										copyCommand = copyCommand + "( (" + dstTable+"."+columnName + " = " + targetTableName+ "."+ columnName + ") OR (" + dstTable+"."+columnName + " IS NULL AND " + targetTableName+ "."+ columnName + " IS NULL)) ";
+										if(key<(primaryKeyColumnsLength-1)){
+												copyCommand = copyCommand + " and ";
+										}
+									}
+
+									copyCommand = copyCommand +  " ;\n";
+									copyCommand = copyCommand + "INSERT INTO "+clusterInfo.targetTable.S+" SELECT * FROM "+targetTableName+";\n";
+									copyCommand = copyCommand +  "DROP TABLE "+targetTableName+" ;\n"
+								}
+								copyCommand = copyCommand + "commit;";
 								if (debug) {
 									console.log(copyCommand);
 								}
