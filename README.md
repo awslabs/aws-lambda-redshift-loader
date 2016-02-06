@@ -343,10 +343,10 @@ to update the Dynamo DB Configuration.
 
 ## Ensuring Loads happen every N minutes
 If you have a prefix that doesn't receive files very often, and want to ensure 
-that files are loaded every N minutes, use the following process to force periodic loads. 
+that files are loaded every N seconds, use the following process to force periodic loads. 
 
-When you create the configuration, add a filenameFilterRegex such as '.*\.csv', which 
-only loads CSV files that are put into the specified S3 prefix. Then every N minutes, 
+When you create the configuration, specify a `batchTimeoutSecs` and add a filenameFilterRegex such as '.*\.csv' (which 
+only loads CSV files that are put into the specified S3 prefix). Then every N seconds, 
 schedule one of the included trigger file generators to run:
 
 ### Using Scheduled Lambda Functions
@@ -371,9 +371,9 @@ You can use a Python based script to generate trigger files to specific input bu
 * input prefix - the prefix which is configured as an input location
 * local working directory - the location where the stub dummy file will be kept prior to upload into S3
 
-This writes a file called 'lambda-redshift-trigger-file.dummy' to the configured 
+These methods write a file called 'lambda-redshift-trigger-file.dummy' to the configured 
 input prefix, which causes your deployed function to scan the open pending batch 
-and load the contents if the timeout seconds limit has been reached.
+and load the contents if the timeout seconds limit has been reached. The batch timeout is calculated on the basis of when the first file was added to the batch.
 
 ## Reviewing Logs
 For normal operation, you won't have to do anything from an administration perspective. 

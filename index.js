@@ -291,6 +291,7 @@ exports.handler = function(event, context) {
 							// build the reference to the
 							// pending batch, with an
 							// atomic add of the current file
+							var now = common.now();
 							var item = {
 								Key : {
 									batchId : {
@@ -301,7 +302,7 @@ exports.handler = function(event, context) {
 									}
 								},
 								TableName : batchTable,
-								UpdateExpression : "add entries :entry set #stat = :open, lastUpdate = :updateTime",
+								UpdateExpression : "add entries :entry, writeDates :appendFileDate set #stat = :open, lastUpdate = :updateTime",
 								ExpressionAttributeNames : {
 									"#stat" : 'status'
 								},
@@ -309,8 +310,11 @@ exports.handler = function(event, context) {
 									":entry" : {
 										SS : [ itemEntry ]
 									},
+									":appendFileDate" : {
+										NS : [ '' + now ]
+									},
 									":updateTime" : {
-										N : '' + common.now(),
+										N : '' + now,
 									},
 									":open" : {
 										S : open
@@ -550,8 +554,16 @@ exports.handler = function(event, context) {
 				console.log(msg);
 				context.done(null, msg);
 			} else {
-				// check whether the current batch is bigger than the
-				// configured max size, or older than configured max age
+
+				// first step is to resolve the earliest writeDate as the batch
+				// creation date
+				var batchCreateDate;
+				data.Item.writeDates.NS.map(function(item) {
+					var t = parseInt(item);
+					if (!batchCreateDate || t < batchCreateDate) {
+						batchCreateDate = t;
+					}
+				});
 				var lastUpdateTime = data.Item.lastUpdate.N;
 				var pendingEntries = data.Item.entries.SS;
 				var doProcessBatch = false;
@@ -560,8 +572,10 @@ exports.handler = function(event, context) {
 					doProcessBatch = true;
 				}
 
+				// check whether the current batch is bigger than the
+				// configured max size, or older than configured max age
 				if (config.batchTimeoutSecs && config.batchTimeoutSecs.N && config.batchSize.N > 0) {
-					if (common.now() - lastUpdateTime > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
+					if (common.now() - batchCreateDate > parseInt(config.batchTimeoutSecs.N) && pendingEntries.length > 0) {
 						console.log("Batch Size " + config.batchSize.N + " not reached but reached Age " + config.batchTimeoutSecs.N + " seconds");
 						doProcessBatch = true;
 					}
@@ -1189,7 +1203,7 @@ exports.handler = function(event, context) {
 			status : statusMessage,
 			batchId : thisBatchId,
 			s3Prefix : s3Info.prefix,
-			key: s3Info.key
+			key : s3Info.key
 		};
 
 		if (manifestInfo) {
