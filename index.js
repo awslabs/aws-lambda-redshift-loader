@@ -248,7 +248,7 @@ exports.handler = function(event, context) {
 				} else {
 					var msg = "Error " + err.code + " for " + fileEntry;
 					console.log(msg);
-					failBatch(msg, config, thisBatchId, s3Info, undefined);
+					exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
 				}
 			} else {
 				if (!data) {
