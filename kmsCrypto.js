@@ -249,34 +249,7 @@ var decryptMap = function(encryptedValueMap, afterDecryptionCallback) {
 };
 exports.decryptMap = decryptMap;
 
-var bufferToString = function(buffer) {
-	return JSON.stringify(buffer);
-};
-exports.bufferToString = bufferToString;
-
-var stringToBuffer = function(stringBuffer) {
-	return new Buffer(JSON.parse(stringBuffer));
-};
-exports.stringToBuffer = stringToBuffer;
-
 var toLambdaStringFormat = function(buffer) {
-	// only extract the numeric array from the specified buffer
-	// buffer implementation varies between node .10 and .12, so this method
-	// will ensure
-	// that the buffer is stored in a format that Lambda can rehydrate (v0.10
-	// format)
-	var regex = /.*(\[.*\]).*/;
-	var stringValue = bufferToString(buffer);
-
-	if (stringValue === null) {
-		return null;
-	} else {
-		var matches = regex.exec(stringValue);
-		if (matches && matches.length > 0) {
-			return matches[1];
-		} else {
-			return stringValue;
-		}
-	}
+	return buffer.toString('base64');
 };
 exports.toLambdaStringFormat = toLambdaStringFormat;

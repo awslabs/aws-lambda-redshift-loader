@@ -188,25 +188,25 @@ exports.handler = function(event, context) {
 		var thisBatchId = config.currentBatch.S;
 
 		// run all configuration upgrades required
-		exports.upgradeConfig(s3Info, config, function(err, s3Info, config) {
+		exports.upgradeConfig(s3Info, config, function(err, s3Info, useConfig) {
 			if (err) {
 				console.log(err);
 				context.done(error, err);
 			} else {
-				if (config.filenameFilterRegex) {
-					if (s3Info.key.match(config.filenameFilterRegex.S)) {
-						exports.checkFileProcessed(config, thisBatchId, s3Info);
+				if (useConfig.filenameFilterRegex) {
+					if (s3Info.key.match(useConfig.filenameFilterRegex.S)) {
+						exports.checkFileProcessed(useConfig, thisBatchId, s3Info);
 					} else {
-						console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + config.filenameFilterRegex.S + '\'');
+						console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + useConfig.filenameFilterRegex.S + '\'');
 
 						// scan the current batch to decide
 						// if it needs to be
 						// flushed due to batch timeout
-						exports.processPendingBatch(config, thisBatchId, s3Info);
+						exports.processPendingBatch(useConfig, thisBatchId, s3Info);
 					}
 				} else {
 					// no filter, so we'll load the data
-					exports.checkFileProcessed(config, thisBatchId, s3Info);
+					exports.checkFileProcessed(useConfig, thisBatchId, s3Info);
 				}
 			}
 		});
@@ -839,6 +839,89 @@ exports.handler = function(event, context) {
 	};
 
 	/**
+	 * Function which will run a postgres command with retries
+	 */
+	exports.runPgCommand = function(clusterInfo, client, done, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
+		var completed = false;
+		var retryCount = 0;
+		var lastError;
+
+		async.until(function() {
+			return completed || !retries || retryCount >= retries
+		}, function(asyncCallback) {
+			client.query(command, function(err, result) {
+				// release the client thread back to
+				// the pool
+				done();
+
+				if (err) {
+					lastError = err;
+					// check all the included retryable error traps to see if
+					// this is a retryable error
+					retryable = false;
+					if (retryableErrorTraps) {
+						retryableErrorTraps.map(function(retryableError) {
+							if (err.detail.find(retryableError) > -1) {
+								retryable = true;
+							}
+						});
+					}
+
+					// if the error is not retryable, then fail by calling the
+					// async callback with the specified error
+					if (!retryable) {
+						completed = true;
+						asyncCallback(err);
+					} else {
+						// increment the retry count
+						retryCount += 1;
+
+						if (debug) {
+							console.log("Retryable Error detected. Try Attempt " + retryCount);
+						}
+
+						// exponential backoff if a backoff time is provided
+						if (retryBackoffBaseMs) {
+							setTimeout(function() {
+								// call the async callback
+								asyncCallback(null);
+							}, Math.pow(2, retryCount) * retryBackoffBaseMs);
+						}
+					}
+				} else {
+					completed = true;
+
+					asyncCallback(null);
+				}
+			});
+		}, function(err) {
+			if (err) {
+				// callback as error
+				callback(null, {
+					status : ERROR,
+					error : err,
+					cluster : clusterInfo.clusterEndpoint.S
+				});
+			} else {
+				if (!completed) {
+					// we were unable to complete the command
+					callback(null, {
+						status : ERROR,
+						error : lastError,
+						cluster : clusterInfo.clusterEndpoint.S
+					});
+				} else {
+					// command ok
+					callback(null, {
+						status : OK,
+						error : null,
+						cluster : clusterInfo.clusterEndpoint.S
+					});
+				}
+			}
+		});
+	}
+	/**
 	 * Function which loads a redshift cluster
 	 * 
 	 */
@@ -880,7 +963,7 @@ exports.handler = function(event, context) {
 		symmetricKeyMapEntry = "symmetricKey";
 
 		if (config.secretKeyForS3) {
-			encryptedItems[s3secretKeyMapEntry] = kmsCrypto.stringToBuffer(config.secretKeyForS3.S);
+			encryptedItems[s3secretKeyMapEntry] = new Buffer(config.secretKeyForS3.S, 'base64');
 			useLambdaCredentialsToLoad = false;
 		}
 
@@ -889,12 +972,12 @@ exports.handler = function(event, context) {
 		}
 
 		// add the cluster password
-		encryptedItems[passwordKeyMapEntry] = kmsCrypto.stringToBuffer(clusterInfo.connectPassword.S);
+		encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
 
 		// add the master encryption key to the list of items to be decrypted,
 		// if there is one
 		if (config.masterSymmetricKey) {
-			encryptedItems[symmetricKeyMapEntry] = kmsCrypto.stringToBuffer(config.masterSymmetricKey.S);
+			encryptedItems[symmetricKeyMapEntry] = new Buffer(config.masterSymmetricKey.S, 'base64');
 		}
 
 		// decrypt the encrypted items
@@ -1011,28 +1094,18 @@ exports.handler = function(event, context) {
 											cluster : clusterInfo.clusterEndpoint.S
 										});
 									} else {
-										client.query(copyCommand, function(err, result) {
-											// release the client thread back to
-											// the pool
-											done();
-
-											// handle errors and cleanup
-											if (err) {
-												callback(null, {
-													status : ERROR,
-													error : err,
-													cluster : clusterInfo.clusterEndpoint.S
-												});
-											} else {
-												console.log("Load Complete");
-
-												callback(null, {
-													status : OK,
-													error : null,
-													cluster : clusterInfo.clusterEndpoint.S
-												});
-											}
-										});
+										/*
+										 * run the copy command. We will allow 5
+										 * retries when the 'specified key does
+										 * not exist' error is encountered, as
+										 * this means an issue with eventual
+										 * consistency in US Std. We will use an
+										 * exponential backoff from 30ms with 5
+										 * retries - giving a max retry duration
+										 * of ~ 1 second
+										 */
+										exports.runPgCommand(clusterInfo, client, done, copyCommand, 5, [ "S3ServiceException:The specified key does not exist.,Status 404" ], 30,
+												callback);
 									}
 								});
 							}
@@ -1242,92 +1315,102 @@ exports.handler = function(event, context) {
 	};
 	/* end of runtime functions */
 
-	if (debug === true) {
-		console.log(JSON.stringify(event));
-	}
+	try {
+		if (debug) {
+			console.log(JSON.stringify(event));
+		}
 
-	if (!event.Records) {
-		// filter out unsupported events
-		console.log("Event type unsupported by Lambda Redshift Loader");
-		console.log(JSON.stringify(event));
-		context.done(null, null);
-	} else {
-		if (event.Records.length > 1) {
-			context.done(error, "Unable to process multi-record events");
+		if (!event.Records) {
+			// filter out unsupported events
+			console.log("Event type unsupported by Lambda Redshift Loader");
+			console.log(JSON.stringify(event));
+			context.done(null, null);
 		} else {
-			for (var i = 0; i < event.Records.length; i++) {
-				var r = event.Records[i];
+			if (event.Records.length > 1) {
+				context.done(error, "Unable to process multi-record events");
+			} else {
+				for (var i = 0; i < event.Records.length; i++) {
+					var r = event.Records[i];
 
-				// ensure that we can process this event based on a variety
-				// of criteria
-				var noProcessReason = undefined;
-				if (r.eventSource !== "aws:s3") {
-					noProcessReason = "Invalid Event Source " + r.eventSource;
-				}
-				if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put" || r.eventName === 'ObjectCreated:CompleteMultipartUpload')) {
-					noProcessReason = "Invalid Event Name " + r.eventName;
-				}
-				if (r.s3.s3SchemaVersion !== "1.0") {
-					noProcessReason = "Unknown S3 Schema Version " + r.s3.s3SchemaVersion;
-				}
+					// ensure that we can process this event based on a variety
+					// of criteria
+					var noProcessReason = undefined;
+					if (r.eventSource !== "aws:s3") {
+						noProcessReason = "Invalid Event Source " + r.eventSource;
+					}
+					if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put" || r.eventName === 'ObjectCreated:CompleteMultipartUpload')) {
+						noProcessReason = "Invalid Event Name " + r.eventName;
+					}
+					if (r.s3.s3SchemaVersion !== "1.0") {
+						noProcessReason = "Unknown S3 Schema Version " + r.s3.s3SchemaVersion;
+					}
 
-				if (noProcessReason) {
-					console.log(noProcessReason);
-					context.done(error, noProcessReason);
-				} else {
-					// extract the s3 details from the event
-					var inputInfo = {
-						bucket : undefined,
-						key : undefined,
-						prefix : undefined,
-						inputFilename : undefined
-					};
+					if (noProcessReason) {
+						console.log(noProcessReason);
+						context.done(error, noProcessReason);
+					} else {
+						// extract the s3 details from the event
+						var inputInfo = {
+							bucket : undefined,
+							key : undefined,
+							prefix : undefined,
+							inputFilename : undefined
+						};
 
-					inputInfo.bucket = r.s3.bucket.name;
-					inputInfo.key = decodeURIComponent(r.s3.object.key);
+						inputInfo.bucket = r.s3.bucket.name;
+						inputInfo.key = decodeURIComponent(r.s3.object.key);
 
-					// remove the bucket name from the key, if we have
-					// received it - this happens on object copy
-					inputInfo.key = inputInfo.key.replace(inputInfo.bucket + "/", "");
+						// remove the bucket name from the key, if we have
+						// received it - this happens on object copy
+						inputInfo.key = inputInfo.key.replace(inputInfo.bucket + "/", "");
 
-					var keyComponents = inputInfo.key.split('/');
-					inputInfo.inputFilename = keyComponents[keyComponents.length - 1];
+						var keyComponents = inputInfo.key.split('/');
+						inputInfo.inputFilename = keyComponents[keyComponents.length - 1];
 
-					// remove the filename from the prefix value
-					var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
+						// remove the filename from the prefix value
+						var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
 
-					// transform hive style dynamic prefixes into static
-					// match prefixes and set the prefix in inputInfo
-					inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
+						// transform hive style dynamic prefixes into static
+						// match prefixes and set the prefix in inputInfo
+						inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
 
-					exports.resolveConfig(inputInfo.prefix, function(err, configData) {
-						/*
-						 * we did get a configuration found by the resolveConfig
-						 * method
-						 */
-						if (err) {
-							console.log(err);
-							context.done(error, err);
-						} else {
-							// update the inputInfo prefix to match the resolved
-							// config entry
-							inputInfo.prefix = configData.Item.s3Prefix.S;
+						exports.resolveConfig(inputInfo.prefix, function(err, configData) {
+							/*
+							 * we did get a configuration found by the
+							 * resolveConfig method
+							 */
+							if (err) {
+								console.log(err);
+								context.done(error, err);
+							} else {
+								// update the inputInfo prefix to match the
+								// resolved
+								// config entry
+								inputInfo.prefix = configData.Item.s3Prefix.S;
 
-							console.log(JSON.stringify(inputInfo));
+								if (debug) {
+									console.log(JSON.stringify(inputInfo));
+								}
 
-							// call the foundConfig method with the data item
-							exports.foundConfig(inputInfo, null, configData);
-						}
-					}, function(err) {
-						// finish with no exception - where this file sits
-						// in the S3
-						// structure is not configured for redshift loads
-						console.log("No Configuration Found for " + inputInfo.prefix);
+								// call the foundConfig method with the data
+								// item
+								exports.foundConfig(inputInfo, null, configData);
+							}
+						}, function(err) {
+							// finish with no exception - where this file sits
+							// in the S3
+							// structure is not configured for redshift loads
+							console.log("No Configuration Found for " + inputInfo.prefix);
 
-						context.done(null, null);
-					});
+							context.done(null, null);
+						});
+					}
 				}
 			}
 		}
+	} catch (e) {
+		console.log(e);
+		console.log(JSON.stringify(event));
+		context.done(error, e);
 	}
 };
