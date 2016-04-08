@@ -861,7 +861,7 @@ exports.handler = function(event, context) {
 					retryable = false;
 					if (retryableErrorTraps) {
 						retryableErrorTraps.map(function(retryableError) {
-							if (err.detail.find(retryableError) > -1) {
+							if (err.detail && err.detail.indexOf(retryableError) > -1) {
 								retryable = true;
 							}
 						});
