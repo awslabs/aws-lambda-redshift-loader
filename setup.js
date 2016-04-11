@@ -128,6 +128,15 @@ q_clusterPort = function(callback) {
 	});
 };
 
+q_clusterUseSSL = function(callback) {
+	rl.question('Does your cluster use SSL (Y/N)  > ', function(answer) {
+        dynamoConfig.Item.loadClusters.L[0].M.useSSL = {
+            BOOL : common.getBooleanValue(answer)
+        };
+		callback(null);
+	});
+};
+
 q_clusterDB = function(callback) {
 	rl.question('Enter the Database Name > ', function(answer) {
 		if (common.blank(answer) !== null) {
