@@ -411,6 +411,7 @@ qs.push(q_s3Prefix);
 qs.push(q_filenameFilter);
 qs.push(q_clusterEndpoint);
 qs.push(q_clusterPort);
+qs.push(q_clusterUseSSL);
 qs.push(q_clusterDB);
 qs.push(q_table);
 qs.push(q_columnList);
