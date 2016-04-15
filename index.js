@@ -364,17 +364,19 @@ exports.handler = function(event, context) {
 												}
 											} else {
 												/*
-												 * reset the batch ID to the
-												 * current marked batch
-												 */
-												thisBatchId = data.Item.currentBatch.S;
-
-												/*
 												 * we've not set proceed to
 												 * true, so async will retry
 												 */
 												console.log("Reload of Configuration Complete after attempting to write to Locked Batch " + thisBatchId + ". Attempt "
 														+ configReloads);
+
+												/*
+												 * reset the batch ID to the
+												 * current marked batch
+												 */
+												thisBatchId = data.Item.currentBatch.S;
+
+												console.log("Current batch from config is now " + thisBatchId + ".");
 
 												/*
 												 * we can call into the callback
