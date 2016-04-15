@@ -9,6 +9,7 @@
  */
 var debug = false;
 var pjson = require('./package.json');
+var https = require('https');
 var region = process.env['AWS_REGION'];
 
 if (!region || region === null || region === "") {
@@ -26,7 +27,13 @@ var s3 = new aws.S3({
 });
 var dynamoDB = new aws.DynamoDB({
 	apiVersion : '2012-08-10',
-	region : region
+	region : region,
+	httpOptions : {
+		agent : new https.Agent({
+			ciphers : 'ALL',
+			secureProtocol : 'TLSv1_method'
+		})
+	}
 });
 var sns = new aws.SNS({
 	apiVersion : '2010-03-31',
