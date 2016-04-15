@@ -283,6 +283,7 @@ exports.handler = function(event, context) {
 		var asyncError = undefined;
 		var addFileRetryLimit = 100;
 		var tryNumber = 0;
+		var configReloads = 0;
 
 		async
 				.whilst(
@@ -334,7 +335,6 @@ exports.handler = function(event, context) {
 							};
 
 							// add the file to the pending batch
-							var configReloads = 0;
 							dynamoDB.updateItem(item, function(err, data) {
 								if (err) {
 									if (err.code === conditionCheckFailed) {
