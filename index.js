@@ -281,7 +281,7 @@ exports.handler = function(event, context) {
 
 		var proceed = false;
 		var asyncError = undefined;
-		var addFileRetryLimit = 100;
+		var addFileRetryLimit = 10;
 		var tryNumber = 0;
 		var configReloads = 0;
 
