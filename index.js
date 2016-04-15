@@ -355,7 +355,7 @@ exports.handler = function(event, context) {
 										dynamoDB.getItem(configReloadRequest, function(err, data) {
 											configReloads++;
 											if (err) {
-												if (err === provisionedThroughputExceeded) {
+												if (err.code === provisionedThroughputExceeded) {
 													console.log("Provisioned Throughput Exceeded on reload of " + configTable + " due to locked batch write");
 													callback();
 												} else {
@@ -587,7 +587,7 @@ exports.handler = function(event, context) {
 
 		dynamoDB.getItem(currentBatchRequest, function(err, data) {
 			if (err) {
-				if (err === provisionedThroughputExceeded) {
+				if (err.code === provisionedThroughputExceeded) {
 					console.log("Provisioned Throughput Exceeded on read of " + batchTable);
 					callback();
 				} else {
