@@ -128,6 +128,15 @@ q_clusterPort = function(callback) {
 	});
 };
 
+q_clusterUseSSL = function(callback) {
+	rl.question('Does your cluster use SSL (Y/N)  > ', function(answer) {
+        dynamoConfig.Item.loadClusters.L[0].M.useSSL = {
+            BOOL : common.getBooleanValue(answer)
+        };
+		callback(null);
+	});
+};
+
 q_clusterDB = function(callback) {
 	rl.question('Enter the Database Name > ', function(answer) {
 		if (common.blank(answer) !== null) {
@@ -402,6 +411,7 @@ qs.push(q_s3Prefix);
 qs.push(q_filenameFilter);
 qs.push(q_clusterEndpoint);
 qs.push(q_clusterPort);
+qs.push(q_clusterUseSSL);
 qs.push(q_clusterDB);
 qs.push(q_table);
 qs.push(q_columnList);
