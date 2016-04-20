@@ -10,7 +10,8 @@
     "dependencies": {
         "async": "1.5.2",
         "node-uuid": "1.4.7",
-        "pg":"4.4.3"
+        "pg":"4.4.3",
+        "aws-sdk":"2.3.3"
     },
     "keywords": [
         "amazon",
