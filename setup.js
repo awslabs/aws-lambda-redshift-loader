@@ -26,9 +26,6 @@ var setRegion;
 dynamoConfig = {
 	TableName : configTable,
 	Item : {
-		truncateTarget : {
-			BOOL : false
-		},
 		currentBatch : {
 			S : uuid.v4()
 		},
