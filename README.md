@@ -53,10 +53,37 @@ cd aws-lambda-redshift-loader
 npm install
 ```
 
-## Getting Started - Preparing your Amazon Redshift Clusters
-In order to load a cluster, we'll have to enable AWS Lambda to connect. To do 
-this, we must enable Cluster Security Groups to allow access from the public 
-internet.
+## Getting Started - Granting Access to your Redshift Cluster
+In order to load a cluster, we'll have to enable AWS Lambda to connect. 
+
+### Redshift running in VPC
+
+This is the recommended model for all customers, and the only option for accounts recently created. In this model, your Redshift cluster is in a VPC Subnet, and we recommend using [AWS Lambda VPC Endpoints](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html) to manage access to your cluster. A logical architecture diagram is below:
+
+![VPC Connectivity](VPCConnectivity.png)
+
+In this architecture, you expose your AWS Lambda function into your VPC subnets, and then select a security group for your Lambda function. You then grant access from your Redshift VPC Security Group to this Lambda VPC Security Group. However, because the Lambda Loader configuration is managed through DynamoDB, your Lambda function must also have internet egress enabled, and the easiest way to do this is to use [VPC NAT Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-nat-gateway.html). The following steps should be undertaken:
+
+_AWS Lambda_
+
+* Create a new VPC security group for your AWS Lambda function, which typically includes output access to anything (0.0.0.0/0 ALLOW)
+* Go into your Lambda function configuration, and select 'Advanced settings'. Then select the VPC where your Redshift cluster resides. Then select the Subnets where you want your Lambda function to egress for VPC connectivity. In the diagram above we show it being able to egress into the same subnet as your Redshift Cluster, but this is not a hard requirement
+
+_Redshift_
+
+* Go into your Redshift Cluster, and select the VPC Security Groups entry that you want to use for enabling Lambda Access
+* Add a new Inbound Rule, Type = Redshift, Source = Custom IP, Port = the port for your cluster, and Destination set to the name of the Lambda Security Group created above.
+
+At this point, your lambda function should be able to connect to your Redshift cluster, but would not be able to determine which clusters to connect to when it receives an S3 event. So we need to enable your Lambda function to connect to DynamoDB
+
+_VPC_
+
+* Create a NAT Gateway in your VPC, that is available from the Subnets where your AWS Lambda function egress into your VPC
+* For the Subnets where AWS Lambda can execute, add a routing rule to the Route Table for 0.0.0.0/0 Outbound to route via your NAT Gateway
+
+### Redshift running in EC2 Classic/Not in VPC
+
+To grant AWS Lambda access to our cluster, we must enable Cluster Security Groups to allow access from the public internet.
 
 To configure a cluster security group for access:
 
