@@ -68,6 +68,8 @@ _AWS Lambda_
 * Create a new VPC security group for your AWS Lambda function, which typically includes output access to anything (0.0.0.0/0 ALLOW)
 * Go into your Lambda function configuration, and select 'Advanced settings'. Then select the VPC where your Redshift cluster resides. Then select the Subnets where you want your Lambda function to egress for VPC connectivity. In the diagram above we show it being able to egress into the same subnet as your Redshift Cluster, but this is not a hard requirement
 
+_Please note that AWS Lambda functions that want to route to the internet or public AWS Services should be in 'private' subnets, and not be placed into Subnets with existing routing rules for 0.0.0.0/0 traffic to an Internet Gateway_
+
 _Redshift_
 
 * Go into your Redshift Cluster, and select the VPC Security Groups entry that you want to use for enabling Lambda Access
