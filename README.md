@@ -53,8 +53,7 @@ cd aws-lambda-redshift-loader
 npm install
 ```
 
-## Getting Started - Granting Access to your Redshift Cluster
-In order to load a cluster, we'll have to enable AWS Lambda to connect. 
+## Getting Started - Granting AWS Lambda rights to access your Redshift cluster
 
 ### Redshift running in VPC
 
