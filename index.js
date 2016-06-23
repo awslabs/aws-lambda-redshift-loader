@@ -760,7 +760,7 @@ exports.handler = function(event, context) {
 
 			// convert the config.loadClusters list into a format that
 			// looks like a native dynamo entry
-			clustersToLoad = [];
+			var clustersToLoad = [];
 			for (var i = 0; i < config.loadClusters.L.length; i++) {
 				clustersToLoad[clustersToLoad.length] = config.loadClusters.L[i].M;
 			}
