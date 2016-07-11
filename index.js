@@ -9,6 +9,7 @@
  */
 var debug = false;
 var pjson = require('./package.json');
+var https = require('https');
 var region = process.env['AWS_REGION'];
 
 if (!region || region === null || region === "") {
@@ -26,7 +27,13 @@ var s3 = new aws.S3({
 });
 var dynamoDB = new aws.DynamoDB({
 	apiVersion : '2012-08-10',
-	region : region
+	region : region,
+	httpOptions : {
+		agent : new https.Agent({
+			ciphers : 'ALL',
+			secureProtocol : 'TLSv1_method'
+		})
+	}
 });
 var sns = new aws.SNS({
 	apiVersion : '2010-03-31',
@@ -274,8 +281,9 @@ exports.handler = function(event, context) {
 
 		var proceed = false;
 		var asyncError = undefined;
-		var addFileRetryLimit = 100;
+		var addFileRetryLimit = 10;
 		var tryNumber = 0;
+		var configReloads = 0;
 
 		async
 				.whilst(
@@ -327,7 +335,6 @@ exports.handler = function(event, context) {
 							};
 
 							// add the file to the pending batch
-							var configReloads = 0;
 							dynamoDB.updateItem(item, function(err, data) {
 								if (err) {
 									if (err.code === conditionCheckFailed) {
@@ -348,7 +355,7 @@ exports.handler = function(event, context) {
 										dynamoDB.getItem(configReloadRequest, function(err, data) {
 											configReloads++;
 											if (err) {
-												if (err === provisionedThroughputExceeded) {
+												if (err.code === provisionedThroughputExceeded) {
 													console.log("Provisioned Throughput Exceeded on reload of " + configTable + " due to locked batch write");
 													callback();
 												} else {
@@ -357,17 +364,19 @@ exports.handler = function(event, context) {
 												}
 											} else {
 												/*
-												 * reset the batch ID to the
-												 * current marked batch
-												 */
-												thisBatchId = data.Item.currentBatch.S;
-
-												/*
 												 * we've not set proceed to
 												 * true, so async will retry
 												 */
 												console.log("Reload of Configuration Complete after attempting to write to Locked Batch " + thisBatchId + ". Attempt "
 														+ configReloads);
+
+												/*
+												 * reset the batch ID to the
+												 * current marked batch
+												 */
+												thisBatchId = data.Item.currentBatch.S;
+
+												console.log("Current batch from config is now " + thisBatchId + ".");
 
 												/*
 												 * we can call into the callback
@@ -415,25 +424,61 @@ exports.handler = function(event, context) {
 										 * iterative request to write to the
 										 * open pending batch timed out
 										 * 
-										 * TODO Can we force a rotation of the
-										 * current batch at this point?
+										 * Try to unlock the batch and reprocess the current file; otherwise fail hard
 										 */
 										var e = "Unable to write "
 												+ itemEntry
 												+ " in "
 												+ addFileRetryLimit
-												+ " attempts. Failing further processing to Batch "
+												+ " attempts. Batch "
 												+ thisBatchId
-												+ " which may be stuck in '"
+												+ " may be stuck in '"
 												+ locked
-												+ "' state. If so, unlock the back using `node unlockBatch.js <batch ID>`, delete the processed file marker with `node processedFiles.js -d <filename>`, and then re-store the file in S3";
+												+ "' state. Attempting to unlock the batch and re-emit this event.";
 										console.log(e);
-										exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Loader unable to write to Open Pending Batch", e, function() {
-											context.done(error, e);
-										}, function(err) {
-											console.log(err);
-											context.done(error, "Unable to Send SNS Notification");
+
+										console.log("Attempting to unlock batch " + thisBatchId + ".");
+										exports.unlockBatch(config, thisBatchId, s3Info, function(err) {
+											if (err) {
+												console.log("Unlocking batch " + thisBatchId + " has failed. Please run unlockBatch.js.");
+												
+												if (config.failureTopicARN !== undefined) {
+													exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Loader unable to write to Open Pending Batch and automatic unlock failed.", err, function() {
+														context.done(error, err);
+													}, function(e) {
+														console.log(e);
+														context.done(error, "Unable to Send SNS Notification");
+													});
+												} else {
+													context.done(error, err);
+												}
+
+											} else {
+												console.log("Unlock of batch " + thisBatchId + " succeeded.");
+											}
 										});
+
+										console.log("Attempting to send reprocess request for " + itemEntry + ".");
+										exports.reprocessFile(itemEntry, function(err) {
+											if (err) {
+												console.log("Reprocess request for " + itemEntry + " has failed. Please manually delete the entry from " + filesTable + " and re upload it to S3.");
+
+												if (config.failureTopicARN !== undefined) {
+													exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Loader unable to write to Open Pending Batch and automatic reprocessing of the file failed.", err, function() {
+														context.done(error, err);
+													}, function(e) {
+														console.log(e);
+														context.done(error, "Unable to Send SNS Notification");
+													});
+												} else {
+													context.done(error, err);
+												}
+											} else {
+												console.log("Reprocess request for " + itemEntry + " succeeded.");
+												context.done(null, null);
+											}
+										});
+										
 									} else {
 										// the add of the file was successful,
 										// so we
@@ -542,7 +587,7 @@ exports.handler = function(event, context) {
 
 		dynamoDB.getItem(currentBatchRequest, function(err, data) {
 			if (err) {
-				if (err === provisionedThroughputExceeded) {
+				if (err.code === provisionedThroughputExceeded) {
 					console.log("Provisioned Throughput Exceeded on read of " + batchTable);
 					callback();
 				} else {
@@ -1316,6 +1361,112 @@ exports.handler = function(event, context) {
 			}
 		}
 	};
+
+	/* Deletes fileName from the filesTable and sends an S3 "ping" to reprocess the item */
+	exports.reprocessFile = function(fileName, callback) {
+		// delete the processed file entry
+		var fileItem = {
+			Key : {
+				loadFile : {
+					S : fileName
+				}
+			},
+			TableName : filesTable
+		};
+		dynamoDB.deleteItem(fileItem, function(err, data) {
+			if (err) {
+				console.log(filesTable + " Delete Error");
+				console.log(err);
+				callback(err);
+			} else {
+				// issue a same source/target copy command to S3, which will cause
+				// Lambda to get a new event
+				var bucketName = fileName.split("/")[0];
+				var fileKey = fileName.replace(bucketName + "\/", "");
+				var copySpec = {
+					Metadata : {
+						CopyReason : "AWS Lambda Redshift Loader Reprocess Batch " + fileName
+					},
+					MetadataDirective : "REPLACE",
+					Bucket : bucketName,
+					Key : fileKey,
+					CopySource : fileName
+				};
+
+				s3.copyObject(copySpec, function(err, data) {
+					if (err) {
+						console.log(err);
+						callback(err);
+					} else {
+						callback();
+					}
+				});
+			}
+		});
+	};
+
+	/* Unlocks a batch which is set in the "locked" state */
+	exports.unlockBatch = function(config, thisBatchId, s3Info, callback) {
+		// only allow unlocking if the batch is allocated as current
+		if (config.currentBatch.S !== thisBatchId) {
+			console.log("Batch " + thisBatchId + " is not currently allocated as the open batch for Load Configuration on "
+					+ s3Info.prefix + ". Use reprocessBatch.js to rerun the load of this Batch.");
+		} else {
+			var updateBatchStatus = {
+				Key : {
+					batchId : {
+						S : thisBatchId,
+					},
+					s3Prefix : {
+						S : s3Info.prefix
+					}
+				},
+				TableName : batchTable,
+				AttributeUpdates : {
+					status : {
+						Action : 'PUT',
+						Value : {
+							S : 'open'
+						}
+					},
+					lastUpdate : {
+						Action : 'PUT',
+						Value : {
+							N : '' + common.now()
+						}
+					}
+				},
+				// the batch to be unlocked must be in locked or error state - we
+				// can't reopen
+				// 'complete' batches
+				Expected : {
+					status : {
+						AttributeValueList : [ {
+							S : 'locked'
+						}, {
+							S : 'error'
+						} ],
+						ComparisonOperator : 'IN'
+					}
+				}
+			};
+
+			dynamoDB.updateItem(updateBatchStatus, function(err, data) {
+				if (err) {
+					if (err.code === conditionCheckFailed) {
+						console.log("Batch " + thisBatchId + " cannot be unlocked as it is not in 'locked' or 'error' status");
+					} else {
+						console.log(err);
+					}
+
+					callback(err);
+				} else {
+					callback();
+				}
+			});
+		}
+	};
+
 	/* end of runtime functions */
 
 	try {
