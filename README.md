@@ -130,30 +130,29 @@ credentials to Redshift for the COPY command:
 
 ### Redshift running in VPC
 
-This is the recommended model for all customers, and the only option for accounts recently created. In this model, your Redshift cluster is in a VPC Subnet, and we recommend using [AWS Lambda VPC Endpoints](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html) to manage access to your cluster. A logical architecture diagram is below:
+In this model, your Redshift cluster is in a VPC Subnet, and we recommend using [AWS Lambda VPC Endpoints](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html) to manage access to your cluster. The following diagram represents the configuration required to successfully run this solution in a VPC:
 
 ![VPC Connectivity](VPCConnectivity.png)
 
-In this architecture, you expose your AWS Lambda function into your VPC subnets, and then select a security group for your Lambda function. You then grant access from your Redshift VPC Security Group to this Lambda VPC Security Group. However, because the Lambda Loader configuration is managed through DynamoDB, your Lambda function must also have internet egress enabled, and the easiest way to do this is to use [VPC NAT Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-nat-gateway.html). The following steps should be undertaken:
+In this architecture, you expose your AWS Lambda function into a set of private VPC subnets, and then select a security group for your Lambda function. Ideally this would be the same security group as the Redshift cluster was using, but you can also use security group grants to enable access between two SG's. Your Lambda function must also have internet egress enabled so it can read its configuration from DynamoDB, and the easiest way to do this is to use [VPC NAT Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-nat-gateway.html). The following steps should be undertaken:
+
+_VPC_
+
+To use Lambda in a VPC, we recommend having both a private and public subnet per AZ. Your Lambda function is enabled to run within the Private AZ, and a NAT Gateway is created in the Public AZ. Your Private Subnets will each have their own Route Table, with a route for 0.0.0.0/0 (public internet) routed to the NAT Gateway in the same AZ. Your Public Subnets will all share a Route Table which routes 0.0.0.0/0 to the Internet Gateway.
+
+![VPCPerAZ](VPCPerAZ.png)
 
 _AWS Lambda_
 
 * Create a new VPC security group for your AWS Lambda function, which typically includes output access to anything (0.0.0.0/0 ALLOW)
 * Go into your Lambda function configuration, and select 'Advanced settings'. Then select the VPC where your Redshift cluster resides. Then select the Subnets where you want your Lambda function to egress for VPC connectivity. In the diagram above we show it being able to egress into the same subnet as your Redshift Cluster, but this is not a hard requirement
 
-_Please note that AWS Lambda functions that want to route to the internet or public AWS Services should be in 'private' subnets, and not be placed into Subnets with existing routing rules for 0.0.0.0/0 traffic to an Internet Gateway_
-
 _Redshift_
 
-* Go into your Redshift Cluster, and select the VPC Security Groups entry that you want to use for enabling Lambda Access
+* Go into your Redshift Cluster, and select the VPC Security Groups entry that you want to use for enabling your function to connect
 * Add a new Inbound Rule, Type = Redshift, Source = Custom IP, Port = the port for your cluster, and Destination set to the name of the Lambda Security Group created above.
 
 At this point, your lambda function should be able to connect to your Redshift cluster, but would not be able to determine which clusters to connect to when it receives an S3 event. So we need to enable your Lambda function to connect to DynamoDB
-
-_VPC_
-
-* Create a NAT Gateway in your VPC, that is available from the Subnets where your AWS Lambda function egress into your VPC
-* For the Subnets where AWS Lambda can execute, add a routing rule to the Route Table for 0.0.0.0/0 Outbound to route via your NAT Gateway
 
 ### Redshift running in EC2 Classic/Not in VPC
 
