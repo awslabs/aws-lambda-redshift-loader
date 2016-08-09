@@ -215,7 +215,7 @@ exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig, outerCallback)
 			if (err) {
 				if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException') {
 					// retry if the table is in use after 1 second
-					setTimeout(callback(), 1000);
+					setTimeout(callback, 1000);
 				} else {
 					// some other error - fail
 					console.log(JSON.stringify(dynamoConfig));
