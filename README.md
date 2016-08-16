@@ -193,9 +193,13 @@ for US East use `us-east-1`, and for Dublin use `eu-west-1`.
 
 ```export AWS_REGION=eu-central-1``` 
 
-Next, run the setup.js script by entering node setup.js. The script asks questions 
+Next, run the setup.js script by entering `node setup.js`. The script asks questions
 about how the load should be done, including those outlined in the setup appendix 
 as the end of this document. 
+
+Alternatively, you can populate config.json with your configuration values and run
+`node setup-file.js` to run a setup script that uses a JSON configuration file
+instead of reading the values from the command line.
 
 All data used to manage the lifecycle of data loads is stored in DynamoDB, and 
 the setup script automatically provisions the following tables:
