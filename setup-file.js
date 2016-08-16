@@ -51,11 +51,12 @@ var rl = {
 var qs = [];
 
 q_region = function(callback) {
+    var regionsArray = [ "ap-northeast-1",
+      "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1",
+      "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ];
   // region for the configuration
   if (common.blank(setupConfig.region) !== null) {
-    common.validateArrayContains([ "ap-northeast-1",
-      "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1",
-      "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ],
+    common.validateArrayContains(regionsArray,
         setupConfig.region.toLowerCase(), rl);
 
     setRegion = setupConfig.region.toLowerCase();
@@ -68,6 +69,8 @@ q_region = function(callback) {
     kmsCrypto.setRegion(setRegion);
 
     callback(null);
+  } else {
+    console.log('You must provide a region from ' + regionsArray.toString())
   }
 };
 
