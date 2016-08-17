@@ -1,0 +1,107 @@
+{
+  // JSON does not support comments, but this file includes comments for each config value.
+  // The names match those used in setup.js for consistency between methods.
+  //
+  // Enter the Region for the Redshift Load Configuration  Y
+  // Any AWS Region from http://docs.aws.amazon.com/general/latest/gr/rande.html,
+  // using the short name (for example us-east-1 for US East 1)
+  "region": "",
+  // Enter the S3 Bucket & Prefix to watch for files  Y
+  // An S3 Path in format <bucket name>/<prefix>. Prefix is optional
+  "s3Prefix": "",
+  // Enter a Filename Filter Regex  N
+  // A Regular Expression used to filter files which appeared in the
+  // input prefix before they are processed.
+  "filenameFilter": "",
+  // Enter the Cluster Endpoint  Y
+  // The Amazon Redshift Endpoint Address for the Cluster to be loaded.
+  "clusterEndpoint": "",
+  // Enter the Cluster Port  Y
+  // The port on which you have configured your Amazon Redshift Cluster to run.
+  "clusterPort": "",
+  // Does your cluster use SSL (Y/N)  N
+  "clusterUseSSL": "",
+  // Enter the Database Name  Y
+  // The database name in which the target table resides.
+  "clusterDB": "",
+  // Enter the Table to be Loaded  Y
+  // The Table Name to be loaded with the input data.
+  "table": "",
+  // Enter the comma-delimited column list  N
+  // If you want to control the order of columns that are found in a CSV file,
+  // then list the columns here. Please see Column List Syntax for more information
+  "columnList": "",
+  // Should the Table be Truncated before Load? (Y/N)  N
+  // Option to truncate the table prior to loading.Use this option if you will
+  // subsequently process the input patch and only want to see 'new' data with this ELT process.
+  "truncateTable": "",
+  // Enter the Database Username  Y
+  // The username which should be used to connect to perform the COPY.
+  // Please note that only table owners can perform COPY, so this should
+  // be the schema in which the target table resides.
+  "userName": "",
+  // Enter the Database Password  Y
+  // The password for the database user. Will be encrypted before storage in Dynamo DB.
+  "userPwd": "",
+  // Enter the Data Format (CSV, JSON or AVRO)  Y
+  // Whether the data format is Character Separated Values, AVRO or JSON data
+  // (http://docs.aws.amazon.com/redshift/latest/dg/copy-usage_notes-copy-from-json.html).
+  "df": "",
+  // If CSV, Enter the CSV Delimiter Yes if Data Format = CSV
+  // Single character delimiter value, such as ',' (comma) or '
+  "csvDelimiter": "",
+  // If JSON, Enter the JSON Paths File Location on S3 (or NULL for Auto)
+  // Yes if Data Format = JSON
+  // Location of the JSON paths file to use to map the file attributes to the
+  // database table. If not filled, the COPY command uses option 'json = auto'
+  // and the file attributes must have the same name as the column names in the target table.
+  "jsonPaths": "",
+  // Enter the S3 Bucket for Redshift COPY Manifests  Y
+  // The S3 Bucket in which to store the manifest files used to perform the COPY.
+  // Should not be the input location for the load.
+  "manifestBucket": "",
+  // Enter the Prefix for Redshift COPY Manifests  Y
+  // The prefix for COPY manifests.
+  "manifestPrefix": "",
+  // Enter the Prefix to use for Failed Load Manifest Storage  N
+  // On failure of a COPY, you can elect to have the manifest file copied to an
+  // alternative location. Enter that prefix, which will be in the same bucket as
+  // the rest of your COPY manifests.
+  "failedManifestPrefix": "",
+  // Enter the Access Key used by Redshift to get data from S3.
+  // If NULL then Lambda execution role credentials will be used.  N
+  // Amazon Redshift must provide credentials to S3 to be allowed to read data.
+  // Enter the Access Key for the Account or IAM user that Amazon Redshift should use.
+  "accessKey": "",
+  // Enter the Secret Key used by Redshift to get data from S3.
+  // If NULL then Lambda execution role credentials will be used.  N
+  // The Secret Key for the Access Key used to get data from S3. Will be encrypted
+  // prior to storage in DynamoDB.
+  "secretKey": "",
+  // Enter the SNS Topic ARN for Successful Loads  N
+  // SNS Topic ARN for notifications when a batch COPY fails.
+  "successTopic": "",
+  // Enter the SNS Topic ARN for Failed Loads  N
+  // If you want notifications to be sent to an SNS Topic on successful Load, enter
+  // the ARN here. This would be in format arn:aws:sns:<region>:<account number>:<topic name>.
+  "failureTopic": "",
+  // How many files should be buffered before loading?  Y
+  // Enter the number of files placed into the input location before a COPY of the
+  // current open batch should be performed. Recommended to be an even multiple of the
+  // number of CPU's in your cluster. You should set the multiple such that this count
+  // causes loads to be every 2-5 minutes.
+  "batchSize": "",
+  // How old should we allow a Batch to be before loading (seconds)?  N
+  // AWS Lambda will attempt to sweep out 'old' batches using this value as the number
+  // of seconds old a batch can be before loading. This 'sweep' is on every S3 event on
+  // the input location, regardless of whether it matches the Filename Filter Regex.
+  // Not recommended to be below 120.
+  "batchTimeoutSecs": "",
+  // Additional Copy Options to be added N Enter any additional COPY options that you
+  // would like to use, as outlined at (http://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html).
+  // Please also see http://blogs.aws.amazon.com/bigdata/post/Tx2ANLN1PGELDJU/Best-Practices-for-Micro-Batch-Loading-on-Amazon-Redshift
+  // for information on good practices for COPY options in high frequency load environments.
+  "copyOptions": "",
+  // If Encrypted Files are used, Enter the Symmetric Master Key Value
+  "symmetricKey": ""
+}
