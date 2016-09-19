@@ -345,6 +345,17 @@ q_batchSize = function(callback) {
   callback(null);
 };
 
+q_batchBytes = function(callback) {
+	rl.question('Batches can be buffered up to a specified size. How large should a batch be before processing (bytes)? > ', function(answer) {
+		if (common.blank(answer) !== null) {
+			dynamoConfig.Item.batchSizeBytes = {
+				N : '' + common.getIntValue(answer, rl)
+			};
+		}
+		callback(null);
+	});
+};
+
 q_batchTimeoutSecs = function(callback) {
   // How old should we allow a Batch to be before loading (seconds)?
   if (common.blank(setupConfig.batchTimeoutSecs) !== null) {
@@ -409,6 +420,7 @@ qs.push(q_secretKey);
 qs.push(q_successTopic);
 qs.push(q_failureTopic);
 qs.push(q_batchSize);
+qs.push(q_batchBytes);
 qs.push(q_batchTimeoutSecs);
 qs.push(q_copyOptions);
 qs.push(q_symmetricKey);
