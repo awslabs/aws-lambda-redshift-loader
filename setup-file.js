@@ -346,14 +346,14 @@ q_batchSize = function(callback) {
 };
 
 q_batchBytes = function(callback) {
-	rl.question('Batches can be buffered up to a specified size. How large should a batch be before processing (bytes)? > ', function(answer) {
-		if (common.blank(answer) !== null) {
-			dynamoConfig.Item.batchSizeBytes = {
-				N : '' + common.getIntValue(answer, rl)
-			};
-		}
-		callback(null);
-	});
+  // Batches can be buffered up to a specified size. How large should a batch
+  // be before processing (bytes)?
+  if (common.blank(setupConfig.batchSizeBytes) !== null) {
+    dynamoConfig.Item.batchSizeBytes = {
+      N : '' + common.getIntValue(setupConfig.batchSizeBytes, rl)
+    };
+  }
+  callback(null);
 };
 
 q_batchTimeoutSecs = function(callback) {

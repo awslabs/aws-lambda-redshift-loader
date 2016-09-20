@@ -21,6 +21,7 @@
 	"successTopic": "",
 	"failureTopic": "",
 	"batchSize": "3",
+	"batchSizeBytes": "",
 	"batchTimeoutSecs": "120",
 	"copyOptions": "",
 	"symmetricKey": ""
