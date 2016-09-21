@@ -91,6 +91,9 @@
   // number of CPU's in your cluster. You should set the multiple such that this count
   // causes loads to be every 2-5 minutes.
   "batchSize": "",
+  // Batches can be buffered up to a specified size. How large should a batch
+  // be before processing (bytes)?
+  "batchSizeBytes": "",
   // How old should we allow a Batch to be before loading (seconds)?  N
   // AWS Lambda will attempt to sweep out 'old' batches using this value as the number
   // of seconds old a batch can be before loading. This 'sweep' is on every S3 event on
