@@ -1205,7 +1205,7 @@ exports.handler = function(event, context) {
 
 		// add the truncate option if requested
 		if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
-			copyCommand = 'truncate table ' + clusterInfo.targetTable.S + ';\n';
+			copyCommand += 'truncate table ' + clusterInfo.targetTable.S + ';\n';
 		}
 
 		var encryptedItems = {};
@@ -1339,7 +1339,7 @@ exports.handler = function(event, context) {
 								if (config.masterSymmetricKey) {
 									copyOptions = copyOptions + "encrypted\n";
 
-									if (!decryptedConfigItems[symmetricKeyMapEntry]) {
+									if (decryptedConfigItems[symmetricKeyMapEntry]) {
 										credentials = credentials
 												+ ";master_symmetric_key="
 												+ decryptedConfigItems[symmetricKeyMapEntry]
