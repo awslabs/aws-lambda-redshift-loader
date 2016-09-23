@@ -1,5 +1,6 @@
 {
 	"region": "us-west-2",
+	"s3Prefix": "",
 	"filenameFilter": "",
 	"clusterEndpoint": "streamingdatademo.c9mviyg16e04.us-west-2.redshift.amazonaws.com",
 	"clusterPort": "5439",
