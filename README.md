@@ -1,3 +1,11 @@
+# A Zero Administration AWS Lambda Based Amazon Redshift Database Loader
+
+With this AWS Lambda function, it's never been easier to get file data into Amazon
+Redshift. You simply push files into a variety of locations on Amazon S3, and
+have them automatically loaded into your Amazon Redshift clusters.
+
+For automated delivery of streaming data to S3 and subsequently to Redshift, also consider using [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose).
+
 Table of Contents
 =================
 
@@ -28,13 +36,8 @@ Table of Contents
     * [Reviewing Logs](#reviewing-logs)
     * [Extending and Building New Features](#extending-and-building-new-features)
   * [Configuration Reference](#configuration-reference)
-# A Zero Administration AWS Lambda Based Amazon Redshift Database Loader
 
-With this AWS Lambda function, it's never been easier to get file data into Amazon
-Redshift. You simply push files into a variety of locations on Amazon S3, and
-have them automatically loaded into your Amazon Redshift clusters.
 
-For automated delivery of streaming data to S3 and subsequently to Redshift, also consider using [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose).
 
 ## Using AWS Lambda with Amazon Redshift
 Amazon Redshift is a fully managed petabyte scale data warehouse available for
