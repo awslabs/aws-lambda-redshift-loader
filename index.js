@@ -190,8 +190,8 @@ exports.handler = function(event, context) {
 	// run all configuration upgrades required
 	exports.upgradeConfig(s3Info, config, function(err, s3Info, useConfig) {
 	    if (err) {
-		console.log(err);
-		context.done(error, err);
+		console.log(JSON.stringify(err));
+		context.done(error, JSON.stringify(err));
 	    } else {
 		if (useConfig.filenameFilterRegex) {
 		    if (s3Info.key.match(useConfig.filenameFilterRegex.S)) {
@@ -400,16 +400,16 @@ exports.handler = function(event, context) {
 			function(err) {
 			    if (err) {
 				// throw presented errors
-				console.log(err);
-				context.done(error, err);
+				console.log(JSON.stringify(err));
+				context.done(error, JSON.stringify(err));
 			    } else {
 				if (asyncError) {
 				    /*
 				     * throw errors which were encountered
 				     * during the async calls
 				     */
-				    console.log(asyncError);
-				    context.done(error, asyncError);
+				    console.log(JSON.stringify(asyncError));
+				    context.done(error, JSON.stringify(asyncError));
 				} else {
 				    if (!proceed) {
 					/*
@@ -548,8 +548,8 @@ exports.handler = function(event, context) {
 		    console.log("Provisioned Throughput Exceeded on read of " + batchTable);
 		    callback();
 		} else {
-		    console.log(err);
-		    context.done(error, err);
+		    console.log(JSON.stringify(err));
+		    context.done(error, JSON.stringify(err));
 		}
 	    } else if (!data || !data.Item) {
 		var msg = "No open pending Batch " + thisBatchId;
@@ -657,10 +657,11 @@ exports.handler = function(event, context) {
 				context.done(null, null);
 			    } else if (err.code === provisionedThroughputExceeded) {
 				console.log("Provisioned Throughput Exceeded on " + batchTable + " while trying to lock Batch");
-				context.done(error, err);
+				context.done(error, JSON.stringify(err));
 			    } else {
 				console.log("Unable to lock Batch " + thisBatchId);
-				context.done(error, err);
+				console.log(JSON.stringify(err));
+				context.done(error, JSON.stringify(err));
 			    }
 			} else {
 			    if (!data.Attributes) {
@@ -704,15 +705,10 @@ exports.handler = function(event, context) {
 				dynamoDB.updateItem(allocateNewBatchRequest, function(err, data) {
 				    if (err) {
 					console.log("Error while allocating new Pending Batch ID");
-					console.log(err);
-					context.done(error, err);
+					console.log(JSON.stringify(err));
+					context.done(error, JSON.stringify(err));
 				    } else {
-					// OK -
-					// let's
-					// create
-					// the
-					// manifest
-					// file
+					// OK - let's create the manifest file
 					exports.createManifest(config, thisBatchId, s3Info, pendingEntries);
 				    }
 				});
@@ -1271,8 +1267,8 @@ exports.handler = function(event, context) {
 	    // ugh, the batch closure didn't finish - this is not a good
 	    // place to be
 	    if (err) {
-		console.log(err);
-		context.done(error, err);
+		console.log(JSON.stringify(err));
+		context.done(error, JSON.stringify(err));
 	    } else {
 		// send notifications
 		exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError);
@@ -1327,19 +1323,19 @@ exports.handler = function(event, context) {
 		exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody, function() {
 		    context.done(error, JSON.stringify(batchError));
 		}, function(err) {
-		    console.log(err);
-		    context.done(error, err);
+		    console.log(JSON.stringify(err));
+		    context.done(error, JSON.stringify(err));
 		});
 	    } else {
-		context.done(error, batchError);
+		context.done(error, JSON.stringify(batchError));
 	    }
 	} else {
 	    if (config.successTopicARN) {
 		exports.sendSNS(config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody, function() {
 		    context.done(null, null);
 		}, function(err) {
-		    console.log(err);
-		    context.done(error, err);
+		    console.log(JSON.stringify(err));
+		    context.done(error, JSON.stringify(err));
 		});
 	    } else {
 		// finished OK - no SNS notifications for
@@ -1419,8 +1415,8 @@ exports.handler = function(event, context) {
 			     * resolveConfig method
 			     */
 			    if (err) {
-				console.log(err);
-				context.done(error, err);
+				console.log(JSON.stringify(err));
+				context.done(error, JSON.stringify(err));
 			    } else {
 				// update the inputInfo prefix to match the
 				// resolved
@@ -1448,8 +1444,9 @@ exports.handler = function(event, context) {
 	    }
 	}
     } catch (e) {
-	console.log(e);
+	console.log("Unhandled Exception");
+	console.log(JSON.stringify(e));
 	console.log(JSON.stringify(event));
-	context.done(error, e);
+	context.done(error, JSON.stringify(e));
     }
 };
