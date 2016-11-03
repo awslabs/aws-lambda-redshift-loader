@@ -302,14 +302,18 @@ a highly available load framework which doesn't require you manage servers!
 ## Viewing Previous Batches & Status
 If you ever need to see what happened to batch loads into your Cluster, you can
 use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB
-table. It takes 3 arguments:
+table. It can be called by:
+
+```
+node queryBatches.js --region <region> --status <status> --startDate <beginning of date range> --endDate <end of date range>
+```
 
 * region - the region in which the AWS Lambda function is deployed
 * status - the status you are querying for, including 'error', 'complete', 'pending', or 'locked'
-* date - optional date argument to use as a start date for querying batches
+* startDate - optional date argument to use as a start date for querying batches
+* endDate - optional date argument to use as an end date for the query window
 
-Running `node queryBatches.js eu-west-1 error` would return a list of all batches
-with a status of 'error' in the EU (Ireland) region, such as:
+Running `node queryBatches.js --region eu-west-1 --status error` might return a list of all batches with a status of 'error' in the EU (Ireland) region, such as:
 
 ```
 [
@@ -390,6 +394,115 @@ It is possible, but rare, that a batch would become locked but not be being proc
 by AWS Lambda. If this were to happen, please use ```unlockBatch.js``` including
 the region and Batch ID to set the batch to 'open' state again.
 
+## Deleting Old Batches
+
+As the system runs for some time, you may find that your `LambdaRedshiftBatches` table grows to be very large. In this case, you may want to archive old Completed batches that you no longer require.
+
+__USE THIS FEATURE WITH CAUTION!!! IT WILL DELETE DATA!!!__
+
+If you would like to clear out old delete batch entries, then you can use the `deleteBatches.js` script. It will allow you to query for batches that are 'complete' and then clear them out of the system. It does not currently support deleting other types of batches (`error, locked, pending`), as these *should* be reprocessed or would make no sense to delete. To run the script, execute:
+
+```
+deleteBatches.js --region <region> --status <status> --startDate <beginning of date range> --endDate <end of date range>
+```
+
+This function will return console output (and can also be used programmatically) and for example, when specified as above will show:
+
+```
+node deleteBatches.js --region eu-west-1 --batchStatus error
+Dry run only - no batches will be modified
+Resolved 1 Batches for Deletion
+OK: Deletion of 0 Batches
+Deleted Batch Information:
+{ s3Prefix: 'lambda-redshift-loader-test/input',
+  batchId: '43643fda-f829-4f60-820a-2ce331e62b18',
+  status: 'complete',
+  lastUpdateDate: '2016-03-10-10:33:12',
+  lastUpdate: '1457605992.447' }
+
+```
+
+This will allow you test your batch deletion and understand the impact of performing such a change. When you are completely happy to delete batches as outlined in the dry run, then add `--dryRun` to the command line, or supply `false` for the dryRun parameter. This will __ACTUALLY REALLY DELETE BATCH INFORMATION__. To mitigate risk of data loss in error, the return of this function is an array of all the batch information that was deleted, so that you can save logfiles for future recovery if needed. For example:
+
+```
+node deleteBatches.js --region eu-west-1 --batchStatus error --endDate 1457434179 --dryRun false
+Deleting 1 Batches in status error
+OK: Deletion of 1 Batches
+Deleted Batch Information:
+{
+  "batchId": {
+    "S": "fe5876bc-9eeb-494c-a66d-ada4698f4405"
+  },
+  "clusterLoadStatus": {
+    "S": {
+      "db1.cluster.eu-west-1.redshift.amazonaws.com": {
+        "error": {
+          "code": "ETIMEDOUT",
+          "errno": "ETIMEDOUT",
+          "syscall": "connect"
+        },
+        "status": -1
+      },
+      "db2.cluster.amazonaws.com": {
+        "error": {
+          "code": "ENOTFOUND",
+          "errno": "ENOTFOUND",
+          "syscall": "getaddrinfo"
+        },
+        "status": -1
+      }
+    }
+  },
+  "entries": {
+    "SS": [
+      "lambda-redshift-loader-test/input/redshift-input-0.csv",
+      "lambda-redshift-loader-test/input/redshift-input-2.csv"
+    ]
+  },
+  "errorMessage": {
+    "S": {
+      "db1.cluster.eu-west-1.redshift.amazonaws.com": {
+        "error": {
+          "code": "ETIMEDOUT",
+          "errno": "ETIMEDOUT",
+          "syscall": "connect"
+        },
+        "status": -1
+      },
+      "db2.cluster.eu-west-1.redshift.amazonaws.com": {
+        "error": {
+          "code": "ENOTFOUND",
+          "errno": "ENOTFOUND",
+          "syscall": "getaddrinfo"
+        },
+        "status": -1
+      }
+    }
+  },
+  "lastUpdate": {
+    "N": "1457434178.86"
+  },
+  "lastUpdateDate": "2016-03-08-10:49:38",
+  "manifestFile": {
+    "S": "my-bucket/lambda/redshift/failed/manifest-2016-03-08-10:47:30-1368"
+  },
+  "s3Prefix": {
+    "S": "lambda-redshift-loader-test/input"
+  },
+  "status": {
+    "S": "error"
+  },
+  "writeDates": {
+    "NS": [
+      "1457434049.802",
+      "1457433786.56"
+    ]
+  }
+}
+```
+
+As you can see the entire contents of the batch are returned to you, so that you can ensure no possiblity of data loss. The most important features of this returned data structure are likely `$entries.SS, $manifestFile.S`, which would allow you to re-inject files into the loader if needed.
+
 ## Changing your stored Database Password or S3 Secret Key Information
 Currently you must edit the configuration manually in Dynamo DB to make changes.
 If you need to update your Redshift DB Password, or your Secret Key for allowing
@@ -398,7 +511,7 @@ a value using the Lambda Redshift Loader master key and encryption context.
 
 To run:
 ```
-node encryptValue.js <region> <Value to Encrypt>
+node encryptValue.js --region <region> --input <Value to Encrypt>
 ```
 
 This script encrypts the value with Amazon KMS, and then verifies the encryption is
