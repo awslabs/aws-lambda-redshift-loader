@@ -305,15 +305,15 @@ use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB
 table. It can be called by:
 
 ```
-node queryBatches.js --region <region> --status <status> --startDate <beginning of date range> --endDate <end of date range>
+node queryBatches.js --region <region> --batchStatus <batchStatus> --startDate <beginning of date range> --endDate <end of date range>
 ```
 
 * region - the region in which the AWS Lambda function is deployed
-* status - the status you are querying for, including 'error', 'complete', 'pending', or 'locked'
+* batchStatus - the batch status you are querying for, including 'error', 'complete', 'pending', or 'locked'
 * startDate - optional date argument to use as a start date for querying batches
 * endDate - optional date argument to use as an end date for the query window
 
-Running `node queryBatches.js --region eu-west-1 --status error` might return a list of all batches with a status of 'error' in the EU (Ireland) region, such as:
+Running `node queryBatches.js --region eu-west-1 --batchStatus error` might return a list of all batches with a status of 'error' in the EU (Ireland) region, such as:
 
 ```
 [
@@ -403,7 +403,7 @@ __USE THIS FEATURE WITH CAUTION!!! IT WILL DELETE DATA!!!__
 If you would like to clear out old delete batch entries, then you can use the `deleteBatches.js` script. It will allow you to query for batches that are 'complete' and then clear them out of the system. It does not currently support deleting other types of batches (`error, locked, pending`), as these *should* be reprocessed or would make no sense to delete. To run the script, execute:
 
 ```
-deleteBatches.js --region <region> --status <status> --startDate <beginning of date range> --endDate <end of date range>
+deleteBatches.js --region <region> --batchStatus <batchStatus> --startDate <beginning of date range> --endDate <end of date range>
 ```
 
 This function will return console output (and can also be used programmatically) and for example, when specified as above will show:
