@@ -430,12 +430,21 @@ exports.handler = function(event, context) {
 						+ locked
 						+ "' state. If so, unlock the back using `node unlockBatch.js <batch ID>`, delete the processed file marker with `node processedFiles.js -d <filename>`, and then re-store the file in S3";
 					console.log(e);
-					exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Loader unable to write to Open Pending Batch", e, function() {
-					    context.done(error, e);
-					}, function(err) {
-					    console.log(err);
-					    context.done(error, "Unable to Send SNS Notification");
-					});
+
+					msg = "Lambda Redshift Loader unable to write to Open Pending Batch";
+
+					if (config.failureTopicARN) {
+					    exports.sendSNS(config.failureTopicARN.S, msg, e, function() {
+						context.done(error, e);
+					    }, function(err) {
+						console.log(err);
+						context.done(error, "Unable to Send SNS Notification");
+					    });
+					} else {
+					    console.log("Unable to send failure notifications");
+					    console.log(msg);
+					    context.done(error, msg);
+					}
 				    } else {
 					// the add of the file was successful,
 					// so we
