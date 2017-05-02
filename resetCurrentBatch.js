@@ -74,7 +74,7 @@ exports.resetBatchMarker = function(prefix, currentBatchId) {
     var getConfig = {
 	Key : {
 	    s3Prefix : {
-		S : prefix
+		S : _prefix
 	    }
 	},
 	TableName : configTable,
@@ -87,7 +87,7 @@ exports.resetBatchMarker = function(prefix, currentBatchId) {
 	    process.exit(ERROR);
 	} else {
 	    if (!data || !data.Item || !data.Item.currentBatch) {
-		console.log("Unable to find Configuration with S3 Prefix " + prefix + " in Region " + setRegion);
+		console.log("Unable to find Configuration with S3 Prefix " + prefix + " in Region " + _setRegion);
 	    } else {
 		// update the current batch entry to a new marker value
 		if (data.Item.currentBatch.S !== currentBatchId) {
