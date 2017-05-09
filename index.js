@@ -37,7 +37,7 @@ var kmsCrypto = require('./kmsCrypto');
 kmsCrypto.setRegion(region);
 var common = require('./common');
 var async = require('async');
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 var pg = require('pg');
 var upgrade = require('./upgrades');
 
@@ -239,6 +239,7 @@ exports.handler = function(event, context) {
 
 	// add the file to the processed list
 	dynamoDB.putItem(fileEntry, function(err, data) {
+	    var msg;
 	    if (err) {
 		// the conditional check failed so the file has already
 		// been processed
@@ -246,13 +247,13 @@ exports.handler = function(event, context) {
 		    console.log("File " + itemEntry + " Already Processed");
 		    context.done(null, null);
 		} else {
-		    var msg = "Error " + err.code + " for " + fileEntry;
+		    msg = "Error " + err.code + " for " + fileEntry;
 		    console.log(msg);
 		    exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
 		}
 	    } else {
 		if (!data) {
-		    var msg = "Idempotency Check on " + fileEntry + " failed";
+		    msg = "Idempotency Check on " + fileEntry + " failed";
 		    console.log(msg);
 		    exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
 		} else {
@@ -273,7 +274,7 @@ exports.handler = function(event, context) {
 	console.log("Adding Pending Batch Entry for " + itemEntry);
 
 	var proceed = false;
-	var asyncError = undefined;
+	var asyncError;
 	var addFileRetryLimit = 100;
 	var tryNumber = 0;
 
@@ -580,7 +581,7 @@ exports.handler = function(event, context) {
 		var pendingEntries = data.Item.entries.SS;
 		var doProcessBatch = false;
 
-		if (pendingEntries.length >= parseInt(config.batchSize.N)) {
+		if (!pendingEntries || pendingEntries.length >= parseInt(config.batchSize.N)) {
 		    console.log("Batch count " + config.batchSize.N + " reached");
 		    doProcessBatch = true;
 		} else {
@@ -816,7 +817,7 @@ exports.handler = function(event, context) {
 
 		for (var i = 0; i < results.length; i++) {
 		    if (!results[i] || results[i].status === ERROR) {
-			var allOK = false;
+			allOK = false;
 
 			console.log("Cluster Load Failure " + results[i].error + " on Cluster " + results[i].cluster);
 		    }
@@ -881,8 +882,11 @@ exports.handler = function(event, context) {
 	var lastError;
 
 	async.until(function() {
-	    return completed || !retries || retryCount >= retries
+	    return completed || !retries || retryCount >= retries;
 	}, function(asyncCallback) {
+	    if (debug === true) {
+		console.log(command);
+	    }
 	    client.query(command, function(err, result) {
 		// release the client thread
 		// back to
@@ -966,7 +970,7 @@ exports.handler = function(event, context) {
 		}
 	    }
 	});
-    }
+    };
     /**
      * Function which loads a redshift cluster
      * 
@@ -1014,7 +1018,7 @@ exports.handler = function(event, context) {
 	}
 
 	if (debug) {
-	    console.log("Loading Cluster " + clusterInfo.clusterEndpoint.S + " with " + (useLambdaCredentialsToLoad == true ? "Lambda" : "configured") + " credentials");
+	    console.log("Loading Cluster " + clusterInfo.clusterEndpoint.S + " with " + (useLambdaCredentialsToLoad === true ? "Lambda" : "configured") + " credentials");
 	}
 
 	// add the cluster password
@@ -1038,8 +1042,11 @@ exports.handler = function(event, context) {
 		var credentials;
 
 		if (useLambdaCredentialsToLoad === true) {
-		    credentials = 'aws_access_key_id=' + aws.config.credentials.accessKeyId + ';aws_secret_access_key=' + aws.config.credentials.secretAccessKey + ';token='
-			    + aws.config.credentials.sessionToken;
+		    credentials = 'aws_access_key_id=' + aws.config.credentials.accessKeyId + ';aws_secret_access_key=' + aws.config.credentials.secretAccessKey;
+
+		    if (aws.config.credentials.sessionToken) {
+			credentials += ';token=' + aws.config.credentials.sessionToken;
+		    }
 		} else {
 		    credentials = 'aws_access_key_id=' + config.accessKeyForS3.S + ';aws_secret_access_key=' + decryptedConfigItems[s3secretKeyMapEntry].toString();
 		}
@@ -1122,7 +1129,7 @@ exports.handler = function(event, context) {
 		if (clusterInfo.clusterDB) {
 		    dbString = dbString + '/' + clusterInfo.clusterDB.S;
 		}
-		if (clusterInfo.useSSL) {
+		if (clusterInfo.useSSL && clusterInfo.useSSL.BOOL === 'true') {
 		    dbString = dbString + '?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory';
 		}
 		console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
@@ -1370,86 +1377,85 @@ exports.handler = function(event, context) {
 	    if (event.Records.length > 1) {
 		context.done(error, "Unable to process multi-record events");
 	    } else {
-		for (var i = 0; i < event.Records.length; i++) {
-		    var r = event.Records[i];
+		var r = event.Records[0];
 
-		    // ensure that we can process this event based on a variety
-		    // of criteria
-		    var noProcessReason = undefined;
-		    if (r.eventSource !== "aws:s3") {
-			noProcessReason = "Invalid Event Source " + r.eventSource;
-		    }
-		    if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put" || r.eventName === 'ObjectCreated:CompleteMultipartUpload')) {
-			noProcessReason = "Invalid Event Name " + r.eventName;
-		    }
-		    if (r.s3.s3SchemaVersion !== "1.0") {
-			noProcessReason = "Unknown S3 Schema Version " + r.s3.s3SchemaVersion;
-		    }
-
-		    if (noProcessReason) {
-			console.log(noProcessReason);
-			context.done(error, noProcessReason);
-		    } else {
-			// extract the s3 details from the event
-			var inputInfo = {
-			    bucket : undefined,
-			    key : undefined,
-			    prefix : undefined,
-			    inputFilename : undefined
-			};
-
-			inputInfo.bucket = r.s3.bucket.name;
-			inputInfo.key = decodeURIComponent(r.s3.object.key);
-
-			// remove the bucket name from the key, if we have
-			// received it - this happens on object copy
-			inputInfo.key = inputInfo.key.replace(inputInfo.bucket + "/", "");
-
-			var keyComponents = inputInfo.key.split('/');
-			inputInfo.inputFilename = keyComponents[keyComponents.length - 1];
-
-			// remove the filename from the prefix value
-			var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
-
-			// transform hive style dynamic prefixes into static
-			// match prefixes and set the prefix in inputInfo
-			inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
-
-			// add the object size to inputInfo
-			inputInfo.size = r.s3.object.size;
-
-			exports.resolveConfig(inputInfo.prefix, function(err, configData) {
-			    /*
-			     * we did get a configuration found by the
-			     * resolveConfig method
-			     */
-			    if (err) {
-				console.log(JSON.stringify(err));
-				context.done(error, JSON.stringify(err));
-			    } else {
-				// update the inputInfo prefix to match the
-				// resolved
-				// config entry
-				inputInfo.prefix = configData.Item.s3Prefix.S;
-
-				if (debug) {
-				    console.log(JSON.stringify(inputInfo));
-				}
-
-				// call the foundConfig method with the data
-				// item
-				exports.foundConfig(inputInfo, null, configData);
-			    }
-			}, function(err) {
-			    // finish with no exception - where this file sits
-			    // in the S3
-			    // structure is not configured for redshift loads
-			    console.log("No Configuration Found for " + inputInfo.prefix);
-
-			    context.done(null, null);
-			});
-		    }
+		// ensure that we can process this event based on a variety
+		// of criteria
+		var noProcessReason;
+		if (r.eventSource !== "aws:s3") {
+		    noProcessReason = "Invalid Event Source " + r.eventSource;
 		}
+		if (!(r.eventName === "ObjectCreated:Copy" || r.eventName === "ObjectCreated:Put" || r.eventName === 'ObjectCreated:CompleteMultipartUpload')) {
+		    noProcessReason = "Invalid Event Name " + r.eventName;
+		}
+		if (r.s3.s3SchemaVersion !== "1.0") {
+		    noProcessReason = "Unknown S3 Schema Version " + r.s3.s3SchemaVersion;
+		}
+
+		if (noProcessReason) {
+		    console.log(noProcessReason);
+		    context.done(error, noProcessReason);
+		} else {
+		    // extract the s3 details from the event
+		    var inputInfo = {
+			bucket : undefined,
+			key : undefined,
+			prefix : undefined,
+			inputFilename : undefined
+		    };
+
+		    inputInfo.bucket = r.s3.bucket.name;
+		    inputInfo.key = decodeURIComponent(r.s3.object.key);
+
+		    // remove the bucket name from the key, if we have
+		    // received it - this happens on object copy
+		    inputInfo.key = inputInfo.key.replace(inputInfo.bucket + "/", "");
+
+		    var keyComponents = inputInfo.key.split('/');
+		    inputInfo.inputFilename = keyComponents[keyComponents.length - 1];
+
+		    // remove the filename from the prefix value
+		    var searchKey = inputInfo.key.replace(inputInfo.inputFilename, '').replace(/\/$/, '');
+
+		    // transform hive style dynamic prefixes into static
+		    // match prefixes and set the prefix in inputInfo
+		    inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
+
+		    // add the object size to inputInfo
+		    inputInfo.size = r.s3.object.size;
+
+		    exports.resolveConfig(inputInfo.prefix, function(err, configData) {
+			/*
+			 * we did get a configuration found by the resolveConfig
+			 * method
+			 */
+			if (err) {
+			    console.log(JSON.stringify(err));
+			    context.done(error, JSON.stringify(err));
+			} else {
+			    // update the inputInfo prefix to match the
+			    // resolved
+			    // config entry
+			    inputInfo.prefix = configData.Item.s3Prefix.S;
+
+			    if (debug) {
+				console.log(JSON.stringify(inputInfo));
+			    }
+
+			    // call the foundConfig method with the data
+			    // item
+			    exports.foundConfig(inputInfo, null, configData);
+			}
+		    }, function(err) {
+			// finish with no exception - where this file sits
+			// in the S3
+			// structure is not configured for redshift loads
+			console.log("No Configuration Found for " + inputInfo.prefix);
+
+			context.done(null, null);
+		    });
+		}
+
 	    }
 	}
     } catch (e) {
