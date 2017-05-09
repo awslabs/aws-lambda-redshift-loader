@@ -598,7 +598,8 @@ exports.handler = function(event, context) {
 		    doProcessBatch = true;
 		} else {
 		    if (debug === true) {
-			console.log("Current batch age of " + (common.now() - batchCreateDate) + " seconds below batch timeout of " + config.batchTimeoutSecs.N);
+			console.log("Current batch age of " + (common.now() - batchCreateDate) + " seconds below batch timeout: "
+				+ (config.batchTimeoutSecs.N ? config.batchTimeoutSecs.N : "None Defined"));
 		    }
 		}
 
