@@ -1449,11 +1449,13 @@ exports.handler = function(event, context) {
 			}
 		    }, function(err) {
 			// finish with no exception - where this file sits
-			// in the S3
-			// structure is not configured for redshift loads
+			// in the S3 structure is not configured for redshift
+			// loads, or there was an access issue that prevented us
+			// querying DDB
 			console.log("No Configuration Found for " + inputInfo.prefix);
+			console.log(err);
 
-			context.done(null, null);
+			context.done(error, JSON.stringify(err));
 		    });
 		}
 
