@@ -18,6 +18,7 @@ Table of Contents
     * [Getting Started - Granting AWS Lambda rights to access your Redshift cluster](#getting-started---granting-aws-lambda-rights-to-access-your-redshift-cluster)
       * [Redshift running in VPC](#redshift-running-in-vpc)
       * [Redshift running in EC2 Classic/Not in VPC](#redshift-running-in-ec2-classicnot-in-vpc)
+      * [If you want to use http proxy instead of NAT gateway](#if-you-want-to-use-http-proxy-instead-of-nat-gateway)
     * [Getting Started - Support for Notifications &amp; Complex Workflows](#getting-started---support-for-notifications--complex-workflows)
     * [Getting Started - Entering the Configuration](#getting-started---entering-the-configuration)
     * [The Configuration S3 Prefix](#the-configuration-s3-prefix)
@@ -203,6 +204,14 @@ We recommend granting Amazon Redshift users only INSERT rights on tables to be
 loaded. Create a user with a complex password using the CREATE USER command
 (http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html), and grant
 INSERT using GRANT (http://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+
+### If you want to use http proxy instead of NAT gateway
+
+To configure environment variable of your Lambda function:
+
+1. Add a variable. Key is "https_proxy".
+2. Fill a variable. For example, http://proxy.example.org:3128
+
 
 ## Getting Started - Support for Notifications & Complex Workflows
 This function can send notifications on completion of batch processing. Using SNS,
