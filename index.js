@@ -20,6 +20,15 @@ var aws = require('aws-sdk');
 aws.config.update({
     region : region
 });
+var https_proxy = process.env['https_proxy'];
+if (https_proxy !== undefined && https_proxy !== "") {
+    console.log("Using proxy server " + https_proxy);
+    var proxy_agent = require('https-proxy-agent');
+    aws.config.update({
+        httpOptions: { agent: new proxy_agent(https_proxy) }
+    });
+}
+
 var s3 = new aws.S3({
     apiVersion : '2006-03-01',
     region : region

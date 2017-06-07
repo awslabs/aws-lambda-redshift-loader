@@ -12,7 +12,8 @@
         "uuid": "3.0.1",
         "pg":"6.1.5",
         "aws-sdk":"2.49.0",
-        "minimist":"1.2.0"
+        "minimist":"1.2.0",
+        "https-proxy-agent": "1.0.0"
     },
     "keywords": [
         "amazon",
