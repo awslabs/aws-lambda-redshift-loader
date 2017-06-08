@@ -21,7 +21,8 @@ var dynamoDB;
 var kmsCrypto = require('./kmsCrypto');
 var setRegion;
 
-var setupConfig = require('./config.json');
+var configJson  = process.argv[2] || './config.json';
+var setupConfig = require(configJson);
 
 dynamoConfig = {
     TableName : configTable,
