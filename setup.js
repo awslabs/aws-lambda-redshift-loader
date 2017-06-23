@@ -20,6 +20,8 @@ var common = require('./common');
 var async = require('async');
 var uuid = require('node-uuid');
 var dynamoDB;
+var s3;
+var lambda;
 var kmsCrypto = require('./kmsCrypto');
 var setRegion;
 
@@ -58,12 +60,19 @@ q_region = function(callback) {
 
 	    setRegion = answer.toLowerCase();
 
-	    // configure dynamo db and kms for the correct region
+	    // configure dynamo db, kms, s3 and lambda for the correct region
 	    dynamoDB = new aws.DynamoDB({
 		apiVersion : '2012-08-10',
 		region : setRegion
 	    });
 	    kmsCrypto.setRegion(setRegion);
+	    s3 = new aws.S3({
+		apiVersion : '2006-03-01'
+	    });
+	    lambda = new aws.Lambda({
+		apiVersion : '2015-03-31',
+		region : setRegion
+	    });
 
 	    callback(null);
 	}
@@ -156,7 +165,7 @@ q_userName = function(callback) {
 };
 
 q_userPwd = function(callback) {
-    rl.question('Enter the Database Password > ', function(answer) {
+    rl.question('Enter the Database Password (will be displayed, but encrypted before storing) > ', function(answer) {
 	common.validateNotNull(answer, 'You Must Provide a Password', rl);
 
 	kmsCrypto.encrypt(answer, function(err, ciphertext) {
@@ -265,7 +274,7 @@ q_manifestPrefix = function(callback) {
 };
 
 q_failedManifestPrefix = function(callback) {
-    rl.question('Enter the Prefix to use for Failed Load Manifest Storage > ', function(answer) {
+    rl.question('Enter the Prefix to use for Failed Load Manifest Storage (must differ from the initial manifest path) > ', function(answer) {
 	common.validateNotNull(answer, 'You Must Provide a Prefix for Manifests', rl);
 	dynamoConfig.Item.failedManifestKey = {
 	    S : answer
@@ -396,22 +405,14 @@ q_copyOptions = function(callback) {
 last = function(callback) {
     rl.close();
 
-    setup(null, callback);
+    exports.setup(dynamoConfig, callback);
 };
 
-setup = function(overrideConfig, callback) {
-    // set which configuration to use
-    var useConfig = undefined;
-    if (overrideConfig) {
-	useConfig = overrideConfig;
-    } else {
-	useConfig = dynamoConfig;
-    }
-    var configWriter = common.writeConfig(setRegion, dynamoDB, useConfig, callback);
-    common.createTables(dynamoDB, configWriter);
-};
 // export the setup module so that customers can programmatically add new
 // configurations
+setup = function(useConfig, callback) {
+  common.setup(useConfig, dynamoDB, s3, lambda, callback);  
+};
 exports.setup = setup;
 
 qs.push(q_region);

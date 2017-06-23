@@ -91,10 +91,11 @@ To deploy the function:
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and select the 'Blank Function' blueprint
-3. On the next page, click in the square box with a dashed line to select your S3 bucket as an event source. Select the bucket you want to use for input data. Ensure that you have selected 'Object Created' or the 'ObjectCreated:*' notification type 
-3. Select the Runtime value as 'Node.js 4.3'
-3.	Under Code entry type select 'Upload a zip file' from the dropdown, and upload the [AWSLambdaRedshiftLoader-2.2.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.2.0.zip) from your local ```dist``` folder
-4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role (required permissions below).  We also recommend using the max timeout for the function to accomodate long COPY times.
+3. On next page, click 'next' with no event source selected
+3. Select the Runtime value as 'Node.js 6.10.0'
+3.	Under Code entry type select 'Upload a zip file' from the dropdown, and upload the [AWSLambdaRedshiftLoader-2.5.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.5.0.zip) from your local ```dist``` folder or alternatively, you can use `s3://awslabs-code-\<REGION>/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.5.0.zip` where \<REGION> is the region in which you are deploying the function
+4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role (required permissions are listedbelow).  We also recommend using the max timeout for the function to accomodate longer COPY times.
+5. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing.
 
 When you're done, you'll see that the AWS Lambda function is deployed and you
 can submit test events and view the CloudWatch Logging log streams.
@@ -228,7 +229,7 @@ for US East use `us-east-1`, and for Dublin use `eu-west-1`.
 
 Next, run the setup.js script by entering `node setup.js`. The script asks questions
 about how the load should be done, including those outlined in the setup appendix
-as the end of this document.
+as the end of this document. If you are the sort of person who would rather automate this, then you can call the setup module directly by including `common.js` and calling `function setup(useConfig, dynamoDB, s3, lambda, callback)` where `useConfig` is a valid configuration in the form of a DynamoDB Item, and `dynamoDB`, `S3` and `lambda` are all client connections to the respective services.
 
 Alternatively, you can populate config.json with your configuration values and run
 `node setup-file.js` to run a setup script that uses a JSON configuration file
@@ -240,6 +241,8 @@ the setup script automatically provisions the following tables:
 * LambdaRedshiftBatchLoadConfig - Stores the configuration of how files in an S3 input prefix should be loaded into Amazon Redshift.
 * LambdaRedshiftBatches - Stores the list of all historical and open batches that have been created. There will always be one open batch, and may be multiple closed batches per S3 input prefix from LambdaRedshiftBatchLoadConfig.
 * LambdaRedshiftProcessedFiles - Stores the list of all files entered into a batch, which is also used for deduplication of input files.
+
+Once the tables are configured, the setup script will automatically create an event source for the prefix you specified in S3, and start pushing `ObjectCreated:*` events to the database loader.
 
 *** IMPORTANT ***
 The tables used by this function are created with a max read & write per-second rate

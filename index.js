@@ -227,6 +227,9 @@ exports.handler = function(event, context) {
 	    Item : {
 		loadFile : {
 		    S : itemEntry
+		},
+		receiveDateTime : {
+		    S : common.readableTime(common.now())
 		}
 	    },
 	    Expected : {
@@ -481,7 +484,7 @@ exports.handler = function(event, context) {
 		}
 	    }
 	};
-	dynamoDB.updateItem(updateProcessedFile, function(err, data) {
+	common.retryableUpdate(dynamoDB, updateProcessedFile, function(err, data) {
 	    // because this is an async call which doesn't affect
 	    // process flow, we'll just log the error and do nothing with the OK
 	    // response
@@ -524,7 +527,7 @@ exports.handler = function(event, context) {
 	    }
 	};
 
-	dynamoDB.updateItem(item, function(err, data) {
+	common.retryableUpate(dynamoDB, item, function(err, data) {
 	    if (err) {
 		console.log(err);
 	    } else {
@@ -657,7 +660,7 @@ exports.handler = function(event, context) {
 			 */
 			ReturnValues : "ALL_NEW"
 		    };
-		    dynamoDB.updateItem(updateCurrentBatchStatus, function(err, data) {
+		    common.retryableUpdate(dynamoDB, updateCurrentBatchStatus, function(err, data) {
 			if (err) {
 			    if (err.code === conditionCheckFailed) {
 				/*
@@ -713,7 +716,7 @@ exports.handler = function(event, context) {
 				    }
 				};
 
-				dynamoDB.updateItem(allocateNewBatchRequest, function(err, data) {
+				common.retryableUpdate(dynamoDB, allocateNewBatchRequest, function(err, data) {
 				    if (err) {
 					console.log("Error while allocating new Pending Batch ID");
 					console.log(JSON.stringify(err));
@@ -854,7 +857,7 @@ exports.handler = function(event, context) {
 			}
 		    }
 		};
-		dynamoDB.updateItem(loadStateRequest, function(err, data) {
+		common.retryableUpdate(dynamoDB, loadStateRequest, function(err, data) {
 		    if (err) {
 			console.log("Error while attaching per-Cluster Load State");
 			exports.failBatch(err, config, thisBatchId, s3Info, manifestInfo);
@@ -1176,7 +1179,10 @@ exports.handler = function(event, context) {
 	    var copySpec = {
 		Bucket : manifestInfo.manifestBucket,
 		Key : manifestInfo.failedManifestPrefix,
-		CopySource : manifestInfo.manifestPath
+		CopySource : manifestInfo.manifestPath,
+		Metadata : {
+		    'x-amz-meta-load-date' : common.readableTime(common.now())
+		}
 	    };
 	    s3.copyObject(copySpec, function(err, data) {
 		if (err) {
@@ -1212,7 +1218,7 @@ exports.handler = function(event, context) {
 			    }
 			}
 		    };
-		    dynamoDB.updateItem(manifestModification, function(err, data) {
+		    common.retryableUpdate(dynamoDB, manifestModification, function(err, data) {
 			if (err) {
 			    console.log(err);
 			    exports.closeBatch(err, config, thisBatchId, s3Info, manifestInfo);
@@ -1280,7 +1286,7 @@ exports.handler = function(event, context) {
 	}
 
 	// mark the batch as closed
-	dynamoDB.updateItem(item, function(err, data) {
+	common.retryableUpdate(dynamoDB, item, function(err, data) {
 	    // ugh, the batch closure didn't finish - this is not a good
 	    // place to be
 	    if (err) {

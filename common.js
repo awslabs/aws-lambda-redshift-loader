@@ -9,6 +9,7 @@
  */
 
 var async = require('async');
+var uuid = require('uuid');
 require('./constants');
 
 // function which creates a string representation of now suitable for use in S3
@@ -35,7 +36,7 @@ exports.getFormattedDate = function(date) {
     var day = date.getDate();
     day = (day < 10 ? "0" : "") + day;
 
-    return year + "-" + month + "-" + day + "-" + hour + ":" + min + ":" + sec;
+    return year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec;
 };
 
 /* current time as seconds */
@@ -47,6 +48,23 @@ exports.readableTime = function(epochSeconds) {
     var d = new Date(0);
     d.setUTCSeconds(epochSeconds);
     return exports.getFormattedDate(d);
+};
+
+exports.createTableAndWait = function(tableParams, dynamoDB, callback) {
+    dynamoDB.createTable(tableParams, function(err, data) {
+	if (err) {
+	    if (err.code !== 'ResourceInUseException') {
+		console.log(err.toString());
+		callback(err);
+	    } else {
+		console.log("Table " + tableParams.TableName + " already exists");
+		callback();
+	    }
+	} else {
+	    console.log("Created DynamoDB Table " + tableParams.TableName);
+	    setTimeout(callback, 1000);
+	}
+    });
 };
 
 exports.createTables = function(dynamoDB, callback) {
@@ -132,108 +150,93 @@ exports.createTables = function(dynamoDB, callback) {
     };
 
     console.log("Creating Tables in Dynamo DB if Required");
-    dynamoDB.createTable(processedFilesSpec, function(err, data) {
+    var functions = [ exports.createTableAndWait.bind(undefined, processedFilesSpec, dynamoDB), exports.createTableAndWait.bind(undefined, batchSpec, dynamoDB),
+	    exports.createTableAndWait.bind(undefined, configSpec, dynamoDB) ];
+    async.waterfall(functions, function(err, results) {
 	if (err) {
-	    if (err.code !== 'ResourceInUseException') {
-		console.log(Object.prototype.toString.call(err).toString());
-		console.log(err.toString());
-		process.exit(ERROR);
-	    }
+	    console.log(err);
+	    callback(err);
+	} else {
+	    callback();
 	}
-	dynamoDB.createTable(batchSpec, function(err, data) {
-	    if (err) {
-		if (err.code !== 'ResourceInUseException') {
-		    console.log(err.toString());
-		    process.exit(ERROR);
-		}
-	    }
-	    dynamoDB.createTable(configSpec, function(err, data) {
-		if (err) {
-		    if (err.code !== 'ResourceInUseException') {
-			console.log(err.toString());
-			process.exit(ERROR);
-		    }
-		}
-
-		// now write the config item after the table has been
-		// provisioned
-		if (callback) {
-		    setTimeout(callback(), 5000);
-		}
-	    });
-	});
     });
 };
 
-exports.updateConfig = function(setRegion, dynamoDB, updateRequest, outerCallback) {
+exports.retryableUpdate = function(dynamoDB, updateRequest, callback) {
     var tryNumber = 0;
-    var writeConfigRetryLimit = 100;
+    var writeRetryLimit = 100;
+    var done = false;
 
     async.whilst(function() {
 	// retry until the try count is hit
-	return tryNumber < writeConfigRetryLimit;
-    }, function(callback) {
+	return tryNumber < writeRetryLimit && done === false;
+    }, function(asyncCallback) {
 	tryNumber++;
 
 	dynamoDB.updateItem(updateRequest, function(err, data) {
 	    if (err) {
-		if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException') {
-		    console.log(err.code);
-
-		    // retry if the table is in use after 1 second
-		    setTimeout(callback(), 1000);
+		if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
+		    // retry in 1 second if the table is still in the process of
+		    // being created
+		    setTimeout(asyncCallback, 1000);
 		} else {
-		    // some other error - fail
-		    console.log(JSON.stringify(updateRequest));
+		    console.log(JSON.stringify(dynamoConfig));
 		    console.log(err);
-		    outerCallback(err);
+		    asyncCallback(err);
 		}
 	    } else {
 		// all OK - exit OK
 		if (data) {
-		    console.log("Configuration for " + updateRequest.Key.s3Prefix.S + " updated in " + setRegion);
-		    outerCallback(null);
+		    done = true;
+		    asyncCallback(undefined, data);
+		} else {
+		    var msg = "Wrote to DynamoDB but didn't receive a verification data element";
+		    console.log(msg);
+		    asyncCallback(msg);
 		}
 	    }
 	});
-    }, function(error) {
-	// never called
+    }, function(err) {
+	callback(err);
     });
 };
 
-exports.writeConfig = function(setRegion, dynamoDB, dynamoConfig, outerCallback) {
+exports.retryablePut = function(dynamoDB, putRequest, callback) {
     var tryNumber = 0;
-    var writeConfigRetryLimit = 100;
+    var writeRetryLimit = 100;
+    var done = false;
 
     async.whilst(function() {
 	// retry until the try count is hit
-	return tryNumber < writeConfigRetryLimit;
-    }, function(callback) {
+	return tryNumber < writeRetryLimit && done === false;
+    }, function(asyncCallback) {
 	tryNumber++;
 
-	dynamoDB.putItem(dynamoConfig, function(err, data) {
+	dynamoDB.putItem(putRequest, function(err, data) {
 	    if (err) {
-		if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException') {
-		    // retry if the table is in use after 1 second
-		    setTimeout(callback, 1000);
+		if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
+		    // retry in 1 second if the table is still in the process of
+		    // being created
+		    setTimeout(asyncCallback, 1000);
 		} else {
-		    // some other error - fail
 		    console.log(JSON.stringify(dynamoConfig));
-		    console.log(JSON.stringify(err));
-		    if (outerCallback)
-			outerCallback(err);
+		    console.log(err);
+		    asyncCallback(err);
 		}
 	    } else {
 		// all OK - exit OK
 		if (data) {
-		    console.log("Configuration for " + dynamoConfig.Item.s3Prefix.S + " successfully written in " + setRegion);
-		    if (outerCallback)
-			outerCallback(null);
+		    done = true;
+		    asyncCallback(undefined, data);
+		} else {
+		    var msg = "Wrote to DynamoDB but didn't receive a verification data element";
+		    console.log(msg);
+		    asyncCallback(msg);
 		}
 	    }
 	});
-    }, function(error) {
-	// never called
+    }, function(err) {
+	callback(err);
     });
 };
 
@@ -244,7 +247,7 @@ exports.dropTables = function(dynamoDB, callback) {
     }, function(err, data) {
 	if (err && err.code !== 'ResourceNotFoundException') {
 	    console.log(err);
-	    process.exit(ERROR);
+	    callback(err);
 	} else {
 	    // drop the processed files table
 	    dynamoDB.deleteTable({
@@ -252,7 +255,7 @@ exports.dropTables = function(dynamoDB, callback) {
 	    }, function(err, data) {
 		if (err && err.code !== 'ResourceNotFoundException') {
 		    console.log(err);
-		    process.exit(ERROR);
+		    callback(err);
 		} else {
 		    // drop the batches table
 		    dynamoDB.deleteTable({
@@ -260,7 +263,7 @@ exports.dropTables = function(dynamoDB, callback) {
 		    }, function(err, data) {
 			if (err && err.code !== 'ResourceNotFoundException') {
 			    console.log(err);
-			    process.exit(ERROR);
+			    callback(err);
 			}
 
 			console.log("All Configuration Tables Dropped");
@@ -326,7 +329,7 @@ exports.blank = function(value) {
 };
 
 exports.validateArrayContains = function(array, value, rl) {
-    if (!(array.indexOf(value) > -1)) {
+    if (array.indexOf(value) === -1) {
 	rl.close();
 	console.log('Value must be one of ' + array.toString());
 	process.exit(INVALID_ARG);
@@ -353,4 +356,244 @@ exports.createManifestInfo = function(config) {
 
 exports.randomInt = function(low, high) {
     return Math.floor(Math.random() * (high - low) + low);
+};
+
+exports.getFunctionArn = function(lambda, functionName, callback) {
+    var params = {
+	FunctionName : functionName
+    };
+    lambda.getFunction(params, function(err, data) {
+	if (err) {
+	    console.log(err);
+	    callback(err);
+	} else {
+	    if (data && data.Configuration) {
+		callback(undefined, data.Configuration.FunctionArn);
+	    } else {
+		callback();
+	    }
+	}
+    });
+};
+
+exports.getS3NotificationConfiguration = function(s3, bucket, prefix, functionArn, callback) {
+    var params = {
+	Bucket : bucket
+    };
+    s3.getBucketNotificationConfiguration(params, function(err, data) {
+	if (err) {
+	    callback(err);
+	} else {
+	    // have to iterate through all the function configurations
+	    if (data.LambdaFunctionConfigurations && data.LambdaFunctionConfigurations.length > 0) {
+		var matchConfigId;
+		data.LambdaFunctionConfigurations.map(function(item) {
+		    if (item.Filter.Key.FilterRules) {
+			item.Filter.Key.FilterRules.map(function(filter) {
+			    if (filter.Name === 'Prefix' && filter.Value === prefix) {
+				if (item.LambdaFunctionArn === functionArn) {
+				    matchConfigId = item.Id;
+				}
+			    }
+			});
+		    }
+		});
+
+		if (matchConfigId) {
+		    callback(undefined, matchConfigId, data);
+		} else {
+		    callback(undefined, undefined, data);
+		}
+	    } else {
+		callback();
+	    }
+	}
+    });
+};
+
+function getS3Arn(bucket, prefix) {
+    var arn = "arn:aws:s3:::" + bucket;
+
+    if (prefix) {
+	arn = arn + prefix;
+    }
+
+    return arn;
+}
+
+exports.ensureS3InvokePermisssions = function(lambda, bucket, prefix, functionName, functionArn, callback) {
+    lambda.getPolicy({
+	FunctionName : functionName
+    }, function(err, data) {
+	if (err && err.code !== 'ResourceNotFoundException') {
+	    callback(err);
+	}
+
+	var foundMatch = false;
+	var s3Arn = getS3Arn(bucket);
+	var sourceAccount = functionArn.split(":")[4];
+
+	// process the existing permissions policy if there is one
+	if (data && data.Policy) {
+	    var statements = JSON.parse(data.Policy).Statement;
+
+	    statements.map(function(item) {
+		if (item.Resource === functionArn && item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount) {
+		    foundMatch = true;
+		}
+	    });
+	}
+
+	if (foundMatch === true) {
+	    console.log("Found existing Policy match for S3 path to invoke " + functionName);
+	    callback();
+	} else {
+	    var lambdaPermissions = {
+		Action : "lambda:InvokeFunction",
+		FunctionName : functionName,
+		Principal : "s3.amazonaws.com",
+		// only use internal account sources
+		SourceAccount : sourceAccount,
+		SourceArn : s3Arn,
+		StatementId : uuid.v4()
+	    };
+
+	    lambda.addPermission(lambdaPermissions, function(err, data) {
+		if (err) {
+		    console.log(err);
+		    callback(err);
+		} else {
+		    console.log("Granted S3 permission to invoke " + functionArn);
+		    callback();
+		}
+	    });
+	}
+    });
+};
+
+exports.createS3EventSource = function(s3, lambda, bucket, prefix, functionName, callback) {
+    console.log("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
+
+    // lookup the deployed function name to get the ARN
+    exports.getFunctionArn(lambda, functionName, function(err, functionArn) {
+	if (err) {
+	    callback(err);
+	} else {
+	    // blow up if there's no deployed function - can't create the event
+	    // source
+	    if (!functionArn) {
+		var msg = "Unable to resolve Function ARN for " + functionName;
+		console.log(msg);
+		callback(msg);
+	    } else {
+		exports.getS3NotificationConfiguration(s3, bucket, prefix, functionArn, function(err, lambdaFunctionId, currentNotificationConfiguration) {
+		    if (err) {
+			// this almost certainly will be because the bucket name
+			// doesn't exist
+			console.log(err);
+			callback(err);
+		    } else {
+			if (lambdaFunctionId) {
+			    // found an existing function
+			    console.log("Found existing event source for s3://" + bucket + "/" + prefix + " forwarding notifications to " + functionArn);
+			    callback(undefined, lambdaFunctionId);
+			} else {
+			    // there isn't a matching event
+			    // configuration so create a new one for the
+			    // specified prefix
+			    exports.ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functionArn, function(err, data) {
+				if (err) {
+				    callback(err);
+				} else {
+				    // now create the event source mapping
+				    var newEventConfiguration = {
+					Events : [ 's3:ObjectCreated:*', ],
+					LambdaFunctionArn : functionArn,
+					Filter : {
+					    Key : {
+						FilterRules : [ {
+						    Name : 'prefix',
+						    Value : prefix + "/*"
+						} ]
+					    }
+					},
+					Id : "LambdaRedshiftLoaderEventSource-" + uuid.v4()
+				    };
+
+				    // add the notification configuration to the
+				    // set of existing lambda configurations
+				    if (!currentNotificationConfiguration) {
+					currentNotificationConfiguration = {};
+				    }
+				    if (!currentNotificationConfiguration.LambdaFunctionConfigurations) {
+					currentNotificationConfiguration.LambdaFunctionConfigurations = [];
+				    }
+
+				    currentNotificationConfiguration.LambdaFunctionConfigurations.push(newEventConfiguration);
+
+				    // push the function event trigger
+				    // configurations back into S3
+				    var params = {
+					Bucket : bucket,
+					NotificationConfiguration : currentNotificationConfiguration
+				    };
+
+				    s3.putBucketNotificationConfiguration(params, function(err, data) {
+					if (err) {
+					    console.log(this.httpResponse.body.toString());
+					    console.log(err);
+					    callback(err);
+					} else {
+					    callback();
+					}
+				    });
+				}
+			    });
+			}
+		    }
+		});
+	    }
+	}
+    });
+};
+
+// function which sets up the tables, writes the configuration, and creates the
+// event source for S3->Lambda
+exports.setup = function(useConfig, dynamoDB, s3, lambda, callback) {
+    // function to create tables
+    var createTables = function(c) {
+	exports.createTables(dynamoDB, function(err) {
+	    c(err);
+	});
+    };
+
+    // function to write the configuration into the config tables
+    var writeConfig = function(c) {
+	exports.retryablePut(dynamoDB, useConfig, function(err) {
+	    c(err);
+	});
+    };
+
+    // function which invokes the creation of the event source for the bucket
+    // and prefix
+    var createEventSource = function(c) {
+	var s3prefix = useConfig.Item.s3Prefix.S;
+	var tokens = s3prefix.split("/");
+	var bucket = tokens[0];
+	var prefix = tokens.slice(1).join("/");
+
+	// deployedFunctionName is defined in constants.js
+	exports.createS3EventSource(s3, lambda, bucket, prefix, deployedFunctionName, function(err, configId) {
+	    c(err);
+	});
+    };
+
+    async.waterfall([ createTables, writeConfig, createEventSource ], function(err, result) {
+	if (err) {
+	    console.log(err);
+	    callback(err);
+	} else {
+	    callback();
+	}
+    });
 };
