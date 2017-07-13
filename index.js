@@ -527,7 +527,7 @@ exports.handler = function(event, context) {
 	    }
 	};
 
-	common.retryableUpate(dynamoDB, item, function(err, data) {
+	common.retryableUpdate(dynamoDB, item, function(err, data) {
 	    if (err) {
 		console.log(err);
 	    } else {

@@ -196,9 +196,7 @@ exports.retryableUpdate = function(dynamoDB, updateRequest, callback) {
 		}
 	    }
 	});
-    }, function(err) {
-	callback(err);
-    });
+    }, callback);
 };
 
 exports.retryablePut = function(dynamoDB, putRequest, callback) {
