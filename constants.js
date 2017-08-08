@@ -9,6 +9,8 @@
  */
  var loaderInstanceName = process.env.LOADER_INSTANCE_NAME ? '-' + LOADER_INSTANCE_NAME : '';
 
+console.log("Loader instance name:", loaderInstanceName);
+
 batchId = 'batchId';
 currentBatch = 'currentBatch';
 s3prefix = 's3Prefix';
