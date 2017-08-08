@@ -173,7 +173,7 @@ exports.retryableUpdate = function(dynamoDB, updateRequest, callback) {
     }, function(asyncCallback) {
 	tryNumber++;
 
-	dynamoDB.updateItem(updateRequest, function(err) {
+	dynamoDB.updateItem(updateRequest, function(err, data) {
 	    if (err) {
 		if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
 		    // retry in 1 second if the table is still in the process of

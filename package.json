@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "async": "2.4.0",
+    "dotenv": "^4.0.0",
     "uuid": "3.0.1",
     "pg": "6.1.5",
     "aws-sdk": "2.49.0",
@@ -57,7 +58,6 @@
     "setup-file": "node setup-file.js"
   },
   "devDependencies": {
-    "dotenv": "^4.0.0",
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
     "gulp-sequence": "^0.4.6",
