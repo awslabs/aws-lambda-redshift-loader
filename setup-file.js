@@ -11,6 +11,7 @@
 /**
  * Use config file and setup the DynamoDB table entry for the configuration
  */
+require('dotenv').config();
 var pjson = require('./package.json');
 var aws = require('aws-sdk');
 require('./constants');

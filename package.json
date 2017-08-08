@@ -58,6 +58,7 @@
     "setup-file": "node setup-file.js"
   },
   "devDependencies": {
+    "dotenv": "^4.0.0",
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
     "gulp-sequence": "^0.4.6",
