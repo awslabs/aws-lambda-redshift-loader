@@ -19,7 +19,7 @@ var aws = require('aws-sdk');
 require('./constants');
 var common = require('./common');
 var async = require('async');
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 var dynamoDB;
 var s3;
 var lambda;

@@ -12,8 +12,7 @@
     "uuid": "3.0.1",
     "pg": "6.1.5",
     "aws-sdk": "2.49.0",
-    "minimist": "1.2.0",
-    "node-uuid": "^1.4.8"
+    "minimist": "1.2.0"
   },
   "keywords": [
     "amazon",

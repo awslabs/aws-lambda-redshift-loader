@@ -10,7 +10,7 @@
 var aws = require('aws-sdk');
 var common = require('./common');
 var pjson = require('./package.json');
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 
 // configure dynamo db, kms, s3 and lambda for the correct region
 var setRegion = "eu-west-1";
