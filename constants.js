@@ -10,7 +10,7 @@
 require('dotenv').config();
 const loaderInstanceName = process.env.LOADER_INSTANCE_NAME || '';
 console.log("Loader instance name:", loaderInstanceName);
-const prefix = loaderInstanceName ? loaderInstanceName + "-" : "";
+const loaderInstancePrefix = loaderInstanceName ? loaderInstanceName + "-" : "";
 
 batchId = 'batchId';
 currentBatch = 'currentBatch';
@@ -22,13 +22,13 @@ open = 'open';
 error = 'error';
 entries = 'entries';
 status = 'status';
-configTable = prefix + 'LambdaRedshiftBatchLoadConfig';
-batchTable = prefix + 'LambdaRedshiftBatches';
-batchStatusGSI = prefix + 'LambdaRedshiftBatchStatus';
-filesTable = prefix + 'LambdaRedshiftProcessedFiles';
+configTable = loaderInstancePrefix + 'LambdaRedshiftBatchLoadConfig';
+batchTable = loaderInstancePrefix + 'LambdaRedshiftBatches';
+batchStatusGSI = loaderInstancePrefix + 'LambdaRedshiftBatchStatus';
+filesTable = loaderInstancePrefix + 'LambdaRedshiftProcessedFiles';
 conditionCheckFailed = 'ConditionalCheckFailedException';
 provisionedThroughputExceeded = 'ProvisionedThroughputExceededException';
-deployedFunctionName = prefix + 'LambdaRedshiftLoader';
+deployedFunctionName = loaderInstancePrefix + 'LambdaRedshiftLoader';
 INVALID_ARG = -1;
 ERROR = -1;
 OK = 0;
