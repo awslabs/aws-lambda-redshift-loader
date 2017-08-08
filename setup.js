@@ -12,7 +12,6 @@
  * Ask questions of the end user via STDIN and then setup the DynamoDB table
  * entry for the configuration when done
  */
-require('dotenv').config();
 var pjson = require('./package.json');
 var readline = require('readline');
 var aws = require('aws-sdk');
