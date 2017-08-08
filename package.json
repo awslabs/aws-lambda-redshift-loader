@@ -1,55 +1,67 @@
 {
-    "name": "aws-lambda-redshift-loader",
-    "description": "An Amazon Redshift Database Loader written for AWS Lambda",
-    "version": "2.5.0",
-    "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
-    "bugs": {
-        "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
-        "email": "meyersi@amazon.com"
-    },
-    "dependencies": {
-        "async": "2.4.0",
-        "uuid": "3.0.1",
-        "pg":"6.1.5",
-        "aws-sdk":"2.49.0",
-        "minimist":"1.2.0",
-        "node-uuid": "^1.4.8",
-    },
-    "keywords": [
-        "amazon",
-        "redshift",
-        "lambda"
-    ],
-    "author": {
-        "name": "Ian Meyers",
-        "email": "meyersi@amazon.com"
-    },
-    "lib": "./lib",
-    "main": "./index.js",
-    "license" : "SEE LICENSE IN LICENSE.txt",
-    "files": [
-        "addAdditionalClusterEndpoint.js",
-        "common.js",
-        "constants.js",
-        "createS3TriggerFile.js",
-        "describeBatch.js",
-        "encryptValue.js",
-        "generate-trigger-file.py",
-        "index.js",
-        "kmsCrypto.js",
-        "LICENSE.txt",
-        "NOTICE.txt",
-        "processedFiles.js",
-        "queryBatches.js",
-        "README.md",
-        "reprocessBatch.js",
-        "setup.js",
-        "unlockBatch.js",
-        "upgrades.js",
-        "build.sh"
-    ],
-    "repository": {
-        "type": "git",
-        "url": "http://github.com/awslabs/aws-lambda-redshift-loader"
-    }
+  "name": "aws-lambda-redshift-loader",
+  "description": "An Amazon Redshift Database Loader written for AWS Lambda",
+  "version": "2.6.0",
+  "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
+  "bugs": {
+    "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
+    "email": "meyersi@amazon.com"
+  },
+  "dependencies": {
+    "async": "2.4.0",
+    "uuid": "3.0.1",
+    "pg": "6.1.5",
+    "aws-sdk": "2.49.0",
+    "minimist": "1.2.0",
+    "node-uuid": "^1.4.8"
+  },
+  "keywords": [
+    "amazon",
+    "redshift",
+    "lambda"
+  ],
+  "author": {
+    "name": "Ian Meyers",
+    "email": "meyersi@amazon.com"
+  },
+  "lib": "./lib",
+  "main": "./index.js",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "files": [
+    "addAdditionalClusterEndpoint.js",
+    "common.js",
+    "constants.js",
+    "createS3TriggerFile.js",
+    "describeBatch.js",
+    "encryptValue.js",
+    "generate-trigger-file.py",
+    "index.js",
+    "kmsCrypto.js",
+    "LICENSE.txt",
+    "NOTICE.txt",
+    "processedFiles.js",
+    "queryBatches.js",
+    "README.md",
+    "reprocessBatch.js",
+    "setup.js",
+    "unlockBatch.js",
+    "upgrades.js",
+    "build.sh"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/awslabs/aws-lambda-redshift-loader"
+  },
+  "scripts": {
+    "build": "gulp zip",
+    "setup": "node setup.js",
+    "setup-file": "node setup-file.js"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-clean": "^0.3.2",
+    "gulp-sequence": "^0.4.6",
+    "gulp-shell": "^0.6.3",
+    "gulp-zip": "^4.0.0"
+  }
 }
