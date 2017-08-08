@@ -7,7 +7,7 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
- var lambdaPrefix = process.env.LAMBDA_FUNC_NAME_PREFIX || '';
+ var loaderInstanceName = process.env.LOADER_INSTANCE_NAME ? '-' + LOADER_INSTANCE_NAME : '';
 
 batchId = 'batchId';
 currentBatch = 'currentBatch';
@@ -19,13 +19,13 @@ open = 'open';
 error = 'error';
 entries = 'entries';
 status = 'status';
-configTable = lambdaPrefix + 'LambdaRedshiftBatchLoadConfig';
-batchTable = lambdaPrefix + 'LambdaRedshiftBatches';
-batchStatusGSI = lambdaPrefix + 'LambdaRedshiftBatchStatus';
-filesTable = lambdaPrefix + 'LambdaRedshiftProcessedFiles';
+configTable = 'LambdaRedshiftBatchLoadConfig' + loaderInstanceName;
+batchTable = 'LambdaRedshiftBatches' + loaderInstanceName;
+batchStatusGSI = 'LambdaRedshiftBatchStatus' + loaderInstanceName;
+filesTable = 'LambdaRedshiftProcessedFiles' + loaderInstanceName;
 conditionCheckFailed = 'ConditionalCheckFailedException';
 provisionedThroughputExceeded = 'ProvisionedThroughputExceededException';
-deployedFunctionName = lambdaPrefix + 'LambdaRedshiftLoader';
+deployedFunctionName = 'LambdaRedshiftLoader' + loaderInstanceName;
 INVALID_ARG = -1;
 ERROR = -1;
 OK = 0;
