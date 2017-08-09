@@ -7,6 +7,13 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
+require('dotenv').config();
+const loaderInstanceName = process.env.LOADER_INSTANCE_NAME;
+if(!loaderInstanceName) {
+	throw new Error("The environment variable LOADER_INSTANCE_NAME isn't specified.");
+}
+console.log("Loader instance name:", loaderInstanceName, "This instance name will be used as prefix for the Lambda Function and DyanmoDB tables");
+const loaderInstancePrefix = loaderInstanceName + "-";
 
 batchId = 'batchId';
 currentBatch = 'currentBatch';
@@ -18,13 +25,13 @@ open = 'open';
 error = 'error';
 entries = 'entries';
 status = 'status';
-configTable = 'LambdaRedshiftBatchLoadConfig';
-batchTable = 'LambdaRedshiftBatches';
-batchStatusGSI = 'LambdaRedshiftBatchStatus';
-filesTable = 'LambdaRedshiftProcessedFiles';
+configTable = loaderInstancePrefix + 'LambdaRedshiftBatchLoadConfig';
+batchTable = loaderInstancePrefix + 'LambdaRedshiftBatches';
+batchStatusGSI = loaderInstancePrefix + 'LambdaRedshiftBatchStatus';
+filesTable = loaderInstancePrefix + 'LambdaRedshiftProcessedFiles';
 conditionCheckFailed = 'ConditionalCheckFailedException';
 provisionedThroughputExceeded = 'ProvisionedThroughputExceededException';
-deployedFunctionName = 'LambdaRedshiftLoader';
+deployedFunctionName = loaderInstancePrefix + 'LambdaRedshiftLoader';
 INVALID_ARG = -1;
 ERROR = -1;
 OK = 0;

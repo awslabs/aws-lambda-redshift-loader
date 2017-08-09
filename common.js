@@ -196,9 +196,7 @@ exports.retryableUpdate = function(dynamoDB, updateRequest, callback) {
 		}
 	    }
 	});
-    }, function(err) {
-	callback(err);
-    });
+    }, callback);
 };
 
 exports.retryablePut = function(dynamoDB, putRequest, callback) {
@@ -509,16 +507,19 @@ exports.createS3EventSource = function(s3, lambda, bucket, prefix, functionName,
 				    var newEventConfiguration = {
 					Events : [ 's3:ObjectCreated:*', ],
 					LambdaFunctionArn : functionArn,
-					Filter : {
-					    Key : {
-						FilterRules : [ {
-						    Name : 'prefix',
-						    Value : prefix + "/*"
-						} ]
-					    }
-					},
 					Id : "LambdaRedshiftLoaderEventSource-" + uuid.v4()
-				    };
+					};
+					
+					if(prefix) {
+						newEventConfiguration.Filter = {
+							Key : {
+							FilterRules : [ {
+								Name : 'prefix',
+								Value : prefix
+							} ]
+							}
+						};
+					}
 
 				    // add the notification configuration to the
 				    // set of existing lambda configurations

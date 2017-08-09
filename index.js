@@ -373,7 +373,7 @@ exports.handler = function(event, context) {
 						 * we've not set proceed to
 						 * true, so async will retry
 						 */
-						console.log("Reload of Configuration Complete after attempting to write to Locked Batch " + thisBatchId + ". Attempt " + configReloads);
+						console.log("Reload of Configuration Complete after attempting to write to Locked Batch " + thisBatchId + ". Attempt " + tryNumber);
 
 						/*
 						 * we can call into the callback
@@ -527,7 +527,7 @@ exports.handler = function(event, context) {
 	    }
 	};
 
-	common.retryableUpate(dynamoDB, item, function(err, data) {
+		common.retryableUpdate(dynamoDB, item, function (err, data) {
 	    if (err) {
 		console.log(err);
 	    } else {

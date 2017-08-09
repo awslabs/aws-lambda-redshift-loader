@@ -18,7 +18,7 @@
 var async = require('async');
 var aws = require('aws-sdk');
 var common = require('./common');
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 var readline = require('readline');
 require('./constants');
 var rl = readline.createInterface({

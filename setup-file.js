@@ -16,8 +16,10 @@ var aws = require('aws-sdk');
 require('./constants');
 var common = require('./common');
 var async = require('async');
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 var dynamoDB;
+var s3;
+var lambda;
 var kmsCrypto = require('./kmsCrypto');
 var setRegion;
 
@@ -64,7 +66,13 @@ q_region = function(callback) {
 	    region : setRegion
 	});
 	kmsCrypto.setRegion(setRegion);
-
+	s3 = new aws.S3({
+	apiVersion : '2006-03-01'
+	});
+	lambda = new aws.Lambda({
+	apiVersion : '2015-03-31',
+	region : setRegion
+	});
 	callback(null);
     } else {
 	console.log('You must provide a region from ' + regionsArray.toString())
@@ -385,8 +393,7 @@ setup = function(overrideConfig, callback) {
     } else {
 	useConfig = dynamoConfig;
     }
-    var configWriter = common.writeConfig(setRegion, dynamoDB, useConfig, callback);
-    common.createTables(dynamoDB, configWriter);
+	common.setup(useConfig, dynamoDB, s3, lambda, callback);
 };
 // export the setup module so that customers can programmatically add new
 // configurations
