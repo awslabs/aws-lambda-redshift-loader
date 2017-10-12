@@ -1,4 +1,4 @@
-var debug = false;
+var debug = process.env['DEBUG'] || false;
 
 require('./constants');
 var aws = require('aws-sdk');
