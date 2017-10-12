@@ -611,7 +611,7 @@ exports.handler = function(event, context) {
 		    doProcessBatch = true;
 		} else {
 		    if (debug === true) {
-			console.log("Current batch size of " + data.Item.size.N + " below batch timeout of " + config.batchSizeBytes.N);
+			console.log("Current batch size of " + data.Item.size.N + " below batch threshold or not configured");
 		    }
 		}
 
@@ -678,7 +678,7 @@ exports.handler = function(event, context) {
 				context.done(error, JSON.stringify(err));
 			    }
 			} else {
-			    if (!data.Attributes) {
+			    if (!data || !data.Attributes) {
 				var e = "Unable to extract latest pending entries set from Locked batch";
 				console.log(e);
 				context.done(error, e);
