@@ -5,7 +5,7 @@
 
         http://aws.amazon.com/asl/
 
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
+    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
 /**
@@ -55,7 +55,7 @@ var qs = [];
 q_region = function(callback) {
     rl.question('Enter the Region for the Configuration > ', function(answer) {
 	if (common.blank(answer) !== null) {
-	    common.validateArrayContains([ "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer
+	    common.validateArrayContains([ "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer
 		    .toLowerCase(), rl);
 
 	    setRegion = answer.toLowerCase();
@@ -411,7 +411,7 @@ last = function(callback) {
 // export the setup module so that customers can programmatically add new
 // configurations
 setup = function(useConfig, callback) {
-  common.setup(useConfig, dynamoDB, s3, lambda, callback);  
+  common.setup(useConfig, dynamoDB, s3, lambda, callback);
 };
 exports.setup = setup;
 
