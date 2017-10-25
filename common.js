@@ -219,7 +219,7 @@ exports.retryablePut = function (dynamoDB, putRequest, callback) {
                     // being created
                     setTimeout(asyncCallback, 1000);
                 } else {
-                    console.log(JSON.stringify(dynamoConfig));
+                    console.log(JSON.stringify(putRequest));
                     console.log(err);
                     asyncCallback(err);
                 }
