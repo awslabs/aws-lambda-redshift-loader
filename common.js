@@ -513,7 +513,7 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
                                             Key: {
                                                 FilterRules: [{
                                                     Name: 'prefix',
-                                                    Value: prefix + "/*"
+                                                    Value: prefix + "/"
                                                 }]
                                             }
                                         },
