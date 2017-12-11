@@ -393,13 +393,13 @@ the processed files store can be seen below:
 
 ## Reprocessing a Batch
 If you ever need to reprocess a batch - for example if it failed to load the required
-files for some reason - then you can use the reprocessBatch.js script. This takes
-the same arguments as describeBatch.js (region, batch ID & input location). The
+files for some reason - then you can use the `reprocessBatch.js` script. This takes
+the same arguments as `describeBatch.js` (region, batch ID & input location). The
 original input batch is not affected; instead, each of the input files that were
-part of the batch are removed from the LambdaRedshiftProcessedFiles table, and
+part of the batch are removed from the `LambdaRedshiftProcessedFiles` table, and
 then the script forces an S3 event to be generated for the file. This will be
 captured and reprocessed by the function as it was originally. Please note you
-can only reprocess batches that are not in 'open' status.
+can only reprocess batches that are not in 'open' status. Please also note that because this function reads and then re-writes object metadata, it is potentially liable to overwriting metadata added by a different process. If you have frequent S3 metadata re-write as part of your application, use with extreme caution.
 
 ## Unlocking a Batch
 It is possible, but rare, that a batch would become locked but not be being processed
