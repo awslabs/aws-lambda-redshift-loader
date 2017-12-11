@@ -61,8 +61,14 @@ var processFile = function (batchEntry, callback) {
                     callback(err);
                 } else {
                     // Modify the metadata to allow the in-place copy
-                    var meta = data.Metadata;
-                    meta.CopyReason = "AWS Lambda Redshift Loader Reprocess Batch " + thisBatchId
+                    var meta;
+                    if (data.Metadata) {
+                        meta = data.Metadata;
+                    } else {
+                        meta = {}
+                    }
+
+                    meta["x-amz-meta-copy-reason"] = "AWS Lambda Redshift Loader Reprocess Batch " + thisBatchId;
 
                     // request the copy
                     var copySpec = {
