@@ -17,7 +17,7 @@ var startDate = args.startDate;
 var endDate = args.endDate;
 var dryRun = args.dryRun;
 
-batchOperations.deleteBatches(setRegion, "complete", startDate, endDate, dryRun, function(err, data) {
+batchOperations.deleteBatches(setRegion, batchStatus, startDate, endDate, dryRun, function(err, data) {
     if (err) {
 	console.log("Error: " + err);
 	process.exit(-1);
