@@ -11,7 +11,7 @@ var batchOperations = require("./batchOperations");
 var args = require('minimist')(process.argv.slice(2));
 
 if (!args.region || !args.batchStatus) {
-    console.log("You must provide an AWS Region Code, Batch Status, and optionally a start time and end time (as epoch seconds) to query from");
+    console.log("You must provide an AWS Region Code (--region), Batch Status (--batchStatus), and optionally a start time (--startDate) and end time (--endDate - as epoch seconds) to query from");
     process.exit(ERROR);
 }
 var setRegion = args.region;
