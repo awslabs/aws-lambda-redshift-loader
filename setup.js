@@ -55,7 +55,7 @@ var qs = [];
 q_region = function(callback) {
     rl.question('Enter the Region for the Configuration > ', function(answer) {
 	if (common.blank(answer) !== null) {
-	    common.validateArrayContains([ "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1", "us-west-1", "us-west-2" ], answer
+	    common.validateArrayContains([ "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1", "us-east-2", "us-west-1", "us-west-2" ], answer
 		    .toLowerCase(), rl);
 
 	    setRegion = answer.toLowerCase();
