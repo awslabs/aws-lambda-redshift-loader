@@ -613,6 +613,7 @@ Enter the Database Password | Y | The password for the database user. Will be en
 Enter the Table to be Loaded | Y | The Table Name to be loaded with the input data.
 Enter the comma-delimited column list | N | If you want to control the order of columns that are found in a CSV file, then list the columns here. Please see [Column List Syntax](http://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-column-mapping.html#copy-column-list) for more information
 Should the Table be Truncated before Load? (Y/N) | N | Option to truncate the table prior to loading. Use this option if you will subsequently process the input patch and only want to see 'new' data with this ELT process.
+Ignore Header (first line) of the CSV file? (Y/N) | N | Option to ignore the first line of the CSV (Header)
 Enter the Data Format (CSV, JSON or AVRO) | Y | Whether the data format is Character Separated Values, AVRO or JSON data (http://docs.aws.amazon.com/redshift/latest/dg/copy-usage_notes-copy-from-json.html).
 If CSV, Enter the CSV Delimiter | Yes if Data Format = CSV | Single character delimiter value, such as ',' (comma) or '|' (pipe).
 If JSON, Enter the JSON Paths File Location on S3 (or NULL for Auto) | Yes if Data Format = JSON | Location of the JSON paths file to use to map the file attributes to the database table. If not filled, the COPY command uses option 'json = auto' and the file attributes must have the same name as the column names in the target table.

@@ -226,6 +226,14 @@ q_csvDelimiter = function(callback) {
     }
 };
 
+q_ignoreCsvHeader = function(callback) {
+    // ignore Header (first line) of the CSV file
+    dynamoConfig.Item.ignoreCsvHeader = {
+    BOOL : common.getBooleanValue(setupConfig.ignoreCsvHeader)
+    };
+    callback(null);
+};
+
 q_jsonPaths = function(callback) {
     if (dynamoConfig.Item.dataFormat.S === 'JSON' || dynamoConfig.Item.dataFormat.S === 'AVRO') {
 	// the JSON Paths File Location on S3 (or NULL for Auto)
@@ -414,6 +422,7 @@ qs.push(q_userName);
 qs.push(q_userPwd);
 qs.push(q_df);
 qs.push(q_csvDelimiter);
+qs.push(q_ignoreCsvHeader);
 qs.push(q_jsonPaths);
 qs.push(q_manifestBucket);
 qs.push(q_manifestPrefix);

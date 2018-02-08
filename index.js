@@ -1092,6 +1092,12 @@ exports.handler = function (event, context) {
                     }
 
                     copyOptions = copyOptions + 'delimiter \'' + config.csvDelimiter.S + '\'\n';
+
+                    // this will ignore the first line
+                    if (config.ignoreCsvHeader && config.ignoreCsvHeader.BOOL) {
+                        copyOptions = copyOptions + ' IGNOREHEADER 1 ' + '\n';
+                    }                                        
+
                 } else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
                     copyOptions = copyOptions + ' format ' + config.dataFormat.S;
 

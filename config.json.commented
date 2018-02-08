@@ -50,6 +50,9 @@
   // If CSV, Enter the CSV Delimiter Yes if Data Format = CSV
   // Single character delimiter value, such as ',' (comma) or '
   "csvDelimiter": "",
+  // If CSV, Enter the CSV Delimiter Yes if Data Format = CSV
+  // Should the Header row be ignored while inserting? (Y/N)  Y
+  "ignoreCsvHeader": "",
   // If JSON, Enter the JSON Paths File Location on S3 (or NULL for Auto)
   // Yes if Data Format = JSON
   // Location of the JSON paths file to use to map the file attributes to the

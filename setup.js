@@ -238,6 +238,15 @@ q_csvDelimiter = function(callback) {
     }
 };
 
+q_ignoreCsvHeader = function(callback) {
+    rl.question('ignore Header (first line) of the CSV file? (Y/N) > ', function(answer) {
+	dynamoConfig.Item.ignoreCsvHeader = {
+	    BOOL : common.getBooleanValue(answer)
+	};
+	callback(null);
+    });
+};
+
 q_jsonPaths = function(callback) {
     if (dynamoConfig.Item.dataFormat.S === 'JSON' || dynamoConfig.Item.dataFormat.S === 'AVRO') {
 	rl.question('Enter the JSON Paths File Location on S3 (or NULL for Auto) > ', function(answer) {
@@ -429,6 +438,7 @@ qs.push(q_userName);
 qs.push(q_userPwd);
 qs.push(q_df);
 qs.push(q_csvDelimiter);
+qs.push(q_ignoreCsvHeader);
 qs.push(q_jsonPaths);
 qs.push(q_manifestBucket);
 qs.push(q_manifestPrefix);
