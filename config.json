@@ -13,6 +13,7 @@
 	"userPwd": "            ",
 	"df": "CSV",
 	"csvDelimiter": "|",
+	"ignoreCsvHeader": "Y",
 	"jsonPaths": "",
 	"manifestBucket": "streaming-processor-conversion-demo",
 	"manifestPrefix": "manifest",
