@@ -301,7 +301,7 @@ exports.handler = function (event, context) {
         var addFileRetryLimit = 100;
         var tryNumber = 0;
         var configReloads = 0;
-        
+
         async
             .whilst(
                 function () {
@@ -357,7 +357,10 @@ exports.handler = function (event, context) {
                     // add the file to the pending batch
                     dynamoDB.updateItem(item, function (err, data) {
                         if (err) {
-                            if (err.code === conditionCheckFailed) {
+                            if (err.code === provisionedThroughputExceeded) {
+                                console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId);
+                                callback();
+                            } else if (err.code === conditionCheckFailed) {
                                 /*
                                  * the batch I have a reference to was
                                  * locked so reload the current batch ID
@@ -1096,7 +1099,7 @@ exports.handler = function (event, context) {
                     // this will ignore the first line
                     if (config.ignoreCsvHeader && config.ignoreCsvHeader.BOOL) {
                         copyOptions = copyOptions + ' IGNOREHEADER 1 ' + '\n';
-                    }                                        
+                    }
 
                 } else if (config.dataFormat.S === 'JSON' || config.dataFormat.S === 'AVRO') {
                     copyOptions = copyOptions + ' format ' + config.dataFormat.S;
