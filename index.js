@@ -358,8 +358,9 @@ exports.handler = function (event, context) {
                     dynamoDB.updateItem(item, function (err, data) {
                         if (err) {
                             if (err.code === provisionedThroughputExceeded) {
-                                console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId);
-                                callback();
+                                var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
+                                console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
+                                setTimeout(callback, waitFor);
                             } else if (err.code === conditionCheckFailed) {
                                 /*
                                  * the batch I have a reference to was
