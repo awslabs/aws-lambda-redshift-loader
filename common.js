@@ -597,3 +597,54 @@ exports.setup = function (useConfig, dynamoDB, s3, lambda, callback) {
         }
     });
 };
+
+exports.inPlaceCopyFile = function (s3, batchId, batchEntry, callback) {
+    // issue a same source/target copy command to S3, which will cause
+    // Lambda to receive a new event
+    var bucketName = batchEntry.split("/")[0];
+    var fileKey = batchEntry.replace(bucketName + "\/", "");
+    var headSpec = {
+        Bucket: bucketName,
+        Key: fileKey,
+    };
+    s3.headObject(headSpec, function (err, data) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+            // Modify the metadata to allow the in-place copy
+            var meta;
+            if (data.Metadata) {
+                meta = data.Metadata;
+            } else {
+                meta = {}
+            }
+
+            if (batchId) {
+                meta["x-amz-meta-copy-reason"] = "AWS Lambda Redshift Loader Reprocess Batch " + batchId;
+            } else {
+                meta["x-amz-meta-copy-reason"] = "AWS Lambda Redshift Loader Reprocess File";
+            }
+
+            // request the copy
+            var copySpec = {
+                Metadata: meta,
+                MetadataDirective: "REPLACE",
+                Bucket: bucketName,
+                Key: fileKey,
+                CopySource: batchEntry
+            };
+            s3.copyObject(copySpec, function (err, data) {
+                if (err) {
+                    console.log(err);
+                    callback(err);
+                } else {
+                    console.log("Submitted reprocess request for " + batchEntry);
+
+                    // done - call the callback
+                    callback();
+                }
+            });
+        }
+    });
+};

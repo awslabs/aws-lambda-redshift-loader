@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*
 		Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
@@ -30,70 +31,6 @@ var s3 = new aws.S3({
     apiVersion: '2006-03-01',
     region: setRegion
 });
-
-var processFile = function (batchEntry, callback) {
-    // delete the processed file entry
-    var fileItem = {
-        Key: {
-            loadFile: {
-                S: batchEntry
-            }
-        },
-        TableName: filesTable
-    };
-    dynamoDB.deleteItem(fileItem, function (err, data) {
-        if (err) {
-            console.log(filesTable + " Delete Error");
-            console.log(err);
-            callback(err);
-        } else {
-            // issue a same source/target copy command to S3, which will cause
-            // Lambda to receive a new event
-            var bucketName = batchEntry.split("/")[0];
-            var fileKey = batchEntry.replace(bucketName + "\/", "");
-            var headSpec = {
-                Bucket: bucketName,
-                Key: fileKey,
-            };
-            s3.headObject(headSpec, function (err, data) {
-                if (err) {
-                    console.log(err);
-                    callback(err);
-                } else {
-                    // Modify the metadata to allow the in-place copy
-                    var meta;
-                    if (data.Metadata) {
-                        meta = data.Metadata;
-                    } else {
-                        meta = {}
-                    }
-
-                    meta["x-amz-meta-copy-reason"] = "AWS Lambda Redshift Loader Reprocess Batch " + thisBatchId;
-
-                    // request the copy
-                    var copySpec = {
-                        Metadata: meta,
-                        MetadataDirective: "REPLACE",
-                        Bucket: bucketName,
-                        Key: fileKey,
-                        CopySource: batchEntry
-                    };
-                    s3.copyObject(copySpec, function (err, data) {
-                        if (err) {
-                            console.log(err);
-                            callback(err);
-                        } else {
-                            console.log("Submitted reprocess request for " + batchEntry);
-
-                            // done - call the callback
-                            callback();
-                        }
-                    });
-                }
-            });
-        }
-    });
-};
 
 var updateBatchStatus = function (thisBatchId, err, results) {
     if (err) {
@@ -181,7 +118,7 @@ dynamoDB.getItem(getBatch, function (err, data) {
                 if (!data.Item.entries.SS) {
                     console.log("Batch is Empty!");
                 } else {
-                    async.map(data.Item.entries.SS, processFile, updateBatchStatus.bind(undefined, thisBatchId));
+                    async.map(data.Item.entries.SS, common.inPlaceCopyFile.bind(undefined, s3, thisBatchId), updateBatchStatus.bind(undefined, thisBatchId));
                 }
             }
         } else {

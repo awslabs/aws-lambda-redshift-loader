@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*
 		Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
@@ -11,47 +13,61 @@
 var aws = require('aws-sdk');
 require('./constants');
 var args = require('minimist')(process.argv.slice(2));
+var common = require('./common');
 
 var setRegion = args.region;
 var queryOption = args.query;
-var deleteOption = args['delete'];
+var deleteOption = args.delete;
+var reproOption = args.reprocess;
 var file = args.file
 
-if (!setRegion || (!queryOption && !deleteOption) || !file) {
-    console.log("You must provide an AWS Region Code (--region), Query (-query) or Delete (-delete) option, and the specified Filename (--file)");
+if (!setRegion || (!queryOption && !deleteOption && !reproOption) || !file) {
+    console.log("You must provide an AWS Region Code (--region), Query (--query), Delete (--delete), or Reprocess (--reprocess) option, and the specified Filename (--file)");
     process.exit(-1);
 }
 
 var dynamoDB = new aws.DynamoDB({
-    apiVersion : '2012-08-10',
-    region : setRegion
+    apiVersion: '2012-08-10',
+    region: setRegion
+});
+var s3 = new aws.S3({
+    apiVersion: '2006-03-01',
+    region: setRegion
 });
 
 var fileItem = {
-    Key : {
-	loadFile : {
-	    S : file
-	}
+    Key: {
+        loadFile: {
+            S: file
+        }
     },
-    TableName : filesTable
+    TableName: filesTable
+};
+
+var doExit = function (err, data, message) {
+    if (err) {
+        console.log(err);
+        process.exit(error);
+    } else {
+        if (data && data.Item) {
+            console.log(JSON.stringify(data.Item));
+        }
+        if (message) {
+            console.log(message);
+        }
+    }
 };
 
 if (deleteOption) {
-    dynamoDB.deleteItem(fileItem, function(err, data) {
-	if (err) {
-	    console.log(err);
-	    process.exit(error);
-	} else {
-	    console.log("File Entry " + file + " deleted successfully");
-	}
+    dynamoDB.deleteItem(fileItem, function (err, data) {
+        doExit(err, data, "File Entry " + file + " deleted successfully");
     });
 } else if (queryOption) {
-    dynamoDB.getItem(fileItem, function(err, data) {
-	if (err) {
-	    console.log(err);
-	    process.exit(error);
-	} else {
-	    console.log(JSON.stringify(data.Item));
-	}
+    dynamoDB.getItem(fileItem, function (err, data) {
+        doExit(err, data);
+    });
+} else if (reproOption) {
+    common.inPlaceCopyFile(s3, undefined, file, function (err, data) {
+        doExit(err, data, "File Entry " + file + " reprocessed successfully");
     });
 }

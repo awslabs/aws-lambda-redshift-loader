@@ -241,48 +241,53 @@ exports.handler = function (event, context) {
         var itemEntry = s3Info.bucket + '/' + s3Info.key;
 
         // perform the idempotency check for the file before we put it
-        // into
-        // a manifest
+        // into a manifest
         var fileEntry = {
-            Item: {
+            Key: {
                 loadFile: {
                     S: itemEntry
-                },
-                receiveDateTime: {
+                }
+            },
+            TableName: filesTable,
+            ExpressionAttributeNames: {
+                "#rcvDate": "receiveDateTime"
+            },
+            ExpressionAttributeValues: {
+                ":rcvDate": {
                     S: common.readableTime(common.now())
-                }
+                },
+                ":incr": {
+                    N: "1"
+                },
             },
-            Expected: {
-                loadFile: {
-                    Exists: false
-                }
-            },
-            TableName: filesTable
+            UpdateExpression: "set #rcvDate = :rcvDate add timesReceived :incr",
+            ReturnValues: "ALL_NEW"
         };
 
         // add the file to the processed list
-        dynamoDB.putItem(fileEntry, function (err, data) {
+        dynamoDB.updateItem(fileEntry, function (err, data) {
             var msg;
             if (err) {
-                // the conditional check failed so the file has already
-                // been processed
-                if (err.code === conditionCheckFailed) {
-                    console.log("File " + itemEntry + " Already Processed");
-                    context.done(null, null);
-                } else {
-                    msg = "Error " + err.code + " for " + fileEntry;
-                    console.log(msg);
-                    exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
-                }
+                msg = "Error " + err.code + " for " + fileEntry;
+                console.log(msg);
+                console.log(JSON.stringify(err));
+                exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
             } else {
                 if (!data) {
                     msg = "Idempotency Check on " + fileEntry + " failed";
                     console.log(msg);
                     exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
                 } else {
-                    // add was OK - proceed with adding the entry to the
-                    // pending batch
-                    exports.addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry);
+                    if (data.Attributes.batchId && data.Attributes.batchId.S) {
+                        // there's already a pending batch link, so this is a full duplicate and we'll discard
+                        console.log("File " + itemEntry + " Already Processed");
+                        context.done(null, null);
+                    } else {
+                        // update was successful, and either this is the first event and there was no batch ID
+                        // specified, or the file is a reprocess but the batch ID attachment didn't work - proceed
+                        // with adding the entry to the pending batch
+                        exports.addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry);
+                    }
                 }
             }
         });

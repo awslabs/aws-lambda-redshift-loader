@@ -27,7 +27,7 @@ Table of Contents
   * [Security](#security)
     * [Loading multiple Redshift Clusters concurrently](#loading-multiple-redshift-clusters-concurrently)
     * [Viewing Previous Batches &amp; Status](#viewing-previous-batches--status)
-    * [Clearing Processed Files](#clearing-processed-files)
+    * [Workiwng With Processed Files](#working-with-processed-files)
     * [Reprocessing a Batch](#reprocessing-a-batch)
     * [Unlocking a Batch](#unlocking-a-batch)
     * [Changing your stored Database Password or S3 Secret Key Information](#changing-your-stored-database-password-or-s3-secret-key-information)
@@ -381,13 +381,17 @@ Which would return the batch information as it is stored in Dynamo DB:
 }
 ```
 
-## Clearing Processed Files
-We'll only load a file one time by default, but in certain rare cases you might
+## Working with Processed Files
+We'll only load a file once by default, but in certain rare cases you might
 want to re-process a file, such as if a batch goes into error state for some reason.
-If so, use the 'processedFiles.js' script to query or delete processed files entries.
-The script takes an 'operation type' and 'filename' as arguments; use -q to query
-if a file has been processed, and -d to delete a given file entry. An example of
-the processed files store can be seen below:
+If so, use the `processedFiles.js` script to query or delete processed files entries.
+The script takes an `operation type` and `filename` as arguments:
+
+* Use `--query` to query if a file has been processed at all, and if so by which batch.
+* Use `--delete` to delete a given file entry.
+* Use `--reprocess` for files that couldn't be added to a batch for some reason, which might include DynamoDB throttling. This will perform an in-place file copy on S3, which will then be received by the Lambda loader and it will attempt to reprocess the file. If it's already part of a batch, then it will be ignored. Please note this option is only supported by version 2.5.5 and higher.
+
+An example of the processed files store can be seen below:
 
 ![Processed Files Table](ProcessedFilesTable.png)
 
