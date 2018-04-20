@@ -48,6 +48,10 @@ var common = require('./common');
 var async = require('async');
 var uuid = require('uuid');
 var pg = require('pg');
+
+// empty import/invocation of the keepalive fix for node-postgres module
+require('pg-ka-fix')();
+
 var upgrade = require('./upgrades');
 
 String.prototype.shortenPrefix = function () {
@@ -362,8 +366,9 @@ exports.handler = function (event, context) {
                     // add the file to the pending batch
                     dynamoDB.updateItem(item, function (err, data) {
                         if (err) {
+                            var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
+
                             if (err.code === provisionedThroughputExceeded) {
-                                var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
                                 console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
                                 setTimeout(callback, waitFor);
                             } else if (err.code === conditionCheckFailed) {
@@ -379,6 +384,7 @@ exports.handler = function (event, context) {
                                         }
                                     },
                                     TableName: configTable,
+                                    /* we need a consistent read here to ensure we get the latest batch ID */
                                     ConsistentRead: true
                                 };
                                 dynamoDB.getItem(configReloadRequest, function (err, data) {
@@ -392,26 +398,23 @@ exports.handler = function (event, context) {
                                             callback(err);
                                         }
                                     } else {
-                                        /*
-                                         * reset the batch ID to the
-                                         * current marked batch
-                                         */
-                                        thisBatchId = data.Item.currentBatch.S;
+                                        if (data.Item.currentBatch.S === thisBatchId) {
+                                            // we've obtained the same batch ID back from the configuration as we have now, meaning it hasn't yet rotated
+                                            console.log("Batch " + thisBatchId + " still current after configuration reload attempt " + configReloads + ". Recycling in " + waitFor + " ms.");
 
-                                        /*
-                                         * we've not set proceed to
-                                         * true, so async will retry
-                                         */
-                                        console.log("Reload of Configuration Complete after attempting to write to Locked Batch " + thisBatchId + ". Attempt " + configReloads);
+                                            // because the batch hasn't been reloaded on the configuration, we'll backoff here for a moment to let that happen
+                                            setTimeout(callback, waitFor);
+                                        } else {
+                                            // we've got an updated batch id, so use this in the next cycle of file add
+                                            thisBatchId = data.Item.currentBatch.S;
 
-                                        /*
-                                         * we can call into the callback
-                                         * immediately, as we probably
-                                         * just missed the pending batch
-                                         * processor's rotate of the
-                                         * configuration batch ID
-                                         */
-                                        callback();
+                                            console.log("Obtained new Batch ID " + thisBatchId + " after configuration reload. Attempt " + configReloads);
+
+                                            /*
+                                             callback immediately, as we should now have a valid and open batch to use
+                                             */
+                                            callback();
+                                        }
                                     }
                                 });
                             } else {
