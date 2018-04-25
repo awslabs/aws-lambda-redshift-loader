@@ -369,7 +369,7 @@ exports.handler = function (event, context) {
                             var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
 
                             if (err.code === provisionedThroughputExceeded) {
-                                console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
+                                console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
                                 setTimeout(callback, waitFor);
                             } else if (err.code === conditionCheckFailed) {
                                 /*
