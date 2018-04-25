@@ -262,7 +262,7 @@ exports.handler = function (event, context) {
                 },
                 ":incr": {
                     N: "1"
-                },
+                }
             },
             UpdateExpression: "set #rcvDate = :rcvDate add timesReceived :incr",
             ReturnValues: "ALL_NEW"
@@ -369,7 +369,7 @@ exports.handler = function (event, context) {
                             var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
 
                             if (err.code === provisionedThroughputExceeded) {
-                                console.log("Provisioned Throughput Exceeded on addition of " + s3info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
+                                console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
                                 setTimeout(callback, waitFor);
                             } else if (err.code === conditionCheckFailed) {
                                 /*
@@ -605,14 +605,14 @@ exports.handler = function (event, context) {
                 // first step is to resolve the earliest
                 // writeDate as the batch
                 // creation date
-                var batchCreateDate;
+                var batchCreateDate = -1;
                 data.Item.writeDates.NS.map(function (item) {
                     var t = parseInt(item);
                     if (!batchCreateDate || t < batchCreateDate) {
                         batchCreateDate = t;
                     }
                 });
-                var lastUpdateTime = data.Item.lastUpdate.N;
+
                 var pendingEntries = data.Item.entries.SS;
                 var doProcessBatch = false;
 
