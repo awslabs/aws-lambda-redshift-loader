@@ -366,7 +366,12 @@ exports.handler = function (event, context) {
                     // add the file to the pending batch
                     dynamoDB.updateItem(item, function (err, data) {
                         if (err) {
-                            var waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
+                            var waitFor = 0;
+
+                            // increase the backoff limit after we've retried a few times
+                            if (tryNumber > (addFileRetryLimit * .2)) {
+                                waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
+                            }
 
                             if (err.code === provisionedThroughputExceeded) {
                                 console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
