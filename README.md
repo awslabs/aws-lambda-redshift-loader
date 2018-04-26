@@ -27,7 +27,7 @@ Table of Contents
   * [Security](#security)
     * [Loading multiple Redshift Clusters concurrently](#loading-multiple-redshift-clusters-concurrently)
     * [Viewing Previous Batches &amp; Status](#viewing-previous-batches--status)
-    * [Workiwng With Processed Files](#working-with-processed-files)
+    * [Working With Processed Files](#working-with-processed-files)
     * [Reprocessing a Batch](#reprocessing-a-batch)
     * [Unlocking a Batch](#unlocking-a-batch)
     * [Changing your stored Database Password or S3 Secret Key Information](#changing-your-stored-database-password-or-s3-secret-key-information)
@@ -161,67 +161,9 @@ credentials to Redshift for the COPY command:
 }
 ```
 
-## Getting Started - Granting AWS Lambda rights to access your Redshift cluster
+## Getting Started - Lambda, Redshift, and VPC networking
 
-### Redshift running in VPC
-
-In this model, your Redshift cluster is in a VPC Subnet, and we recommend using [AWS Lambda VPC Endpoints](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html) to manage access to your cluster. The following diagram represents the configuration required to successfully run this solution in a VPC:
-
-![VPC Connectivity](VPCConnectivity.png)
-
-In this architecture, you expose your AWS Lambda function into a set of private VPC subnets, and then select a security group for your Lambda function. Ideally this would be the same security group as the Redshift cluster was using, but you can also use security group grants to enable access between two SG's. Your Lambda function must also have internet egress enabled so it can read its configuration from DynamoDB, and the easiest way to do this is to use [VPC NAT Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-nat-gateway.html). The following steps should be undertaken:
-
-_VPC_
-
-To use Lambda in a VPC, we recommend having both a private and public subnet per AZ. Your Lambda function is enabled to run within the Private AZ, and a NAT Gateway is created in the Public AZ. Your Private Subnets will each have their own Route Table, with a route for 0.0.0.0/0 (public internet) routed to the NAT Gateway in the same AZ. Your Public Subnets will all share a Route Table which routes 0.0.0.0/0 to the Internet Gateway.
-
-![VPCPerAZ](VPCPerAZ.png)
-
-_AWS Lambda_
-
-* Create a new VPC security group for your AWS Lambda function, which typically includes output access to anything (0.0.0.0/0 ALLOW)
-* Go into your Lambda function configuration, and select 'Advanced settings'. Then select the VPC where your Redshift cluster resides. Then select the Subnets where you want your Lambda function to egress for VPC connectivity. In the diagram above we show it being able to egress into the same subnet as your Redshift Cluster, but this is not a hard requirement
-
-_Redshift_
-
-* Go into your Redshift Cluster, and select the VPC Security Groups entry that you want to use for enabling your function to connect
-* Add a new Inbound Rule, Type = Redshift, Source = Custom IP, Port = the port for your cluster, and Destination set to the name of the Lambda Security Group created above.
-
-At this point, your lambda function should be able to connect to your Redshift cluster, but would not be able to determine which clusters to connect to when it receives an S3 event. So we need to enable your Lambda function to connect to DynamoDB
-
-### Redshift running in EC2 Classic/Not in VPC
-
-To grant AWS Lambda access to our cluster, we must enable Cluster Security Groups to allow access from the public internet.
-
-To configure a cluster security group for access:
-
-1.	Log in to the Amazon Redshift console.
-2.	Select Security in the navigation pane on the left.
-3.	Choose the cluster security group in which your cluster is configured.
-4.	Add a new Connection Type of CIDR/IP and enter the value 0.0.0.0/0.
-5.	Select Authorize to save your changes.
-
-We recommend granting Amazon Redshift users only INSERT rights on tables to be
-loaded. Create a user with a complex password using the CREATE USER command
-(http://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html), and grant
-INSERT using GRANT (http://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
-
-### If you want to use http proxy instead of NAT gateway
-
-To configure environment variable of your Lambda function:
-
-1. Add a variable. Key is "https_proxy".
-2. Fill a variable. For example, http://proxy.example.org:3128
-
-
-## Getting Started - Support for Notifications & Complex Workflows
-This function can send notifications on completion of batch processing. Using SNS,
-you can then receive notifications through email and HTTP Push to an application,
-or put them into a queue for later processing. You can even invoke additional Lambda
-functions to complete your data load workflow using an [SNS Event Sources](http://docs.aws.amazon.com/sns/latest/dg/sns-lambda.html) for another
-AWS Lambda function. If you would like to receive SNS notifications for succeeded
-loads, failed loads, or both, create SNS Topics and take note of their ID's in the
-form of Amazon Resource Notations (ARN).
+Please click [here](Networking.md) for a full guide on how to configure AWS Lambda to connect to Redshift in VPC and non-VPC networking environments.
 
 ## Getting Started - Entering the Configuration
 Now that your function is deployed, we need to create a configuration which tells
@@ -286,6 +228,7 @@ In some cases, you may want to have a configuration for most parts of a prefix, 
 | ```vendor-uploads/inbound/vendor2/csv/upload.zip``` | ```vendor-uploads/inbound/vendor2``` |
 
 # Security
+
 The database password, as well as the a master symmetric key used for encryption
 will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS
 Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
@@ -296,6 +239,7 @@ an Access Key and Secret Key which will be used instead, and
 the setup utility will encrypt the secret key.
 
 ## Loading multiple Redshift Clusters concurrently
+
 Version 2.0.0 adds the ability to load multiple clusters at the same time. To
 configure an additional cluster, you must first have deployed the
 ```AWSLambdaRedshiftLoader-2.1.0.zip``` and had your configuration upgraded to 2.x
@@ -310,8 +254,28 @@ Lambda loads them into your Amazon Redshift Cluster. You are charged by the numb
 of input files that are processed, plus a small charge for DynamoDB. You now have
 a highly available load framework which doesn't require you manage servers!
 
+## Support for Notifications & Complex Workflows
+This function can send notifications on completion of batch processing. Using SNS,
+you can then receive notifications through email and HTTP Push to an application,
+or put them into a queue for later processing. You can even invoke additional Lambda
+functions to complete your data load workflow using an [SNS Event Sources](http://docs.aws.amazon.com/sns/latest/dg/sns-lambda.html) for another AWS Lambda function. If you would like to receive SNS notifications for succeeded
+loads, failed loads, or both, create SNS Topics and take note of their ID's in the
+form of Amazon Resource Notations (ARN) for later use in the configuration setup. An example failure notification message:
+
+```
+{
+  "batchId": "2790a034-4954-47a9-8c53-624575afd83d",
+  "error": "{\"localhost\":{\"status\":-1,\"error\":{\"code\":\"ECONNREFUSED\",\"errno\":\"ECONNREFUSED\",\"syscall\":\"connect\",\"address\":\"127.0.0.1\",\"port\":5439}}}",
+  "failedManifest": "meyersi-ire/redshift/manifest/failed/manifest-2018-04-26 10:34:02-5230",
+  "key": "input/redshift-input-0.csv",
+  "originalManifest": "meyersi-ire/redshift/manifest/manifest-2018-04-26 10:34:02-5230",
+  "s3Prefix": "lambda-redshift-loader/input",
+  "status": "error"
+}
+```
 
 ## Viewing Previous Batches & Status
+
 If you ever need to see what happened to batch loads into your Cluster, you can
 use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB
 table. It can be called by:
