@@ -13,6 +13,7 @@ var aws = require('aws-sdk');
 var async = require('async');
 require('./constants');
 var common = require('./common');
+var batchOperations = require('./batchOperations');
 
 if (process.argv.length < 4) {
     console.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
@@ -22,108 +23,15 @@ var setRegion = process.argv[2];
 var thisBatchId = process.argv[3];
 var prefix = process.argv[4];
 
-// connect to dynamo db and s3
-var dynamoDB = new aws.DynamoDB({
-    apiVersion: '2012-08-10',
-    region: setRegion
-});
 var s3 = new aws.S3({
     apiVersion: '2006-03-01',
     region: setRegion
 });
 
-var updateBatchStatus = function (thisBatchId, err, results) {
+batchOperations.reprocessBatch(prefix, thisBatchId, setRegion, function (err) {
     if (err) {
-        console.log(JSON.stringify(err));
         process.exit(ERROR);
     } else {
-        var updateBatchStatus = {
-            Key: {
-                batchId: {
-                    S: thisBatchId,
-                },
-                s3Prefix: {
-                    S: prefix
-                }
-            },
-            TableName: batchTable,
-            AttributeUpdates: {
-                status: {
-                    Action: 'PUT',
-                    Value: {
-                        S: 'reprocessed'
-                    }
-                },
-                lastUpdate: {
-                    Action: 'PUT',
-                    Value: {
-                        N: '' + common.now()
-                    }
-                }
-            },
-            // the batch to be unlocked must be in locked or error state - we
-            // can't reopen 'complete' batches
-            Expected: {
-                status: {
-                    AttributeValueList: [{
-                        S: 'locked'
-                    }, {
-                        S: 'error'
-                    }],
-                    ComparisonOperator: 'IN'
-                }
-            }
-        };
-
-        dynamoDB.updateItem(updateBatchStatus, function (err, data) {
-            if (err) {
-                console.log(JSON.stringify(err));
-                process.exit(ERROR);
-            } else {
-                console.log("Batch " + thisBatchId + " Submitted for Reprocessing");
-                process.exit(OK);
-            }
-        })
-    }
-};
-
-// fetch the batch
-var getBatch = {
-    Key: {
-        batchId: {
-            S: thisBatchId,
-        },
-        s3Prefix: {
-            S: prefix
-        }
-    },
-    TableName: batchTable,
-    ConsistentRead: true
-};
-
-dynamoDB.getItem(getBatch, function (err, data) {
-    if (err) {
-        console.log(err);
-        process.exit(ERROR);
-    } else {
-        if (data && data.Item) {
-            if (data.Item.status.S === open) {
-                console.log("Cannot reprocess an Open Batch");
-                process.exit(error);
-            } else {
-                // load the global batch entries so that we can process it in
-                // callbacks
-                var batchEntries = data.Item.entries.SS;
-
-                if (!data.Item.entries.SS) {
-                    console.log("Batch is Empty!");
-                } else {
-                    async.map(data.Item.entries.SS, common.inPlaceCopyFile.bind(undefined, s3, thisBatchId), updateBatchStatus.bind(undefined, thisBatchId));
-                }
-            }
-        } else {
-            console.log("Unable to retrieve batch " + thisBatchId + " for prefix " + prefix);
-            process.exit(ERROR);
-        }
+        process.exit(OK);
     }
 });
