@@ -30,6 +30,7 @@ var s3 = new aws.S3({
 
 batchOperations.reprocessBatch(prefix, thisBatchId, setRegion, function (err) {
     if (err) {
+        console.log(err);
         process.exit(ERROR);
     } else {
         process.exit(OK);
