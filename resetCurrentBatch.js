@@ -12,8 +12,8 @@
  * Use this script to reset the currentBatchId marker on the
  * LambdaRedshiftBatchLoadConfig table for a specific prefix. This will result
  * in the previous batch, if incomplete, to become 'disconnected' from the
- * automated processor and the files will NOT be loaded. If this is not 
- * 
+ * automated processor and the files will NOT be loaded. If this is not
+ *
  */
 var async = require('async');
 var aws = require('aws-sdk');
@@ -22,11 +22,11 @@ var uuid = require('uuid');
 var readline = require('readline');
 require('./constants');
 var rl = readline.createInterface({
-    input : process.stdin,
-    output : process.stdout
+    input: process.stdin,
+    output: process.stdout
 });
 
-var usage = function() {
+var usage = function () {
     console.log("You must provide an AWS Region Code, the configured Input Location, and the current Batch ID in order to reset.");
     process.exit(ERROR);
 }
@@ -44,104 +44,109 @@ if (!_currentBatchId || !_prefix) {
 }
 
 var dynamoDB = new aws.DynamoDB({
-    apiVersion : '2012-08-10',
-    region : _setRegion
+    apiVersion: '2012-08-10',
+    region: _setRegion
 });
 
-q_really_go = function(callback) {
+q_really_go = function (callback) {
     rl
-	    .question(
-		    'This function will reset the current batch marker for the specified prefix. Any batch entries which were linked to the previous batch will not be processed automatically, and you must re-inject them for processing using the reprocessBatch.js function. Press any key to continue, or ctrl-c NOW to exit > ',
-		    function(answer) {
-			callback(null);
+        .question(
+            'This function will reset the current batch marker for the specified prefix. Any batch entries which were linked to the previous batch will not be processed automatically, and you must re-inject them for processing using the reprocessBatch.js function. Press any key to continue, or ctrl-c NOW to exit > ',
+            function (answer) {
+                callback(null);
 
-		    });
+            });
 };
 
-last = function(callback) {
+last = function (callback) {
     rl.close();
 
-    exports.resetBatchMarker(_prefix, _currentBatchId, callback);
+    exports.resetBatchMarker(_prefix, _setRegion, _currentBatchId, callback);
 };
 
 qs = [];
 qs.push(q_really_go);
 qs.push(last);
-async.waterfall(qs);
+async.waterfall(qs, function(err) {
+    if (err) {
+        process.exit(ERROR);
+    } else {
+        process.exit(OK);
+    }
+});
 
 /* main exported interface - if you call this we assume you know what you are doing */
-exports.resetBatchMarker = function(prefix, currentBatchId) {
+exports.resetBatchMarker = function (prefix, setRegion, currentBatchId, callback) {
     var getConfig = {
-	Key : {
-	    s3Prefix : {
-		S : _prefix
-	    }
-	},
-	TableName : configTable,
-	ConsistentRead : true
+        Key: {
+            s3Prefix: {
+                S: prefix
+            }
+        },
+        TableName: configTable,
+        ConsistentRead: true
     };
 
-    dynamoDB.getItem(getConfig, function(err, data) {
-	if (err) {
-	    console.log(err);
-	    process.exit(ERROR);
-	} else {
-	    if (!data || !data.Item || !data.Item.currentBatch) {
-		console.log("Unable to find Configuration with S3 Prefix " + prefix + " in Region " + _setRegion);
-	    } else {
-		// update the current batch entry to a new marker value
-		if (data.Item.currentBatch.S !== currentBatchId) {
-		    console.log("Batch " + currentBatchId + " is not currently allocated as the open batch for Load Configuration on " + prefix
-			    + ". Something has probably changed automatically, so we can't proceed.");
-		    process.exit(ERROR);
-		} else {
-		    var newBatchId = uuid.v4();
+    dynamoDB.getItem(getConfig, function (err, data) {
+        if (err) {
+            console.log(err);
+            process.exit(ERROR);
+        } else {
+            if (!data || !data.Item || !data.Item.currentBatch) {
+                console.log("Unable to find Configuration with S3 Prefix " + prefix + " in Region " + setRegion);
+            } else {
+                // update the current batch entry to a new marker value
+                if (data.Item.currentBatch.S !== currentBatchId) {
+                    console.log("Batch " + currentBatchId + " is not currently allocated as the open batch for Load Configuration on " + prefix
+                        + ". Something has probably changed automatically, so we can't proceed.");
+                    process.exit(ERROR);
+                } else {
+                    var newBatchId = uuid.v4();
 
-		    var resetBatchParam = {
-			Key : {
-			    s3Prefix : {
-				S : prefix
-			    }
-			},
-			TableName : configTable,
-			AttributeUpdates : {
-			    currentBatch : {
-				Action : 'PUT',
-				Value : {
-				    S : newBatchId
-				}
-			    },
-			    lastUpdate : {
-				Action : 'PUT',
-				Value : {
-				    N : '' + common.now()
-				}
-			    },
-			    status : {
-				Action : 'PUT',
-				Value : {
-				    S : open
-				}
-			    }
-			}
-		    };
+                    var resetBatchParam = {
+                        Key: {
+                            s3Prefix: {
+                                S: prefix
+                            }
+                        },
+                        TableName: configTable,
+                        AttributeUpdates: {
+                            currentBatch: {
+                                Action: 'PUT',
+                                Value: {
+                                    S: newBatchId
+                                }
+                            },
+                            lastUpdate: {
+                                Action: 'PUT',
+                                Value: {
+                                    N: '' + common.now()
+                                }
+                            },
+                            status: {
+                                Action: 'PUT',
+                                Value: {
+                                    S: open
+                                }
+                            }
+                        }
+                    };
 
-		    dynamoDB.updateItem(resetBatchParam, function(err, data) {
-			if (err) {
-			    if (err.code === conditionCheckFailed) {
-				console.log("Batch " + currentBatchId + " cannot be modified as the status is currently 'open' or 'complete' status");
-			    } else {
-				console.log(err);
-				process.exit(ERROR);
-			    }
-			} else {
-			    console.log("Batch " + currentBatchId + " rotated to value " + newBatchId + " and is ready for use");
-			}
-
-			process.exit(OK);
-		    });
-		}
-	    }
-	}
+                    dynamoDB.updateItem(resetBatchParam, function (err, data) {
+                        if (err) {
+                            if (err.code === conditionCheckFailed) {
+                                console.log("Batch " + currentBatchId + " cannot be modified as the status is currently 'open' or 'complete' status");
+                            } else {
+                                console.log(err);
+                                callback(err)
+                            }
+                        } else {
+                            console.log("Batch " + currentBatchId + " rotated to value " + newBatchId + " and is ready for use");
+                        }
+                        callback();
+                    });
+                }
+            }
+        }
     });
 }

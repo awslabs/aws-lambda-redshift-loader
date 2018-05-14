@@ -1026,12 +1026,12 @@ exports.handler = function (event, context) {
         // than 5 seconds remaining
         var remainingMillis;
         if (context) {
-            remainingMillis = context.getRemainingTimeInMillis() - 10000;
+            remainingMillis = context.getRemainingTimeInMillis();
 
-            if (remainingMillis < 5000) {
+            if (remainingMillis < 10000) {
                 exports.failBatch("Remaining duration of " + remainingMillis + ' insufficient to load cluster', config, thisBatchId, s3Info, manifestInfo);
             } else {
-                copyCommand = 'set statement_timeout to ' + (remainingMillis) + ';\n';
+                copyCommand = 'set statement_timeout to ' + (remainingMillis - 10000) + ';\n';
             }
         } else {
             copyCommand = 'set statement_timeout to 60000;\n';
@@ -1212,7 +1212,7 @@ exports.handler = function (event, context) {
      * accordingly
      */
     exports.failBatch = function (loadState, config, thisBatchId, s3Info, manifestInfo) {
-        console.log(loadState);
+        console.log("Failing Batch " + thisBatchId + " due to " + loadState);
 
         if (config.failedManifestKey && manifestInfo) {
             // copy the manifest to the failed location
@@ -1264,7 +1264,8 @@ exports.handler = function (event, context) {
                     common.retryableUpdate(dynamoDB, manifestModification, function (err, data) {
                         if (err) {
                             console.log(err);
-                            exports.closeBatch(err, config, thisBatchId, s3Info, manifestInfo);
+                            // add this new error to the original failed load state
+                            exports.closeBatch(loadState + " " + err, config, thisBatchId, s3Info, manifestInfo);
                         } else {
                             // close the batch with the original
                             // calling error
@@ -1284,14 +1285,6 @@ exports.handler = function (event, context) {
      * notifications
      */
     exports.closeBatch = function (batchError, config, thisBatchId, s3Info, manifestInfo) {
-        var batchEndStatus;
-
-        if (batchError && batchError !== null) {
-            batchEndStatus = error;
-        } else {
-            batchEndStatus = complete;
-        }
-
         var item = {
             Key: {
                 batchId: {
@@ -1306,7 +1299,7 @@ exports.handler = function (event, context) {
                 status: {
                     Action: 'PUT',
                     Value: {
-                        S: batchEndStatus
+                        S: complete
                     }
                 },
                 lastUpdate: {
@@ -1324,6 +1317,13 @@ exports.handler = function (event, context) {
                 Action: 'PUT',
                 Value: {
                     S: JSON.stringify(batchError)
+                }
+            };
+
+            item.AttributeUpdates.status = {
+                Action: 'PUT',
+                Value: {
+                    S: error
                 }
             };
         }
