@@ -11,6 +11,7 @@
 var async = require('async');
 var uuid = require('uuid');
 require('./constants');
+var pjson = require('./package.json');
 
 // function which creates a string representation of now suitable for use in S3
 // paths
@@ -648,3 +649,37 @@ exports.inPlaceCopyFile = function (s3, batchId, batchEntry, callback) {
         }
     });
 };
+
+exports.updateConfig = function (s3Prefix, configAttribute, configValue, dynamoDB, callback) {
+    var dynamoConfig = {
+        TableName: configTable,
+        Key: {
+            "s3Prefix": {
+                S: s3Prefix
+            }
+        },
+        ExpressionAttributeNames: {
+            "#attribute": configAttribute
+        }
+    };
+
+    if (configValue) {
+        dynamoConfig.UpdateExpression = "set #attribute = :value, #version = :version";
+        dynamoConfig.ExpressionAttributeValues = {
+            ":value":
+                {
+                    S: configValue
+                }
+        };
+        dynamoConfig.ExpressionAttributeNames["#version"] = "version";
+        dynamoConfig.ExpressionAttributeValues[":version"] = {
+            S: pjson.version
+        };
+    } else {
+        dynamoConfig.UpdateExpression = "remove #attribute";
+    }
+
+    exports.retryableUpdate(dynamoDB, dynamoConfig, function (err, data) {
+        callback(err);
+    });
+}

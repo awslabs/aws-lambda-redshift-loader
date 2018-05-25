@@ -274,6 +274,10 @@ form of Amazon Resource Notations (ARN) for later use in the configuration setup
 }
 ```
 
+The loader supports the ability to suppress a failure status of the Lambda function if you have configured a failure notification SNS topic, which should only be used if you know that you've created a downstream workflow to deal with these notifications completely, and you do not want Lambda level failures to be exposed. Please note that this error suppression is only available for batch level load failures, and not for other types of failures of the function (for example if it's unable to complete a status update or send notifications at all). This suppression is only available if you've configured a `failureTopicARN` in your S3 prefix configuration.
+
+To suppress Lambda level failures, set environment variable `SuppressFailureStatusOnSuccessfulNotification = 'true'` in your Lambda configuration.
+
 ## Viewing Previous Batches & Status
 
 If you ever need to see what happened to batch loads into your Cluster, you can

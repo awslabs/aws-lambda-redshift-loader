@@ -59,8 +59,6 @@ String.prototype.shortenPrefix = function () {
 
     if (tokens && tokens.length > 0) {
         return tokens.slice(0, tokens.length - 1).join("/");
-    } else {
-        return;
     }
 };
 
@@ -262,7 +260,7 @@ exports.handler = function (event, context) {
                 },
                 ":incr": {
                     N: "1"
-                },
+                }
             },
             UpdateExpression: "set #rcvDate = :rcvDate add timesReceived :incr",
             ReturnValues: "ALL_NEW"
@@ -1132,7 +1130,7 @@ exports.handler = function (event, context) {
                 }
 
                 // add compression directives
-                if (config.compression !== undefined) {
+                if (config.compression) {
                     copyOptions = copyOptions + ' ' + config.compression.S + '\n';
                 }
 
@@ -1176,7 +1174,7 @@ exports.handler = function (event, context) {
                 if (clusterInfo.clusterDB) {
                     dbString = dbString + '/' + clusterInfo.clusterDB.S;
                 }
-                if (clusterInfo.useSSL && clusterInfo.useSSL.BOOL === 'true') {
+                if (clusterInfo.useSSL && clusterInfo.useSSL.BOOL === true) {
                     dbString = dbString + '?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory';
                 }
                 console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
@@ -1337,13 +1335,31 @@ exports.handler = function (event, context) {
                 context.done(error, JSON.stringify(err));
             } else {
                 // send notifications
-                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError);
+                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function(err) {
+                    if (err) {
+                        console.log(JSON.stringify(err));
+                        context.done(error, JSON.stringify(err) + " " + JSON.stringify(batchError));
+                    } else if (batchError) {
+                        console.log(JSON.stringify(batchError));
+
+                        // allow for an environment variable to suppress failure end status if failure notifications were correctly sent
+                        if (config.failureTopicARN && process.env[SUPPRESS_FAILURE_ON_OK_NOTIFICATION] === 'true') {
+                            console.log("Suppressing failed end state due to environment setting " + SUPPRESS_FAILURE_ON_OK_NOTIFICATION);
+                            context.done(null, null);
+                        } else {
+                            context.done(error, JSON.stringify(batchError));
+                        }
+                    } else {
+                        console.log("Batch Load " + thisBatchId + " Complete");
+                        context.done(null,null)
+                    }
+                });
             }
         });
     };
 
     /** send an SNS message to a topic */
-    exports.sendSNS = function (topic, subj, msg, successCallback, failureCallback) {
+    exports.sendSNS = function (topic, subj, msg, callback) {
         var m = {
             Message: JSON.stringify(msg),
             Subject: subj,
@@ -1351,22 +1367,12 @@ exports.handler = function (event, context) {
         };
 
         sns.publish(m, function (err, data) {
-            if (err) {
-                if (failureCallback) {
-                    failureCallback(err);
-                } else {
-                    console.log(err);
-                }
-            } else {
-                if (successCallback) {
-                    successCallback();
-                }
-            }
+            callback(err);
         });
     };
 
     /** Send SNS notifications if configured for OK vs Failed status */
-    exports.notify = function (config, thisBatchId, s3Info, manifestInfo, batchError) {
+    exports.notify = function (config, thisBatchId, s3Info, manifestInfo, batchError, callback) {
         var statusMessage = batchError ? 'error' : 'ok';
         var errorMessage = batchError ? JSON.stringify(batchError) : null;
         var messageBody = {
@@ -1382,34 +1388,23 @@ exports.handler = function (event, context) {
             messageBody.failedManifest = manifestInfo.failedManifestPath;
         }
 
+        var sendNotifications = [];
+
         if (batchError && batchError !== null) {
             console.log(JSON.stringify(batchError));
 
             if (config.failureTopicARN) {
-                exports.sendSNS(config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody, function () {
-                    context.done(error, JSON.stringify(batchError));
-                }, function (err) {
-                    console.log(JSON.stringify(err));
-                    context.done(error, JSON.stringify(err));
-                });
-            } else {
-                context.done(error, JSON.stringify(batchError));
-            }
-        } else {
-            if (config.successTopicARN) {
-                exports.sendSNS(config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody, function () {
-                    context.done(null, null);
-                }, function (err) {
-                    console.log(JSON.stringify(err));
-                    context.done(error, JSON.stringify(err));
-                });
-            } else {
-                // finished OK - no SNS notifications for
-                // success
-                console.log("Batch Load " + thisBatchId + " Complete");
-                context.done(null, null);
+                sendNotifications.push(exports.sendSNS.bind(undefined, config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody));
             }
         }
+
+        if (config.successTopicARN) {
+            sendNotifications.push(exports.sendSNS.bind(undefined, config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody));
+        }
+
+        async.waterfall(sendNotifications, function (err) {
+            callback(err);
+        });
     };
     /* end of runtime functions */
 
