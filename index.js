@@ -1419,10 +1419,14 @@ exports.handler = function (event, context) {
             console.log(JSON.stringify(event));
             context.done(null, null);
         } else {
-            if (event.Records.length > 1) {
+	    var records = event.Records;
+	    if (records.length === 1 && records[0].EventSource === "aws:sns") {
+	        records = JSON.parse(records[0].Sns.Message.replace(/\"/g, '"')).Records;
+	    }
+	    if (records.length > 1) {
                 context.done(error, "Unable to process multi-record events");
             } else {
-                var r = event.Records[0];
+                var r = records[0];
 
                 // ensure that we can process this event based on a variety
                 // of criteria
