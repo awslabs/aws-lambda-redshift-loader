@@ -296,12 +296,16 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                         } else {
                             // create a list of files which filters out the omittedFiles
                             var processFiles = [];
-                            data.entries.SS.map(function(item) {
-                               if (omitFiles.indexOf(item) === -1) {
-                                   // file is not in the omit list, so add it to the process list
-                                   processFiles.push(item);
-                               }
-                            });
+                            if (omitFiles) {
+                                data.entries.SS.map(function (item) {
+                                    if (omitFiles.indexOf(item) === -1) {
+                                        // file is not in the omit list, so add it to the process list
+                                        processFiles.push(item);
+                                    }
+                                });
+                            } else {
+                                processFiles = data.entries.SS;
+                            }
                             
                             // for each of the current file entries, execute an in-place copy of the file in S3 so that the loader will pick them up again through new s3 events
                             async.map(processFiles, common.inPlaceCopyFile.bind(undefined, s3, batchId), function (err) {
