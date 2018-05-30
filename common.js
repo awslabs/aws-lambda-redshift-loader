@@ -439,8 +439,13 @@ exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionN
             var statements = JSON.parse(data.Policy).Statement;
 
             statements.map(function (item) {
-                if (item.Resource === functionArn && item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount) {
-                    foundMatch = true;
+                try {
+                    if (item.Resource === functionArn && item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount) {
+                        foundMatch = true;
+                    }
+                } catch (e) {
+                    // this is OK - just means that the policy structure doesn't match the above format
+
                 }
             });
         }
