@@ -251,7 +251,7 @@ exports.deleteBatches = deleteBatches;
 /*
 Function to reprocess an existing batch that is in a failed locked state, or an error state where the issue has been mitigated
  */
-function reprocessBatch(s3Prefix, batchId, region, callback) {
+function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
     init(region);
 
     STATUS_REPROCESSING = 'reprocessing';
@@ -294,8 +294,17 @@ function reprocessBatch(s3Prefix, batchId, region, callback) {
                                 callback(err);
                             }
                         } else {
+                            // create a list of files which filters out the omittedFiles
+                            var processFiles = [];
+                            data.entries.SS.map(function(item) {
+                               if (omitFiles.indexOf(item) === -1) {
+                                   // file is not in the omit list, so add it to the process list
+                                   processFiles.push(item);
+                               }
+                            });
+                            
                             // for each of the current file entries, execute an in-place copy of the file in S3 so that the loader will pick them up again through new s3 events
-                            async.map(data.entries.SS, common.inPlaceCopyFile.bind(undefined, s3, batchId), function (err) {
+                            async.map(processFiles, common.inPlaceCopyFile.bind(undefined, s3, batchId), function (err) {
                                 if (err) {
                                     callback(err);
                                 } else {
