@@ -78,18 +78,21 @@ String.prototype.transformHiveStylePrefix = function () {
     return processedTokens.join('/');
 };
 
-exports.getConfigWithRetry = function (prefix, callback) {
+exports.getConfigWithRetry = function (prefix, suffix, callback) {
     var proceed = false;
     var lookupConfigTries = 10;
     var tryNumber = 0;
     var configData = null;
 
     var dynamoLookup = {
-        Key: {
-            s3Prefix: {
-                S: prefix
-            }
-        },
+	    Key : {
+	        s3Prefix : {
+		    S : prefix
+	        },
+	        s3Suffix : {
+		    S : suffix
+	        }
+	    },
         TableName: configTable,
         ConsistentRead: true
     };
@@ -131,7 +134,7 @@ exports.getConfigWithRetry = function (prefix, callback) {
     });
 };
 
-exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback) {
+exports.resolveConfig = function (prefix, suffix, successCallback, noConfigFoundCallback) {
     var searchPrefix = prefix;
     var config;
 
@@ -142,7 +145,7 @@ exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
-        exports.getConfigWithRetry(searchPrefix, function (err, data) {
+        exports.getConfigWithRetry(searchPrefix, suffix, function (err, data) {
             if (err) {
                 untilCallback(err);
             } else {
@@ -1410,7 +1413,7 @@ exports.handler = function (event, context) {
 
     try {
         if (debug) {
-            console.log(JSON.stringify(event));
+            console.log("Event: " + JSON.stringify(event));
         }
 
         if (!event.Records) {
@@ -1484,7 +1487,7 @@ exports.handler = function (event, context) {
                             inputInfo.prefix = configData.Item.s3Prefix.S;
 
                             if (debug) {
-                                console.log(JSON.stringify(inputInfo));
+                                console.log("inputInfo: " + JSON.stringify(inputInfo));
                             }
 
                             // call the foundConfig method with the data

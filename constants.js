@@ -11,6 +11,7 @@
 batchId = 'batchId';
 currentBatch = 'currentBatch';
 s3prefix = 's3Prefix';
+s3suffix = 's3Suffix';
 lastUpdate = 'lastUpdate';
 complete = 'complete';
 locked = 'locked';
