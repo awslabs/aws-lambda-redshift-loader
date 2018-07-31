@@ -1,7 +1,7 @@
 {
     "name": "aws-lambda-redshift-loader",
     "description": "An Amazon Redshift Database Loader written for AWS Lambda",
-    "version": "2.6.2",
+    "version": "2.6.3",
     "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
     "bugs": {
         "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
@@ -10,11 +10,11 @@
     "dependencies": {
         "async": "2.4.0",
         "uuid": "3.0.1",
-        "pg":"6.1.5",
+        "pg": "6.1.6",
         "pg-ka-fix": "1.0.0-rm-fix",
-        "aws-sdk":"2.49.0",
-        "minimist":"1.2.0",
-        "https-proxy-agent": "1.0.0"
+        "aws-sdk": "2.49.0",
+        "minimist": "1.2.0",
+        "https-proxy-agent": "2.2.0"
     },
     "keywords": [
         "amazon",
@@ -27,7 +27,7 @@
     },
     "lib": "./lib",
     "main": "./index.js",
-    "license" : "SEE LICENSE IN LICENSE.txt",
+    "license": "SEE LICENSE IN LICENSE.txt",
     "files": [
         "addAdditionalClusterEndpoint.js",
         "common.js",
