@@ -87,14 +87,25 @@ exports.createTables = function (dynamoDB, callback) {
         }
     };
     var configKey = s3prefix;
+
+	var sortKey = s3suffix;
+	
     var configSpec = {
         AttributeDefinitions: [{
             AttributeName: configKey,
+            AttributeType: 'S'
+        },
+		{
+            AttributeName: sortKey,
             AttributeType: 'S'
         }],
         KeySchema: [{
             AttributeName: configKey,
             KeyType: 'HASH'
+        },
+		{
+            AttributeName: sortKey,
+            KeyType: 'RANGE'
         }],
         TableName: configTable,
         ProvisionedThroughput: {
@@ -477,7 +488,7 @@ exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionN
     });
 };
 
-exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName, callback) {
+exports.createS3EventSource = function (s3, lambda, bucket, prefix, suffix, functionName, callback) {
     console.log("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
 
     // lookup the deployed function name to get the ARN
@@ -520,6 +531,10 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
                                                 FilterRules: [{
                                                     Name: 'prefix',
                                                     Value: prefix + "/"
+                                                },
+												{
+                                                    Name: 'suffix',
+                                                    Value: suffix
                                                 }]
                                             }
                                         },
@@ -584,12 +599,14 @@ exports.setup = function (useConfig, dynamoDB, s3, lambda, callback) {
     // and prefix
     var createEventSource = function (c) {
         var s3prefix = useConfig.Item.s3Prefix.S;
+		var s3suffix = useConfig.Item.s3Suffix.S;
         var tokens = s3prefix.split("/");
         var bucket = tokens[0];
         var prefix = tokens.slice(1).join("/");
+		var suffix = s3suffix;
 
         // deployedFunctionName is defined in constants.js
-        exports.createS3EventSource(s3, lambda, bucket, prefix, deployedFunctionName, function (err, configId) {
+        exports.createS3EventSource(s3, lambda, bucket, prefix, suffix, deployedFunctionName, function (err, configId) {
             c(err);
         });
     };
@@ -661,6 +678,9 @@ exports.updateConfig = function (s3Prefix, configAttribute, configValue, dynamoD
         Key: {
             "s3Prefix": {
                 S: s3Prefix
+            },
+			"s3Suffix": {
+                S: s3Suffix
             }
         },
         ExpressionAttributeNames: {

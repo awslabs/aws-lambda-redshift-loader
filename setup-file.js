@@ -107,6 +107,9 @@ q_filenameFilter = function (callback) {
         dynamoConfig.Item.filenameFilterRegex = {
             S: setupConfig.filenameFilter
         };
+		dynamoConfig.Item.s3Suffix = {
+            S: setupConfig.filenameFilter
+        };
     }
     callback(null);
 };
