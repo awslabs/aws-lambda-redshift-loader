@@ -1,4 +1,4 @@
-/*
+﻿/*
 		Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
     Licensed under the Amazon Software License (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
@@ -78,18 +78,21 @@ String.prototype.transformHiveStylePrefix = function () {
     return processedTokens.join('/');
 };
 
-exports.getConfigWithRetry = function (prefix, callback) {
+exports.getConfigWithRetry = function (prefix, suffix, callback) {
     var proceed = false;
     var lookupConfigTries = 10;
     var tryNumber = 0;
     var configData = null;
 
     var dynamoLookup = {
-        Key: {
-            s3Prefix: {
-                S: prefix
-            }
-        },
+	    Key : {
+	        s3Prefix : {
+		    S : prefix
+	        },
+	        s3Suffix : {
+		    S : suffix
+	        }
+	    },
         TableName: configTable,
         ConsistentRead: true
     };
@@ -131,7 +134,7 @@ exports.getConfigWithRetry = function (prefix, callback) {
     });
 };
 
-exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback) {
+exports.resolveConfig = function (prefix, suffix, successCallback, noConfigFoundCallback) {
     var searchPrefix = prefix;
     var config;
 
@@ -142,7 +145,7 @@ exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
-        exports.getConfigWithRetry(searchPrefix, function (err, data) {
+        exports.getConfigWithRetry(searchPrefix, suffix, function (err, data) {
             if (err) {
                 untilCallback(err);
             } else {
@@ -732,6 +735,9 @@ exports.handler = function (event, context) {
                                     Key: {
                                         s3Prefix: {
                                             S: s3Info.prefix
+                                        },
+                                        s3Suffix: {
+                                            S: s3Info.inputFilename
                                         }
                                     },
                                     TableName: configTable,
@@ -853,17 +859,30 @@ exports.handler = function (event, context) {
                 // then close the batch OK - otherwise fail
                 var allOK = true;
                 var loadState = {};
+                var loadMessage='';
 
                 for (var i = 0; i < results.length; i++) {
                     if (!results[i] || results[i].status === ERROR) {
                         allOK = false;
-
                         console.log("Cluster Load Failure " + results[i].error + " on Cluster " + results[i].cluster);
                     }
+                    //const util = require('util');
+
+                    //console.log(util.inspect(results, { showHidden: true, depth: null })); //results[i].error showed first differs from the one in loadState, this is for debugging that
+                    
+                    if (results[i].error===null) 
+                    { 
+                        loadMessage='Load Successfull';
+                    } else
+                    {
+                        loadMessage=results[i].error.message;
+                    };
+                    
                     // log the response state for each cluster
                     loadState[results[i].cluster] = {
                         status: results[i].status,
-                        error: results[i].error
+                        error: results[i].error,
+                        message: loadMessage
                     };
                 }
 
@@ -1165,7 +1184,7 @@ exports.handler = function (event, context) {
                 copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
 
                 if (debug) {
-                    console.log(copyCommand);
+                    console.log("copyCommand: " + copyCommand);
                 }
 
                 // build the connection string
@@ -1347,7 +1366,7 @@ exports.handler = function (event, context) {
                             console.log("Suppressing failed end state due to environment setting " + SUPPRESS_FAILURE_ON_OK_NOTIFICATION);
                             context.done(null, null);
                         } else {
-                            context.done(error, JSON.stringify(batchError));
+                            context.done(error, "Notification sent, batchError " + JSON.stringify(batchError));
                         }
                     } else {
                         console.log("Batch Load " + thisBatchId + " Complete");
@@ -1410,7 +1429,7 @@ exports.handler = function (event, context) {
 
     try {
         if (debug) {
-            console.log(JSON.stringify(event));
+            console.log("Event: " + JSON.stringify(event));
         }
 
         if (!event.Records) {
@@ -1469,7 +1488,7 @@ exports.handler = function (event, context) {
                     // add the object size to inputInfo
                     inputInfo.size = r.s3.object.size;
 
-                    exports.resolveConfig(inputInfo.prefix, function (err, configData) {
+                    exports.resolveConfig(inputInfo.prefix, inputInfo.inputFilename, function (err, configData) {
                         /*
                          * we did get a configuration found by the resolveConfig
                          * method
@@ -1484,7 +1503,7 @@ exports.handler = function (event, context) {
                             inputInfo.prefix = configData.Item.s3Prefix.S;
 
                             if (debug) {
-                                console.log(JSON.stringify(inputInfo));
+                                console.log("inputInfo: " + JSON.stringify(inputInfo));
                             }
 
                             // call the foundConfig method with the data
