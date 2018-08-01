@@ -11,6 +11,7 @@
         "async": "2.4.0",
         "uuid": "3.0.1",
         "pg": "6.1.6",
+        "pgpass": "1.0.2",
         "pg-ka-fix": "1.0.0-rm-fix",
         "aws-sdk": "2.49.0",
         "minimist": "1.2.0",
