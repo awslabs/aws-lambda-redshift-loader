@@ -32,7 +32,7 @@ var setRegion = process.argv[2];
 var thisBatchId = process.argv[3];
 var prefix = process.argv[4];
 var omitFiles;
-if (process.argv.length == 5) {
+if (process.argv.length == 6) {
     omitFiles = process.argv[5].split(",")
 }
 
