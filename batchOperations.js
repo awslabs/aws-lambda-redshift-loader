@@ -4,6 +4,7 @@ var common = require('./common');
 var async = require('async');
 var debug = true;
 var dynamoDB;
+var s3;
 
 /**
  * Initialisation for the module - connect to DDB etc
@@ -16,6 +17,14 @@ function init(setRegion) {
     if (!dynamoDB) {
         dynamoDB = new aws.DynamoDB({
             apiVersion: '2012-08-10',
+            region: setRegion
+        });
+    }
+
+    if (!s3) {
+        // create an S3 client for the region to hand to the in-place copy processor
+        s3 = new aws.S3({
+            apiVersion: '2006-03-01',
             region: setRegion
         });
     }
@@ -60,7 +69,7 @@ function getBatch(setRegion, s3Prefix, batchId, callback) {
             if (data && data.Item) {
                 callback(null, data.Item);
             } else {
-                callback("No Batch " + thisBatchId + " found in " + setRegion);
+                callback("No Batch " + batchId + " for prefix " + s3Prefix + " found in " + setRegion);
             }
         }
     });
@@ -256,15 +265,8 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
 
     STATUS_REPROCESSING = 'reprocessing';
 
-    // create an S3 client for the region to hand to the in-place copy processor
-    var s3 = new aws.S3({
-        apiVersion: '2006-03-01',
-        region: region
-    });
-
     getBatch(region, s3Prefix, batchId, function (err, data) {
         if (err) {
-            console.log(err);
             callback(err);
         } else {
             if (data) {
@@ -306,13 +308,15 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                             } else {
                                 processFiles = data.entries.SS;
                             }
-                            
-                            // for each of the current file entries, execute an in-place copy of the file in S3 so that the loader will pick them up again through new s3 events
-                            async.map(processFiles, common.inPlaceCopyFile.bind(undefined, s3, batchId), function (err) {
+
+                            // for each of the current file entries, execute the processedFiles reprocess method
+                            async.map(processFiles, function (item) {
+                                common.reprocessFile.bind(undefined, dynamoDB, s3, region, item, undefined);
+                            }, function (err) {
                                 if (err) {
                                     callback(err);
                                 } else {
-                                    preconditionStatus = [{
+                                    var preconditionStatus = [{
                                         S: STATUS_REPROCESSING
                                     }];
 

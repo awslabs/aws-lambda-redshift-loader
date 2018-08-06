@@ -12,35 +12,27 @@
 var aws = require('aws-sdk');
 var async = require('async');
 require('./constants');
-var common = require('./common');
 var batchOperations = require('./batchOperations');
 
-var usage = function() {
-    console.log("You must provide an AWS Region Code, Batch ID, and configured Input Location");
+var args = require('minimist')(process.argv.slice(2));
+
+var setRegion = args.region;
+var thisBatchId = args.batchId;
+var prefix = args.prefix;
+
+if (!setRegion || !thisBatchId || !prefix) {
+    usage();
+}
+
+var usage = function () {
+    console.log("You must provide an AWS Region Code (--region), Batch ID (--batchId), and configured Input Location (--prefix)");
     console.log("You may also provide a list of files to be omitted from the reprocessing task");
     process.exit(ERROR);
 }
-if (process.argv.length < 4) {
-    usage();
-}
-if (process.argv.length > 5) {
-    console.log("You have provided too many arguments to the function");
-    usage();
-}
-
-var setRegion = process.argv[2];
-var thisBatchId = process.argv[3];
-var prefix = process.argv[4];
 var omitFiles;
-if (process.argv.length == 6) {
-    omitFiles = process.argv[5].split(",")
+if (args.omitFiles) {
+    omitFiles = args.omitFiles.split(",")
 }
-
-var s3 = new aws.S3({
-    apiVersion: '2006-03-01',
-    region: setRegion
-});
-
 batchOperations.reprocessBatch(prefix, thisBatchId, setRegion, omitFiles, function (err) {
     if (err) {
         console.log(err);

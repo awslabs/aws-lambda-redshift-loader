@@ -688,3 +688,91 @@ exports.updateConfig = function (s3Prefix, configAttribute, configValue, dynamoD
         callback(err);
     });
 }
+
+exports.deleteFile = function (dynamoDB, region, file, callback) {
+    var fileItem = {
+        Key: {
+            loadFile: {
+                S: file
+            }
+        },
+        TableName: filesTable
+    };
+
+    dynamoDB.deleteItem(fileItem, function (err, data) {
+        callback(err, data);
+    });
+}
+
+exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
+    // get the file so we know what the current batch ID is
+    var fileItem = {
+        Key: {
+            loadFile: {
+                S: file
+            }
+        },
+        TableName: filesTable
+    };
+    dynamoDB.getItem(fileItem, function (err, data) {
+        if (err) {
+            if (callback) {
+                callback(err);
+            }
+        } else {
+            if (data.Item.batchId && data.Item.batchId.S) {
+                var updateExpr = "remove #batchId ";
+
+                if (data.Item.previousBatches) {
+                    // add to the end of the list
+                    updateExpr = updateExpr + "set previousBatches = list_append(previousBatches,:oldBatch)"
+                } else {
+                    // create a new list
+                    updateExpr = updateExpr + "set previousBatches = :oldBatch";
+                }
+
+                // rotate the current batch information onto a tracking list
+                var update = {
+                    Key: {
+                        loadFile: {
+                            S: file
+                        }
+                    },
+                    TableName: filesTable,
+                    ExpressionAttributeNames: {
+                        "#batchId": "batchId"
+                    },
+                    ExpressionAttributeValues: {
+                        ":oldBatch": {
+                            L: [
+                                {S: "" + data.Item.batchId.S}
+                            ]
+                        }
+                    },
+                    UpdateExpression: updateExpr,
+                    ReturnValues: "ALL_NEW"
+                };
+
+                dynamoDB.updateItem(update, function (err, data) {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        // now the file needs an in-place copy with new metadata to cause a reprocess
+                        exports.inPlaceCopyFile(s3, undefined, file, function (err, data) {
+                            if (callback) {
+                                callback(err);
+                            }
+                        });
+                    }
+                });
+            } else {
+                // not currently assigned to a batch, so just do an s3 update
+                exports.inPlaceCopyFile(s3, undefined, file, function (err, data) {
+                    if (callback) {
+                        callback(err);
+                    }
+                });
+            }
+        }
+    });
+}

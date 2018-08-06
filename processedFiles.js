@@ -35,15 +35,6 @@ var s3 = new aws.S3({
     region: setRegion
 });
 
-var fileItem = {
-    Key: {
-        loadFile: {
-            S: file
-        }
-    },
-    TableName: filesTable
-};
-
 var doExit = function (err, data, message) {
     if (err) {
         console.log(err);
@@ -59,15 +50,11 @@ var doExit = function (err, data, message) {
 };
 
 if (deleteOption) {
-    dynamoDB.deleteItem(fileItem, function (err, data) {
-        doExit(err, data, "File Entry " + file + " deleted successfully");
-    });
-} else if (queryOption) {
-    dynamoDB.getItem(fileItem, function (err, data) {
-        doExit(err, data);
+    common.deleteFile(dynamoDB, setRegion, file, function (err) {
+        doExit(err)
     });
 } else if (reproOption) {
-    common.inPlaceCopyFile(s3, undefined, file, function (err, data) {
-        doExit(err, data, "File Entry " + file + " reprocessed successfully");
+    common.reprocessFile(dynamoDB, s3, setRegion, file, function (err) {
+        doExit(err)
     });
 }
