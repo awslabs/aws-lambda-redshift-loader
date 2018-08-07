@@ -20,15 +20,16 @@ var setRegion = args.region;
 var thisBatchId = args.batchId;
 var prefix = args.prefix;
 
-if (!setRegion || !thisBatchId || !prefix) {
-    usage();
-}
-
 var usage = function () {
     console.log("You must provide an AWS Region Code (--region), Batch ID (--batchId), and configured Input Location (--prefix)");
     console.log("You may also provide a list of files to be omitted from the reprocessing task");
     process.exit(ERROR);
 }
+
+if (!setRegion || !thisBatchId || !prefix) {
+    usage();
+}
+
 var omitFiles;
 if (args.omitFiles) {
     omitFiles = args.omitFiles.split(",")
