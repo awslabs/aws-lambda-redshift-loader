@@ -32,7 +32,7 @@ function reprocessEvent(message, messageAttributes, callback) {
     // hand over to the function that makes the go/no-go decision on processing failure events
     if (reprocessSupported(errorBody.code)) {
         // call the reprocess batch API of batchOperations, which will resubmit the processed files for processing
-        batchOperations.reprocessBatch(message.s3Prefix, message.batchId, process.env['AWS_REGION'], function (err) {
+        batchOperations.reprocessBatch(message.s3Prefix, message.batchId, process.env['AWS_REGION'], undefined, function (err) {
             if (err) {
                 callback(err);
             } else {
