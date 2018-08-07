@@ -24,7 +24,7 @@ function reprocessSupported(errorReason) {
  }
  *
  */
-function reprocessEvent(message, callback) {
+function reprocessEvent(message, messageAttributes, callback) {
     // unwrap the structure of the error body - it's currently indexed by the ID of the failing redshift cluster
     var failureEventError = JSON.parse(message.error);
     var errorBody = failureEventError[Object.keys(failureEventError)[0]].error;
@@ -91,7 +91,7 @@ function handleSNS(event, context) {
         context.done("Unsupported event version " + event.EventVersion);
     }
 
-    var message = event.Records[0].Sns.MessageAttributes;
+    var message = event.Records[0].Sns.Message;
 
     // parse out the body of the error from the previous invocation
     if (!message.error) {
@@ -100,7 +100,7 @@ function handleSNS(event, context) {
         console.log(msg);
         context.done(msg);
     } else {
-        reprocessEvent(message, function (err) {
+        reprocessEvent(message, event.Records[0].Sns.MessageAttributes, function (err) {
             context.done(err);
         });
     }
