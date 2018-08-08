@@ -272,13 +272,12 @@ exports.handler = function (event, context) {
             if (err) {
                 msg = "Error " + err.code + " for " + fileEntry;
                 console.log(msg);
-                console.log(JSON.stringify(err));
-                exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
+                context.done(error, msg);
             } else {
                 if (!data) {
-                    msg = "Idempotency Check on " + fileEntry + " failed";
+                    msg = "Update failed to return data from Processed File Check";
                     console.log(msg);
-                    exports.failBatch(msg, config, thisBatchId, s3Info, undefined);
+                    context.done(error, msg);
                 } else {
                     if (data.Attributes.batchId && data.Attributes.batchId.S) {
                         // there's already a pending batch link, so this is a full duplicate and we'll discard
