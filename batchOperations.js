@@ -310,9 +310,9 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                             }
 
                             // for each of the current file entries, execute the processedFiles reprocess method
-                            async.map(processFiles, function (item) {
-                                common.reprocessFile.bind(undefined, dynamoDB, s3, region, item, undefined);
-                            }, function (err) {
+                            var fileReprocessor = common.reprocessFile.bind(undefined, dynamoDB, s3, region);
+
+                            async.map(processFiles, fileReprocessor, function (err) {
                                 if (err) {
                                     callback(err);
                                 } else {
