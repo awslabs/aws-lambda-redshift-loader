@@ -91,7 +91,7 @@ function handleSNS(event, context) {
         context.done("Unsupported event version " + event.EventVersion);
     }
 
-    var message = event.Records[0].Sns.Message;
+    var message = JSON.parse(event.Records[0].Sns.Message);
 
     // parse out the body of the error from the previous invocation
     if (!message.error) {

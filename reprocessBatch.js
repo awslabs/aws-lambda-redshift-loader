@@ -39,6 +39,7 @@ batchOperations.reprocessBatch(prefix, thisBatchId, setRegion, omitFiles, functi
         console.log(err);
         process.exit(ERROR);
     } else {
+        console.log("Batch files marked for reprocessing successfully");
         process.exit(OK);
     }
 });
