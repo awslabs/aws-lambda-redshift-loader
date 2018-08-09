@@ -30,6 +30,7 @@ var dynamoDB = new aws.DynamoDB({
     apiVersion: '2012-08-10',
     region: setRegion
 });
+
 var s3 = new aws.S3({
     apiVersion: '2006-03-01',
     region: setRegion
@@ -57,4 +58,8 @@ if (deleteOption) {
     common.reprocessFile(dynamoDB, s3, setRegion, file, function (err) {
         doExit(err)
     });
-}
+} else if (queryOption) {
+    common.queryFile(dynamoDB, setRegion, file, function (err, data) {
+        doExit(err, data)
+    });
+} 
