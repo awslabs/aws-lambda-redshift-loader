@@ -704,6 +704,21 @@ exports.deleteFile = function (dynamoDB, region, file, callback) {
     });
 }
 
+exports.queryFile = function (dynamoDB, region, file, callback) {
+    var fileItem = {
+        Key: {
+            loadFile: {
+                S: file
+            }
+        },
+        TableName: filesTable
+    };
+
+    dynamoDB.getItem(fileItem, function (err, data) {
+        callback(err, data);
+    });
+}
+
 exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
     // get the file so we know what the current batch ID is
     var fileItem = {
