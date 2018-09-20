@@ -389,7 +389,7 @@ exports.getS3NotificationConfiguration = function (s3, bucket, prefix, functionA
             if (data.LambdaFunctionConfigurations && data.LambdaFunctionConfigurations.length > 0) {
                 var matchConfigId;
                 data.LambdaFunctionConfigurations.map(function (item) {
-                    if (item.Filter && item.Filter.Key && item.Filter.Key.FilterRules) {
+                    if (item && item.Filter && item.Filter.Key && item.Filter.Key.FilterRules) {
                         item.Filter.Key.FilterRules.map(function (filter) {
                             if (filter.Name === 'Prefix' && filter.Value === prefix) {
                                 if (item.LambdaFunctionArn === functionArn) {
