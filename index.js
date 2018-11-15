@@ -367,7 +367,7 @@ exports.handler = function (event, context) {
 
                             // increase the backoff limit after we've retried a few times
                             if (tryNumber > (addFileRetryLimit * .2)) {
-                                waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
+                                waitFor = Math.min(Math.pow(tryNumber, 2) * 10, 200);
                             }
 
                             if (err.code === provisionedThroughputExceeded) {
