@@ -11,6 +11,7 @@ for r in `aws ec2 describe-regions --query Regions[*].RegionName --output text`;
     else
         region=".$r."
     fi
-    link=https://s3$regionamazonaws.com/awslabs-code-$r/$project_prefix/$token-$ver.zip
+    prefix="amazonaws.com/awslabs-code-$r/$project_prefix/$token-$ver.zip"
+    link="https://s3$region$prefix"
     echo "| $r | [s3://awslabs-code-$r/$project_prefix/$token-$ver.zip]($link)"
 done
