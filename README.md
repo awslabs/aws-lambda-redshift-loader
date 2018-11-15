@@ -94,7 +94,7 @@ To deploy the function:
 2.	Select Create a Lambda function and select the 'Blank Function' blueprint
 3. On next page, click 'next' with no event source selected
 3. Select the Runtime value as 'Node.js 6.10.0'
-3.	Under Code entry type select 'Upload a zip file' from the dropdown, and upload the [AWSLambdaRedshiftLoader-2.5.0.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-2.5.0.zip) from your local ```dist``` folder or alternatively, you can use `s3://awslabs-code-\<REGION>/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.5.0.zip` where \<REGION> is the region in which you are deploying the function
+3.	Under Code entry type select 'Upload a zip file' from the dropdown, and upload the [AWSLambdaRedshiftLoader-$ver.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-$ver.zip) from your local ```dist``` folder or alternatively, you can use `s3://awslabs-code-\<REGION>/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-$ver.zip` where \<REGION> is the region in which you are deploying the function, and `$ver` is the latest version (currently 2.6.5)
 4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role (required permissions are listedbelow).  We also recommend using the max timeout for the function to accomodate longer COPY times.
 5. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing.
 
@@ -240,9 +240,9 @@ the setup utility will encrypt the secret key.
 
 ## Loading multiple Redshift Clusters concurrently
 
-Version 2.0.0 adds the ability to load multiple clusters at the same time. To
-configure an additional cluster, you must first have deployed the
-```AWSLambdaRedshiftLoader-2.1.0.zip``` and had your configuration upgraded to 2.x
+Version 2.0.0 and higher adds the ability to load multiple clusters at the same time. To
+configure an additional cluster, you must first have deployed version
+```AWSLambdaRedshiftLoader-2.1.0.zip``` or higher and had your configuration upgraded to 2.x
 format (you will see a new loadClusters List type in your configuration). You
 can then use the ```addAdditionalClusterEndpoint.js``` to add new clusters into
 a single configuration. This will require you enter the vital details for the

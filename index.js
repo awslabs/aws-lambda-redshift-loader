@@ -62,7 +62,7 @@ String.prototype.shortenPrefix = function () {
     }
 };
 
-String.prototype.transformHiveStylePrefix = function () {
+ String.prototype.transformHiveStylePrefix = function () {
     // transform hive style dynamic prefixes into static
     // match prefixes
 
