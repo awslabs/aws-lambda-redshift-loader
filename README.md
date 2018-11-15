@@ -11,10 +11,9 @@ Table of Contents
 
   * [A Zero Administration AWS Lambda Based Amazon Redshift Database Loader](#a-zero-administration-aws-lambda-based-amazon-redshift-database-loader)
     * [Using AWS Lambda with Amazon Redshift](#using-aws-lambda-with-amazon-redshift)
-    * [Getting Access to the AWS Lambda Redshift Database Loader](#getting-access-to-the-aws-lambda-redshift-database-loader)
+    * [Getting Started - Lambda Execution Role](#getting-started---lambda-execution-role)
     * [Getting Started - Deploying the AWS Lambda Function](#getting-started---deploying-the-aws-lambda-function)
       * [Lambda Function Versions](#lambda-function-versions)
-    * [Getting Started - Lambda Execution Role](#getting-started---lambda-execution-role)
     * [Getting Started - Granting AWS Lambda rights to access your Redshift cluster](#getting-started---granting-aws-lambda-rights-to-access-your-redshift-cluster)
       * [Redshift running in VPC](#redshift-running-in-vpc)
       * [Redshift running in EC2 Classic/Not in VPC](#redshift-running-in-ec2-classicnot-in-vpc)
