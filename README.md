@@ -78,44 +78,6 @@ troubleshoot issues. We also support sending notifications of load status throug
 Simple Notification Service - SNS (http://aws.amazon.com/sns), so you have visibility
 into how your loads are progressing over time.
 
-## Getting Access to the AWS Lambda Redshift Database Loader
-You can download the AWS Lambda function today from AWSLabs: http://github.com/awslabs/aws-lambda-redshift-loader. For example, perform the following steps to complete local setup:
-
-```
-git clone https://github.com/awslabs/aws-lambda-redshift-loader.git
-cd aws-lambda-redshift-loader
-npm install
-```
-
-## Getting Started - Deploying the AWS Lambda Function
-To deploy the function:
-
-1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
-2.	Select Create a Lambda function and select the 'Blank Function' blueprint
-3. On next page, click 'next' with no event source selected
-3. Select the Runtime value as 'Node.js 6.10.0'
-3.	Under Code entry type select 'Upload a zip file' from the dropdown, and upload the [AWSLambdaRedshiftLoader-$ver.zip](https://github.com/awslabs/aws-lambda-redshift-loader/blob/master/dist/AWSLambdaRedshiftLoader-$ver.zip) from your local ```dist``` folder or alternatively, you can use `s3://awslabs-code-\<REGION>/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-$ver.zip` where \<REGION> is the region in which you are deploying the function, and `$ver` is the latest version (currently 2.6.5)
-4.	Use the default values of index.js for the filename and handler for the handler, and follow the wizard for creating the AWS Lambda Execution Role (required permissions are listedbelow).  We also recommend using the max timeout for the function to accomodate longer COPY times.
-5. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing.
-
-When you're done, you'll see that the AWS Lambda function is deployed and you
-can submit test events and view the CloudWatch Logging log streams.
-
-### Lambda Function Versions
-We previously released version 1.0 in distribution AWSLambdaRedshiftLoader.zip,
-which didn't use the Amazon Key Management Service for encryption. If you've
-previously deployed and used version 1.0 and want to upgrade to version 1.1,
-then you'll need to recreate your configuration by running `node setup.js` and
-reentering the previous values including connection password, symmetric encryption key, and optionally an S3 Secret Key.
-You'll also need to upgrade the IAM policy for the Lambda Execution Role as listed
-below, as it now requires permissions to talk to the Key Management Service.
-
-Furthermore, version 2.0.0 adds support for loading multiple Redshift clusters in
-parallel. You can deploy the 2.x versions with a 1.1x configuration, and the
-Lambda function will transparently upgrade your configuration to a 2.x compatible
-format. This uses a loadClusters List type in DynamoDB to track all clusters to
-be loaded.
-
 ## Getting Started - Lambda Execution Role
 You also need to add an IAM policy as shown below to the role that AWS Lambda
 uses when it runs. Once your function is deployed, add the following policy to
@@ -160,6 +122,56 @@ credentials to Redshift for the COPY command:
     ]
 }
 ```
+
+
+## Getting Started - Deploying the AWS Lambda Function
+To deploy the function:
+
+1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
+2.	Select Create a Lambda function and select the 'Author from Scratch' option
+3. Enter the function name `LambdaRedshiftLoader`, and the Runtime value as 'Node.js 6.10'. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing.
+4. Choose the IAM role that you would like to run the Lambda function under, as configured above
+5. Choose 'Create Function'
+6. Under the 'Function code' section, choose 'Upload a file from Amazon S3', and use the table below to find the correct s3 location for your region.
+7. Configure the default values of index.js for the filename and handler for the handler.  We also recommend using the max timeout for the function to accomodate longer COPY times.
+
+| Region | Function Code S3 Location |
+| ------ | ---- |
+| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip](s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.5.zip)
+
+
+When you're done, you'll see that the AWS Lambda function is deployed and you
+can submit test events and view the CloudWatch Logging log streams.
+
+### Lambda Function Versions
+We previously released version 1.0 in distribution AWSLambdaRedshiftLoader.zip,
+which didn't use the Amazon Key Management Service for encryption. If you've
+previously deployed and used version 1.0 and want to upgrade to version 1.1,
+then you'll need to recreate your configuration by running `node setup.js` and
+reentering the previous values including connection password, symmetric encryption key, and optionally an S3 Secret Key.
+You'll also need to upgrade the IAM policy for the Lambda Execution Role as listed
+below, as it now requires permissions to talk to the Key Management Service.
+
+Furthermore, version 2.0.0 adds support for loading multiple Redshift clusters in
+parallel. You can deploy the 2.x versions with a 1.1x configuration, and the
+Lambda function will transparently upgrade your configuration to a 2.x compatible
+format. This uses a loadClusters List type in DynamoDB to track all clusters to
+be loaded.
 
 ## Getting Started - Lambda, Redshift, and VPC networking
 
