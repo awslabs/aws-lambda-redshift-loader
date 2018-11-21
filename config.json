@@ -9,6 +9,8 @@
 	"table": "sensor_data_raw",
 	"columnList": "",
 	"truncateTable": "N",
+  "preamble": "",
+  "postamble": "",
 	"userName": "master",
 	"userPwd": "            ",
 	"df": "CSV",

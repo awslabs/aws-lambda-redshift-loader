@@ -1034,6 +1034,11 @@ exports.handler = function (event, context) {
             copyCommand = 'set statement_timeout to 60000;\n';
         }
 
+        // if the preamble option is set, insert it into the copyCommand
+        if (custerInfo.preamble && clusterInfo.preamble.S) {
+          copyCommand += clusterInfo.preamble.S + '\n'
+        }
+
         var copyOptions = "manifest ";
 
         // add the truncate option if requested
@@ -1162,6 +1167,11 @@ exports.handler = function (event, context) {
 
                 // build the final copy command
                 copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+
+                // if the postamble option is set, insert it into the copyCommand
+                if (custerInfo.postamble && clusterInfo.postamble.S) {
+                  copyCommand += clusterInfo.postamble.S + '\n'
+                }
 
                 if (debug) {
                     console.log(copyCommand);
