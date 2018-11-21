@@ -1035,12 +1035,13 @@ exports.handler = function (event, context) {
         }
 
         // if the preamble option is set, insert it into the copyCommand
-        if (custerInfo.preamble && clusterInfo.preamble.S) {
+        if (clusterInfo.preamble && clusterInfo.preamble.S) {
           copyCommand += clusterInfo.preamble.S + '\n'
         }
 
         var copyOptions = "manifest ";
 
+        copyCommand += 'begin;\n';
         // add the truncate option if requested
         if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
             copyCommand += 'truncate table ' + clusterInfo.targetTable.S + ';\n';
@@ -1095,9 +1096,9 @@ exports.handler = function (event, context) {
                 }
 
                 if (typeof clusterInfo.columnList === 'undefined') {
-                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
+                    copyCommand = copyCommand + 'COPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
                 } else {
-                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://' + manifestInfo.manifestPath + '\'';
+                    copyCommand = copyCommand + 'COPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://' + manifestInfo.manifestPath + '\'';
                 }
 
                 // add data formatting directives to copy
@@ -1166,12 +1167,14 @@ exports.handler = function (event, context) {
                 }
 
                 // build the final copy command
-                copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+                copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\n";
 
                 // if the postamble option is set, insert it into the copyCommand
-                if (custerInfo.postamble && clusterInfo.postamble.S) {
+                if (clusterInfo.postamble && clusterInfo.postamble.S) {
                   copyCommand += clusterInfo.postamble.S + '\n'
                 }
+
+              copyCommand += 'commit;';
 
                 if (debug) {
                     console.log(copyCommand);
