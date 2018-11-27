@@ -1034,14 +1034,16 @@ exports.handler = function (event, context) {
             copyCommand = 'set statement_timeout to 60000;\n';
         }
 
-        // if the preamble option is set, insert it into the copyCommand
-        if (clusterInfo.preamble && clusterInfo.preamble.S) {
-          copyCommand += clusterInfo.preamble.S + '\n'
+        // open a transaction so that all pre-sql, load, and post-sql commit at once
+        copyCommand += 'begin;\n';
+
+        // if the presql option is set, insert it into the copyCommand
+        if (clusterInfo.presql && clusterInfo.presql.S) {
+          copyCommand += clusterInfo.presql.S + (clusterInfo.presql.S.slice(-1) == ";" ? "" : ";") + '\n'
         }
 
         var copyOptions = "manifest ";
 
-        copyCommand += 'begin;\n';
         // add the truncate option if requested
         if (clusterInfo.truncateTarget && clusterInfo.truncateTarget.BOOL) {
             copyCommand += 'truncate table ' + clusterInfo.targetTable.S + ';\n';
@@ -1169,9 +1171,9 @@ exports.handler = function (event, context) {
                 // build the final copy command
                 copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\n";
 
-                // if the postamble option is set, insert it into the copyCommand
-                if (clusterInfo.postamble && clusterInfo.postamble.S) {
-                  copyCommand += clusterInfo.postamble.S + '\n'
+                // if the post-sql option is set, insert it into the copyCommand
+                if (clusterInfo.postsql && clusterInfo.postsql.S) {
+                  copyCommand += clusterInfo.postsql.S + (clusterInfo.postsql.S.slice(-1) == ";" ? "" : ";") + '\n'
                 }
 
               copyCommand += 'commit;';

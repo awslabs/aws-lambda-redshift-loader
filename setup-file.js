@@ -201,11 +201,11 @@ q_truncateTable = function (callback) {
     callback(null);
 };
 
-q_preamble = function (callback) {
-    // the preamble sql lines
-    if (setupConfig.preamble && common.blank(setupConfig.preamble) !== null) {
-        dynamoConfig.Item.loadClusters.L[0].M.preamble = {
-            S: setupConfig.preamble
+q_presql = function (callback) {
+    // the pre-sql lines
+    if (setupConfig.presql && common.blank(setupConfig.presql) !== null) {
+        dynamoConfig.Item.loadClusters.L[0].M.presql = {
+            S: setupConfig.presql
         };
         callback(null);
     } else {
@@ -213,11 +213,11 @@ q_preamble = function (callback) {
     }
 };
 
-q_postamble = function (callback) {
+q_postsql = function (callback) {
     // the postamble sql lines
-    if (setupConfig.postamble && common.blank(setupConfig.postamble) !== null) {
-        dynamoConfig.Item.loadClusters.L[0].M.postamble = {
-            S: setupConfig.postamble
+    if (setupConfig.postsql && common.blank(setupConfig.postsql) !== null) {
+        dynamoConfig.Item.loadClusters.L[0].M.postsql = {
+            S: setupConfig.postsql
         };
         callback(null);
     } else {
@@ -439,8 +439,8 @@ qs.push(q_clusterDB);
 qs.push(q_table);
 qs.push(q_columnList);
 qs.push(q_truncateTable);
-qs.push(q_preamble);
-qs.push(q_postamble);
+qs.push(q_presql);
+qs.push(q_postsql);
 qs.push(q_userName);
 qs.push(q_userPwd);
 qs.push(q_df);

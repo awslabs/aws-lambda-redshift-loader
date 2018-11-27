@@ -37,10 +37,10 @@
   "truncateTable": "",
   // Customized SQL that is placed just before the copy command.
   // This must end with a semicolon, and work with the other options that generate the copy command.
-  "preamble": "",
+  "presql": "",
   // Customized SQL that is placed just after the copy command.
   // This must end with a semicolon, and work with the other options that generate the copy command.
-  "postamble": "",
+  "postsql": "",
   // Enter the Database Username  Y
   // The username which should be used to connect to perform the COPY.
   // Please note that only table owners can perform COPY, so this should
