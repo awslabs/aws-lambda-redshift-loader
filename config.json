@@ -9,6 +9,8 @@
 	"table": "sensor_data_raw",
 	"columnList": "",
 	"truncateTable": "N",
+    "presql": "",
+    "postsql": "",
 	"userName": "master",
 	"userPwd": "            ",
 	"df": "CSV",

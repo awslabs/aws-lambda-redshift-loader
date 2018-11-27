@@ -201,6 +201,30 @@ q_truncateTable = function (callback) {
     callback(null);
 };
 
+q_presql = function (callback) {
+    // the pre-sql lines
+    if (setupConfig.presql && common.blank(setupConfig.presql) !== null) {
+        dynamoConfig.Item.loadClusters.L[0].M.presql = {
+            S: setupConfig.presql
+        };
+        callback(null);
+    } else {
+        callback(null);
+    }
+};
+
+q_postsql = function (callback) {
+    // the postamble sql lines
+    if (setupConfig.postsql && common.blank(setupConfig.postsql) !== null) {
+        dynamoConfig.Item.loadClusters.L[0].M.postsql = {
+            S: setupConfig.postsql
+        };
+        callback(null);
+    } else {
+        callback(null);
+    }
+};
+
 q_df = function (callback) {
     // the Data Format (CSV, JSON or AVRO)
     common.validateArrayContains(['CSV', 'JSON', 'AVRO'], setupConfig.df.toUpperCase(), rl);
@@ -415,6 +439,8 @@ qs.push(q_clusterDB);
 qs.push(q_table);
 qs.push(q_columnList);
 qs.push(q_truncateTable);
+qs.push(q_presql);
+qs.push(q_postsql);
 qs.push(q_userName);
 qs.push(q_userPwd);
 qs.push(q_df);
