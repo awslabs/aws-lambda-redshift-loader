@@ -613,6 +613,41 @@ How many files should be buffered before loading? | Y | Enter the number of file
 How old should we allow a Batch to be before loading (seconds)? | N | AWS Lambda will attempt to sweep out 'old' batches using this value as the number of seconds old a batch can be before loading. This 'sweep' is on every S3 event on the input location, regardless of whether it matches the Filename Filter Regex. Not recommended to be below 120.
 Additional Copy Options to be added | N | Enter any additional COPY options that you would like to use, as outlined at (http://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html). Please also see http://blogs.aws.amazon.com/bigdata/post/Tx2ANLN1PGELDJU/Best-Practices-for-Micro-Batch-Loading-on-Amazon-Redshift for information on good practices for COPY options in high frequency load environments.
 
+
+An example configuration looks like this:
+
+```
+{
+  "batchSize": 100,
+  "batchTimeoutSecs": 100,
+  "copyOptions": "FILLRECORD EMPTYASNULL BLANKSASNULL ",
+  "csvDelimiter": "|",
+  "currentBatch": "1fafd16b-6e44-458f-8222-db8f74f9aac4",
+  "dataFormat": "CSV",
+  "failedManifestKey": "redshift/manifest/failed",
+  "failureTopicARN": "arn:aws:sns:eu-west-1:123456789:LambdaRedshiftLoadErrors",
+  "lastBatchRotation": "2018-11-15 18:22:43",
+  "lastUpdate": 1489594870.252,
+  "loadClusters": [
+    {
+      "clusterDB": "master",
+      "clusterEndpoint": "mycluster.xxxxxx-west-1.redshift.amazonaws.com",
+      "clusterPort": 5439,
+      "connectPassword": "AQECAHh+YtzV/K7+L/VDT7h2rYDCWFSUugXGqMxzWGXynPCHpQAAAGkwZwYJKoZIhvcNAQcGoFowWAIBADBTBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDGfZWdg/pXqRzMPlQAIBEIAmF4Xe+Hcy53+LM2/OGu04RySGIZ4pny12Krks/EblJhjlIVv3JIM=",
+      "connectUser": "master",
+      "targetTable": "test_table",
+      "truncateTarget": false,
+      "useSSL": true
+    }
+  ],
+  "manifestBucket": "mybucket",
+  "manifestKey": "redshift/manifest",
+  "s3Prefix": "lambda-redshift-loader-test/input",
+  "status": "open",
+  "version": "2.6.2"
+}
+```
+
 ----
 
 Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
