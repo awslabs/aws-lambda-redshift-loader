@@ -62,7 +62,7 @@ String.prototype.shortenPrefix = function () {
     }
 };
 
- String.prototype.transformHiveStylePrefix = function () {
+String.prototype.transformHiveStylePrefix = function () {
     // transform hive style dynamic prefixes into static
     // match prefixes
 
@@ -1034,7 +1034,7 @@ exports.handler = function (event, context) {
 
         // if the presql option is set, insert it into the copyCommand
         if (clusterInfo.presql && clusterInfo.presql.S) {
-          copyCommand += clusterInfo.presql.S + (clusterInfo.presql.S.slice(-1) == ";" ? "" : ";") + '\n'
+            copyCommand += clusterInfo.presql.S + (clusterInfo.presql.S.slice(-1) == ";" ? "" : ";") + '\n'
         }
 
         var copyOptions = "manifest ";
@@ -1123,6 +1123,8 @@ exports.handler = function (event, context) {
                     } else {
                         copyOptions = copyOptions + ' \'auto\' \n';
                     }
+                } else if (config.dataFormat.S === 'Parquet' || config.dataFormat.S === 'ORC') {
+                    copyOptions = copyOptions + ' format as ' + config.dataFormat.S;
                 } else {
                     callback(null, {
                         status: ERROR,
@@ -1168,10 +1170,10 @@ exports.handler = function (event, context) {
 
                 // if the post-sql option is set, insert it into the copyCommand
                 if (clusterInfo.postsql && clusterInfo.postsql.S) {
-                  copyCommand += clusterInfo.postsql.S + (clusterInfo.postsql.S.slice(-1) == ";" ? "" : ";") + '\n'
+                    copyCommand += clusterInfo.postsql.S + (clusterInfo.postsql.S.slice(-1) == ";" ? "" : ";") + '\n'
                 }
 
-              copyCommand += 'commit;';
+                copyCommand += 'commit;';
 
                 if (debug) {
                     console.log(copyCommand);
@@ -1344,7 +1346,7 @@ exports.handler = function (event, context) {
                 context.done(error, JSON.stringify(err));
             } else {
                 // send notifications
-                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function(err) {
+                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function (err) {
                     if (err) {
                         console.log(JSON.stringify(err));
                         context.done(error, JSON.stringify(err) + " " + JSON.stringify(batchError));
@@ -1360,7 +1362,7 @@ exports.handler = function (event, context) {
                         }
                     } else {
                         console.log("Batch Load " + thisBatchId + " Complete");
-                        context.done(null,null)
+                        context.done(null, null)
                     }
                 });
             }
