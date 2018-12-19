@@ -10,33 +10,10 @@
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
 
-var aws = require('aws-sdk');
-require('./constants');
-var args = require('minimist')(process.argv.slice(2));
-var common = require('./common');
+var fileProcessingUtils = require('./fileProcessingUtils');
 
-var setRegion = args.region;
-var queryOption = args.query;
-var deleteOption = args.delete;
-var reproOption = args.reprocess;
-var file = args.file
-
-if (!setRegion || (!queryOption && !deleteOption && !reproOption) || !file) {
-    console.log("You must provide an AWS Region Code (--region), Query (--query), Delete (--delete), or Reprocess (--reprocess) option, and the specified Filename (--file)");
-    process.exit(-1);
-}
-
-var dynamoDB = new aws.DynamoDB({
-    apiVersion: '2012-08-10',
-    region: setRegion
-});
-
-var s3 = new aws.S3({
-    apiVersion: '2006-03-01',
-    region: setRegion
-});
-
-var doExit = function (err, data, message) {
+/** function to wrap up how we want to exit the module from the command line */
+function doExit(err, data, message) {
     if (err) {
         console.log(err);
         process.exit(error);
@@ -48,18 +25,25 @@ var doExit = function (err, data, message) {
             console.log(message);
         }
     }
-};
+}
+
+/* process arguments provided on the command line */
+var args = require('minimist')(process.argv.slice(2));
+var setRegion = args.region;
+var queryOption = args.query;
+var deleteOption = args.delete;
+var reproOption = args.reprocess;
+var file = args.file;
+
+if (!setRegion || (!queryOption && !deleteOption && !reproOption) || !file) {
+    console.log("You must provide an AWS Region Code (--region), Query (--query), Delete (--delete), or Reprocess (--reprocess) option, and the specified Filename (--file)");
+    process.exit(-1);
+}
 
 if (deleteOption) {
-    common.deleteFile(dynamoDB, setRegion, file, function (err) {
-        doExit(err)
-    });
+    fileProcessingUtils.deleteFile(setRegion, file, doExit.bind(undefined));
 } else if (reproOption) {
-    common.reprocessFile(dynamoDB, s3, setRegion, file, function (err) {
-        doExit(err)
-    });
+    fileProcessingUtils.reprocessFile(setRegion, file, doExit.bind(undefined));
 } else if (queryOption) {
-    common.queryFile(dynamoDB, setRegion, file, function (err, data) {
-        doExit(err, data)
-    });
+    fileProcessingUtils.queryFile(setRegion, file, doExit.bind(undefined));
 } 
