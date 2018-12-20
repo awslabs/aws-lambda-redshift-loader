@@ -9,8 +9,7 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
  */
-
-var fileProcessingUtils = require('./fileProcessingUtils');
+let fileProcessingUtils = require('./fileProcessingUtils');
 
 /** function to wrap up how we want to exit the module from the command line */
 function doExit(err, data, message) {
@@ -28,15 +27,19 @@ function doExit(err, data, message) {
 }
 
 /* process arguments provided on the command line */
-var args = require('minimist')(process.argv.slice(2));
-var setRegion = args.region;
-var queryOption = args.query;
-var deleteOption = args.delete;
-var reproOption = args.reprocess;
-var file = args.file;
+let args = require('minimist')(process.argv.slice(2));
+let setRegion = args.region;
+let queryOption = args.query;
+let deleteOption = args.delete;
+let reproOption = args.reprocess;
+let reproPrefix = args.reprocessPrefix;
+let file = args.file;
+let bucket = args.bucket;
+let prefix = args.prefix;
+let regex = args.regex;
 
-if (!setRegion || (!queryOption && !deleteOption && !reproOption) || !file) {
-    console.log("You must provide an AWS Region Code (--region), Query (--query), Delete (--delete), or Reprocess (--reprocess) option, and the specified Filename (--file)");
+if (!setRegion || (!queryOption && !deleteOption && !(reproOption  || reproPrefix)) || !(file || (bucket && prefix))) {
+    console.log("You must provide an AWS Region Code (--region), Query (--query), Delete (--delete), Reprocess a File (--reprocess), or Reprocess an entire Prefix (--reprocessPrefix) option, and the specified Filename (--file) or Bucket and Prefix (--bucket --prefix). When reprocessing a prefix, you can also include a Regular Expression Filter (--regex).");
     process.exit(-1);
 }
 
@@ -46,4 +49,6 @@ if (deleteOption) {
     fileProcessingUtils.reprocessFile(setRegion, file, doExit.bind(undefined));
 } else if (queryOption) {
     fileProcessingUtils.queryFile(setRegion, file, doExit.bind(undefined));
-} 
+} else if (reproPrefix) {
+    fileProcessingUtils.reprocessS3Prefix(setRegion, bucket, prefix, regex, doExit.bind(undefined));
+}

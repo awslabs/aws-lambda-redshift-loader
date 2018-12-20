@@ -1,6 +1,7 @@
 let aws = require('aws-sdk');
-require('./constants');
 let common = require('./common');
+let async = require('async');
+require('./constants');
 
 /** create clients for s3 and dynamodb */
 function connect(setRegion, callback) {
@@ -36,6 +37,56 @@ function reprocessFile(setRegion, file, callback) {
 
 exports.reprocessFile = reprocessFile;
 
+function reprocessS3Prefix(setRegion, bucket, prefix, regexFilter, callback) {
+    let matcher;
+    if (regexFilter) {
+        matcher = new RegExp(regexFilter);
+    }
+    let filesProcessed = 0;
+
+    connect(setRegion, function (dynamoDB, s3) {
+        let processing = true;
+        let params = {
+            Bucket: bucket,
+            Prefix: prefix
+        };
+        async.whilst(function () {
+            return processing;
+        }, function (whilstCallback) {
+            s3.listObjectsV2(params, function (err, data) {
+                if (err) {
+                    whilstCallback(err);
+                } else {
+                    // for each returned object, check the filter regex
+                    async.map(data.Contents, function (item, mapCallback) {
+                        if ((matcher && matcher.test(item.Key)) || !matcher) {
+                            filesProcessed++;
+                            console.log("Requesting reprocess of " + bucket + "/" + item.Key);
+                            common.reprocessFile(dynamoDB, s3, setRegion, bucket + "/" + item.Key, mapCallback);
+                        }
+                    }, function (err) {
+                        if (err) {
+                            whilstCallback(err)
+                        } else {
+                            if (data.IsTruncated === true) {
+                                params.ContinuationToken = data.NextContinuationToken;
+                            } else {
+                                // data wasn't truncated, so we have all the results
+                                processing = false;
+                            }
+
+                            whilstCallback();
+                        }
+                    });
+                }
+            });
+        }, function (err) {
+            callback(err, filesProcessed);
+        });
+    });
+}
+
+exports.reprocessS3Prefix = reprocessS3Prefix;
 
 /** function to query files from the system and understand their status */
 function queryFile(setRegion, file, callback) {
