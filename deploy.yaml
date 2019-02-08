@@ -1,0 +1,265 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Mappings:
+ RegionMap:
+   us-east-1:
+      HVM64: "ami-0080e4c5bc078760e"
+   us-east-2:
+      HVM64: "ami-0cd3dfa4e37921605"
+   us-west-1:
+      HVM64: "ami-0ec6517f6edbf8044"
+   us-west-2:
+      HVM64: "ami-01e24be29428c15b2"
+   ca-central-1:
+      HVM64: "ami-07423fb63ea0a0930"
+   eu-central-1:
+      HVM64: "ami-0cfbf4f6db41068ac"
+   eu-west-1:
+      HVM64: "ami-08935252a36e25f85"
+   eu-west-2:
+      HVM64: "ami-01419b804382064e4"
+   eu-west-3:
+      HVM64: "ami-0dd7e7ed60da8fb83"
+   eu-north-1:
+      HVM64: "ami-86fe70f8"
+   ap-northeast-1:
+      HVM64: "ami-00a5245b4816c38e6"
+   ap-northeast-2:
+      HVM64: "ami-00dc207f8ba6dc919"
+   ap-northeast-3:
+      HVM64: "ami-0b65f69a5c11f3522"
+   ap-southeast-1:
+      HVM64: "ami-05b3bcf7f311194b3"
+   ap-southeast-2:
+      HVM64: "ami-02fd0b06f06d93dfc"
+   ap-south-1:
+      HVM64: "ami-0ad42f4f66f6c1cc9"
+   sa-east-1:
+      HVM64: "ami-05145e0b28ad8e0b2"
+   
+#Note: removing region from the list of choices due to CF behavior.  Will default install to current region
+Parameters:  #Note: these do not cross-check!  Not sure how to do that yet.
+ AvailabilityZone: 
+   Description: The availability zone in which to set up the driver and trigger
+   Type: AWS::EC2::AvailabilityZone::Name
+   Default: us-east-1a
+ SecurityGroup:
+   Description: "The security group for the EC2 driver instance"
+   Type: AWS::EC2::SecurityGroup::Id
+ KeyName:
+   Description: "The existing EC2 keypair to enable SSH to the EC2 driver instance"
+   Type: AWS::EC2::KeyPair::KeyName
+ SubnetId:
+   Description: "The existing Subnet for the EC2 driver instance"
+   Type: AWS::EC2::Subnet::Id
+ KMSKeyAdmin:
+   Description: "The administrator ARN of the key used to encrypt the Redshift password"
+   Type: String
+
+     
+Resources: 
+  EC2LambdaSetupRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies: 
+        - 
+          PolicyName: "EC2-lambda-setup"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: 
+                    - "dynamodb:CreateTable"
+                    - "dynamodb:PutItem"
+                    - "dynamodb:ListTables"
+                    - "dynamodb:DeleteItem"
+                    - "dynamodb:GetItem"
+                    - "dynamodb:Scan"
+                    - "dynamodb:Query"
+                    - "dynamodb:UpdateItem"
+                    - "dynamodb:DeleteTable"
+                    - "dynamodb:UpdateTable"
+                    - "dynamodb:GetRecords"
+                    - "lambda:CreateFunction"
+                    - "lambda:AddPermission"
+                    - "lambda:ListFunctions"
+                    - "lambda:InvokeFunction"
+                    - "lambda:GetFunction"
+                    - "lambda:GetFunctionConfiguration"
+                    - "lambda:DeleteFunction"
+                    - "lambda:GetPolicy"
+                    - "s3:*"                
+                Resource: "*"
+
+  MyInstanceProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties: 
+          Path: '/'
+          Roles: 
+            - !Ref EC2LambdaSetupRole
+          InstanceProfileName: ec2-lambda-setup-instance-profile
+  
+  MyEC2Instance: 
+        Type: AWS::EC2::Instance
+        Properties: 
+          AvailabilityZone: !Ref AvailabilityZone
+          IamInstanceProfile: 'ec2-lambda-setup-instance-profile'
+          BlockDeviceMappings: 
+          - DeviceName: "/dev/xvda"
+            Ebs: 
+              DeleteOnTermination: "true"
+              VolumeSize: "10"
+          ImageId: !FindInMap
+             - RegionMap
+             - !Ref AWS::Region
+             - HVM64
+          InstanceType: "t2.micro"
+          KeyName: !Ref KeyName
+          SecurityGroupIds: 
+            - !Ref SecurityGroup
+          SubnetId: !Ref SubnetId
+          UserData:
+            Fn::Base64:
+                !Sub |
+                    #!/bin/bash -x
+                    yum update -y
+                    yum install git -y
+                    sudo -u ec2-user git clone https://github.com/awslabs/aws-lambda-redshift-loader/ /home/ec2-user/aws-lambda-redshift-loader
+                    sudo -u ec2-user git clone https://github.com/creationix/nvm.git /home/ec2-user/.nvm
+                    chmod 755 /home/ec2-user/.nvm/nvm.sh 
+                    sudo -u ec2-user [ -s "/home/ec2-user/.nvm/nvm.sh" ] && \. "/home/ec2-user/.nvm/nvm.sh"
+                    sudo -u ec2-user echo 'export NVM_DIR="$HOME/.nvm"' >> /home/ec2-user/.bashrc
+                    sudo -u ec2-user echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/ec2-user/.bashrc
+                    sudo -u ec2-user echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> /home/ec2-user/.bashrc
+                    sudo echo 'source /home/ec2-user/.bashrc' >> /usr/bin/setup.sh
+                    sudo echo 'cd /home/ec2-user' >> /usr/bin/setup.sh
+                    sudo echo 'nvm install 6.10' >> /usr/bin/setup.sh
+                    sudo echo 'npm install aws-sdk' >> /usr/bin/setup.sh
+                    sudo echo 'cd aws-lambda-redshift-loader' >> /usr/bin/setup.sh
+                    sudo echo 'npm install' >> /usr/bin/setup.sh
+                    sudo chown ec2-user:ec2-user /usr/bin/setup.sh
+                    sudo chmod +x /usr/bin/setup.sh
+                    sudo -u ec2-user setup.sh
+          Tags: 
+             - Key: "Name" 
+               Value: "CF Created Instance"
+             - Key: "Purpose"
+               Value: "Lambda Trigger Setup"
+ 
+  EC2LambdaTriggerRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - lambda.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: "/"
+      Policies: 
+        - 
+          PolicyName: "EC2-lambda-trigger-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action:                     
+                    - "dynamodb:DeleteItem"
+                    - "dynamodb:DescribeTable"
+                    - "dynamodb:GetItem"
+                    - "dynamodb:ListTables"
+                    - "dynamodb:PutItem"
+                    - "dynamodb:Query"
+                    - "dynamodb:Scan"
+                    - "dynamodb:UpdateItem"
+                    - "sns:GetEndpointAttributes"
+                    - "sns:GetSubscriptionAttributes"
+                    - "sns:GetTopicAttributes"
+                    - "sns:ListTopics"
+                    - "sns:Publish"
+                    - "sns:Subscribe"
+                    - "sns:Unsubscribe"
+                    - "s3:Get*"
+                    - "s3:Put*"
+                    - "s3:List*"
+                    - "kms:Decrypt"
+                    - "kms:DescribeKey"
+                    - "kms:GetKeyPolicy"             
+                Resource: "*"
+
+  LambdaTriggerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role:
+        'Fn::GetAtt':
+          - EC2LambdaTriggerRole
+          - Arn
+      Code:
+        S3Bucket: !Sub awslabs-code-${AWS::Region}
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip'
+      Runtime: nodejs6.10
+
+  RedshiftPWKey:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - 
+            Sid: "Admin for key"
+            Effect: Allow
+            Principal:
+              AWS: !Ref KMSKeyAdmin
+            Action: 
+             - "kms:Create*"
+             - "kms:Describe*"
+             - "kms:Enable*"
+             - "kms:List*"
+             - "kms:Put*"
+             - "kms:Update*"
+             - "kms:Revoke*"
+             - "kms:Disable*"
+             - "kms:Get*"
+             - "kms:Delete*"
+             - "kms:ScheduleKeyDeletion"
+             - "kms:CancelKeyDeletion"
+            Resource: '*'
+          - Sid: "Key for encrypt/decrypt"
+            Effect: Allow
+            Principal:
+              AWS:
+                'Fn::GetAtt':
+                   - EC2LambdaSetupRole
+                   - Arn
+            Action: 
+              - "kms:Encrypt"
+              - "kms:Decrypt"
+              - "kms:ReEncrypt*"
+              - "kms:GenerateDataKey*"
+              - "kms:DescribeKey"
+            Resource: '*'
+
+  theKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/LambdaRedshiftLoaderKey
+      TargetKeyId:
+        !Ref RedshiftPWKey
