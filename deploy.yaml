@@ -1,3 +1,24 @@
+#This is deploy.yaml V 0.9
+#This file will set up most of what is needed to configure the Lambda Redshift database 
+#loader
+#It will not create the KMS key required for encrypting the database password
+#The user will need to create that key and assign it the alias "LambdaRedshiftLoaderKey" 
+#The config script will use the key by its alias
+#
+#Parameters and notes
+#
+#AvailabilityZone - Note that the stack will create in the current region by default, and
+#                   the list of availability zones available will be created based on the
+#                   region in which the user is creating the CloudFormation stack
+#SecurityGroup    - sets up the networking.  Will require SSH and default Redshift port 
+#                   access.
+#KeyName          - the access key for SSH access to the driver EC2 instance.
+#SubnetId         - The subnet within your selected availability zone to use for the 
+#                   driver EC2 instance.  Note that CloudFormation will *not* cross-check
+#                   at runtime to verify that the subnet and availability zone match.
+
+
+
 AWSTemplateFormatVersion: "2010-09-09"
 Mappings:
  RegionMap:
@@ -36,8 +57,7 @@ Mappings:
    sa-east-1:
       HVM64: "ami-05145e0b28ad8e0b2"
    
-#Note: removing region from the list of choices due to CF behavior.  Will default install to current region
-Parameters:  #Note: these do not cross-check!  Not sure how to do that yet.
+Parameters:  
  AvailabilityZone: 
    Description: The availability zone in which to set up the driver and trigger
    Type: AWS::EC2::AvailabilityZone::Name
@@ -51,10 +71,6 @@ Parameters:  #Note: these do not cross-check!  Not sure how to do that yet.
  SubnetId:
    Description: "The existing Subnet for the EC2 driver instance"
    Type: AWS::EC2::Subnet::Id
- KMSKeyAdmin:
-   Description: "The administrator ARN of the key used to encrypt the Redshift password"
-   Type: String
-
      
 Resources: 
   EC2LambdaSetupRole: 
@@ -99,7 +115,12 @@ Resources:
                     - "lambda:GetFunctionConfiguration"
                     - "lambda:DeleteFunction"
                     - "lambda:GetPolicy"
-                    - "s3:*"                
+                    - "s3:*"     
+                    - "kms:Encrypt"
+                    - "kms:Decrypt"
+                    - "kms:ReEncrypt*"
+                    - "kms:GenerateDataKey*"
+                    - "kms:DescribeKey"
                 Resource: "*"
 
   MyInstanceProfile:
@@ -198,14 +219,12 @@ Resources:
                     - "s3:Get*"
                     - "s3:Put*"
                     - "s3:List*"
-                    - "kms:Decrypt"
-                    - "kms:DescribeKey"
-                    - "kms:GetKeyPolicy"             
                 Resource: "*"
 
   LambdaTriggerFunction:
     Type: 'AWS::Lambda::Function'
     Properties:
+      FunctionName: 'LambdaRedshiftLoader'
       Handler: index.handler
       Role:
         'Fn::GetAtt':
@@ -216,50 +235,4 @@ Resources:
         S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip'
       Runtime: nodejs6.10
 
-  RedshiftPWKey:
-    Type: AWS::KMS::Key
-    Properties:
-      KeyPolicy:
-        Version: 2012-10-17
-        Id: key-default-1
-        Statement:
-          - 
-            Sid: "Admin for key"
-            Effect: Allow
-            Principal:
-              AWS: !Ref KMSKeyAdmin
-            Action: 
-             - "kms:Create*"
-             - "kms:Describe*"
-             - "kms:Enable*"
-             - "kms:List*"
-             - "kms:Put*"
-             - "kms:Update*"
-             - "kms:Revoke*"
-             - "kms:Disable*"
-             - "kms:Get*"
-             - "kms:Delete*"
-             - "kms:ScheduleKeyDeletion"
-             - "kms:CancelKeyDeletion"
-            Resource: '*'
-          - Sid: "Key for encrypt/decrypt"
-            Effect: Allow
-            Principal:
-              AWS:
-                'Fn::GetAtt':
-                   - EC2LambdaSetupRole
-                   - Arn
-            Action: 
-              - "kms:Encrypt"
-              - "kms:Decrypt"
-              - "kms:ReEncrypt*"
-              - "kms:GenerateDataKey*"
-              - "kms:DescribeKey"
-            Resource: '*'
-
-  theKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: alias/LambdaRedshiftLoaderKey
-      TargetKeyId:
-        !Ref RedshiftPWKey
+ 
