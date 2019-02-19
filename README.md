@@ -234,6 +234,10 @@ Set up the KMS key to be used by the setup script which encrypts and decrypts th
 This key will require a specific alias, which is how the setup script picks it up.  The alias must be
 "LambdaRedshiftLoaderKey".
 
+Also, a user will be required with the necessary privileges to run the template.  This user will require an access key, which is one of the input parameters required at runtime.
+
+The template requires four input parameters: availability zone, a security group for the EC2 instance, an access keypair, and a subnet for the EC2 instance
+
 Usage Steps
 
 1) Create a CloudFormation stack with the deploy.yaml file.  This stack will include everything needed
