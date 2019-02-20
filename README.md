@@ -12,7 +12,8 @@ Table of Contents
   * [A Zero Administration AWS Lambda Based Amazon Redshift Database Loader](#a-zero-administration-aws-lambda-based-amazon-redshift-database-loader)
     * [Using AWS Lambda with Amazon Redshift](#using-aws-lambda-with-amazon-redshift)
     * [Getting Started - Lambda Execution Role](#getting-started---lambda-execution-role)
-    * [Getting Started - Deploying the AWS Lambda Function](#getting-started---deploying-the-aws-lambda-function)
+    * [Getting Started - The CloudFormation Installer (Recommended) ](#getting-started---the-cloudformation-installer)
+    * [Getting Started - Deploying the AWS Lambda Function manually](#getting-started---deploying-the-aws-lambda-function)
       * [Lambda Function Versions](#lambda-function-versions)
     * [Getting Started - Granting AWS Lambda rights to access your Redshift cluster](#getting-started---granting-aws-lambda-rights-to-access-your-redshift-cluster)
       * [Redshift running in VPC](#redshift-running-in-vpc)
@@ -20,7 +21,6 @@ Table of Contents
       * [If you want to use http proxy instead of NAT gateway](#if-you-want-to-use-http-proxy-instead-of-nat-gateway)
     * [Getting Started - Support for Notifications &amp; Complex Workflows](#getting-started---support-for-notifications--complex-workflows)
     * [Getting Started - Entering the Configuration](#getting-started---entering-the-configuration)
-    * [Getting Started - The CloudFormation Installer](#getting-started---the-cloudformation-installer)
     * [The Configuration S3 Prefix](#the-configuration-s3-prefix)
       * [Hive Partitioning Style Wildcards](#hive-partitioning-style-wildcards)
       * [S3 Prefix Matching](#s3-prefix-matching)
@@ -123,9 +123,67 @@ credentials to Redshift for the COPY command:
 }
 ```
 
+## Getting Started - the CloudFormation Installer (Recommended)
 
-## Getting Started - Deploying the AWS Lambda Function
-To deploy the function:
+This repository includes a CloudFormation template (deploy.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template. CloudFormation is provided by AWS to simplify the deployment of complex sets of components. More information can be found at http://aws.amazon.com/cloudformation/getting-started
+
+This is a visual architecture of the CloudFormation installer:
+
+![Installer Architecture](cf_installer_architecture.png)
+
+The intent of this template is to simplify the setup work necessary to configure the autoloader.  
+
+__Pre-work__
+
+Set up the KMS key to be used by the setup script which encrypts and decrypts the RedShift password.
+This key will require a specific alias, which is how the setup script picks it up.  The alias must be
+`LambdaRedshiftLoaderKey`.
+
+Also, a user will be required with the necessary privileges to run the template.  This user will require an access key, which is one of the input parameters required at runtime.
+
+The template requires four input parameters: availability zone, a security group for the EC2 instance, an access keypair, and a subnet for the EC2 instance
+
+__Usage Steps__
+
+1. Create a CloudFormation stack with the deploy.yaml file, or use the table of links below.  This stack will include everything needed
+   to set up the autoloader with two exceptions.  The KMS key must be created and managed separately.  
+   And a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not 
+   configure the autoloader - this installs the components required to run the node setup script.
+2. Log in to the EC2 instance created as part of the stack.  It contains all the necessary components 
+   set up the autoloader.
+3. Invoke the setup.js script in the EC2 instance to begin configuring the autoloader.
+
+__Notes__
+
+1. This stack will create in the same region where you invoke the template.  
+2. The input parameters are not cross-checked at template creation time, so make sure that the subnet
+   choice matches the availability zone selected.
+3. The stack includes the Lambda trigger as well as the execution role - so they will be managed
+   as part of the stack.  It is expected that the EC2 instance and setup role can be used on an ongoing basis for the administration of the autoloader.
+   
+__Launch Links__
+
+| Region | Launch Cloudformation Stack|
+|---- | ---- |
+|eu-north-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=eu-north-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/deploy.yaml) |
+|ap-south-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/deploy.yaml) |
+|eu-west-3 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/deploy.yaml) |
+|eu-west-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/deploy.yaml) |
+|eu-west-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/deploy.yaml) |
+|ap-northeast-3 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-3#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/deploy.yaml) |
+|ap-northeast-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/deploy.yaml) |
+|ap-northeast-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/deploy.yaml) |
+|sa-east-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=sa-east-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/deploy.yaml) |
+|ca-central-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ca-central-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/deploy.yaml) |
+|ap-southeast-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/deploy.yaml) |
+|ap-southeast-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/deploy.yaml) |
+|eu-central-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/deploy.yaml) |
+|us-east-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-east-1.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/deploy.yaml) |
+|us-east-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/deploy.yaml) |
+|us-west-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/deploy.yaml) |
+|us-west-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/deploy.yaml) |
+
+## Getting Started - Deploying the AWS Lambda Function manually
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and select the 'Author from Scratch' option
@@ -137,28 +195,29 @@ To deploy the function:
 
 | Region | Function Code S3 Location |
 | ------ | ---- |
-| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.6.zip)
-
+| eu-north-1 | [s3://awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
+| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.7.zip)
 
 When you're done, you'll see that the AWS Lambda function is deployed and you
 can submit test events and view the CloudWatch Logging log streams.
 
 ### Lambda Function Versions
+
 We previously released version 1.0 in distribution AWSLambdaRedshiftLoader.zip,
 which didn't use the Amazon Key Management Service for encryption. If you've
 previously deployed and used version 1.0 and want to upgrade to version 1.1,
@@ -216,49 +275,9 @@ you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
 the Write IOPS on LambdaRedshiftBatches and LambdaRedshiftProcessedFiles to the
 maximum number of files to be concurrently processed by all Configurations.
 
-## Getting Started - the CloudFormation Installer
-
-This repository includes a CloudFormation template (deploy.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template.  
-CloudFormation is provided by AWS to simplify the deployment of complex sets of components.  
-More information can be found at http://aws.amazon.com/cloudformation/getting-started
-
-This is a visual architecture of the CloudFormation installer:
-
-![Installer Architecture](cf_installer_architecture.png)
-
-The intent of this template is to simplify the setup work necessary to configure the autoloader.  
-
-Pre-work:
-
-Set up the KMS key to be used by the setup script which encrypts and decrypts the RedShift password.
-This key will require a specific alias, which is how the setup script picks it up.  The alias must be
-"LambdaRedshiftLoaderKey".
-
-Also, a user will be required with the necessary privileges to run the template.  This user will require an access key, which is one of the input parameters required at runtime.
-
-The template requires four input parameters: availability zone, a security group for the EC2 instance, an access keypair, and a subnet for the EC2 instance
-
-Usage Steps
-
-1) Create a CloudFormation stack with the deploy.yaml file.  This stack will include everything needed
-   to set up the autoloader with two exceptions.  The KMS key must be created and managed separately.  
-   And a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not 
-   configure the autoloader - this installs the components required to run the node setup script.
-2) Log in to the EC2 instance created as part of the stack.  It contains all the necessary components 
-   set up the autoloader.
-3) Invoke the setup.js script in the EC2 instance to begin configuring the autoloader.
-
-Notes
-
-1) This stack will create in the same region where you invoke the template.  
-2) The input parameters are not cross-checked at template creation time, so make sure that the subnet
-   choice matches the availability zone selected.
-3) The stack includes the Lambda trigger as well as the execution role - so they will be managed
-   as part of the stack.  It is expected that the EC2 instance and setup role can be used on an ongoing basis
-   for the administration of the autoloader.
 
 
-## The Configuration S3 Prefix
+### The S3 Prefix
 
 When you enter the configuration, you must provide an S3 Prefix. This is used by the function to resolve which configuration to use for an incoming event. There are two dimensions of dynamic resolution provided which will help you respond to events where the path is variable over time or from provider:
 
@@ -266,7 +285,7 @@ When you enter the configuration, you must provide an S3 Prefix. This is used by
 
 You may have implemented a great practice of segregating S3 objects using time oriented buckets. Data for January 2016 sits in a prefix ```mybucket/data/<type>/2016/01``` while data for Feburary is in ```mybucket/data/<type>/2016/02```. Rather than having to create one configuration per year and month, you can instead use Hive Partitioning style prefixes. If you place S3 objects into a prefix ```mybucket/data/<type>/yyyy=2016/dd=01```, you can then create a configuration with an S3 prefix ```mybucket/data/<type>/yyyy=*/dd=*```. The incoming event will be pre-processed and files which use this convention will always match the wildcard configuration.
 
-### S3 Prefix Matching
+### Prefix Matching
 
 In some cases, you may want to have a configuration for most parts of a prefix, but a special configuration for just a subset of the data within a Prefix. In addition to Hive partitioning style wildcards, you can also create configuration hierarchies. In the above example, if I wanted to process data from 2016 with a single configuration, but had special rules for February only, then you can create 2 configurations:
 
@@ -284,15 +303,14 @@ In some cases, you may want to have a configuration for most parts of a prefix, 
 # Security
 
 The database password, as well as the a master symmetric key used for encryption
-will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS
-Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
+will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
 
 When the Redshift COPY command is created, by default the Lambda function will use a
 temporary STS token as credentials for Redshift to use when accessing S3. You can also optionally configure
 an Access Key and Secret Key which will be used instead, and
 the setup utility will encrypt the secret key.
 
-## Loading multiple Redshift Clusters concurrently
+## Loading multiple Redshift clusters concurrently
 
 Version 2.0.0 and higher adds the ability to load multiple clusters at the same time. To
 configure an additional cluster, you must first have deployed version
