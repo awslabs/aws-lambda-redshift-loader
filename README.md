@@ -60,7 +60,7 @@ because AWS Lambda (http://aws.amazon.com/lambda) provides an event-driven, zero
 compute service. It allows developers to create applications that are automatically
 hosted and scaled, while providing you with a fine-grained pricing structure.
 
-![Loader Architecture](Architecture.png)
+![Loader Architecture](img/Architecture.png)
 
 The function maintains a list of all the files to be loaded from S3 into Amazon
 Redshift using a DynamoDB table. This list allows us to confirm that a file is loaded
@@ -86,7 +86,7 @@ This repository includes a CloudFormation template (deploy.yaml) which will crea
 
 This is a visual architecture of the CloudFormation installer:
 
-![Installer Architecture](cf_installer_architecture.png)
+![Installer Architecture](img/cf_installer_architecture.png)
 
 The intent of this template is to simplify the setup work necessary to configure the autoloader.  
 
@@ -441,7 +441,7 @@ The script takes an `operation type` and `filename` as arguments:
 
 An example of the processed files store can be seen below:
 
-![Processed Files Table](ProcessedFilesTable.png)
+![Processed Files Table](img/ProcessedFilesTable.png)
 
 ### Reprocessing a Batch
 
