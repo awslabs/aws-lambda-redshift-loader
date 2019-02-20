@@ -102,21 +102,16 @@ The template requires four input parameters: availability zone, a security group
 
 __Usage Steps__
 
-1. Create a CloudFormation stack with the deploy.yaml file, or use the table of links below.  This stack will include everything needed
-   to set up the autoloader with two exceptions.  The KMS key must be created and managed separately.  
-   And a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not 
-   configure the autoloader - this installs the components required to run the node setup script.
-2. Log in to the EC2 instance created as part of the stack.  It contains all the necessary components 
-   set up the autoloader.
-3. Invoke the setup.js script in the EC2 instance to begin configuring the autoloader.
+1. Create a CloudFormation stack with the deploy.yaml file, or use the table of links below.  This stack will include everything needed to set up the autoloader with two exceptions.  The KMS key must be created and managed separately, and a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not configure the autoloader - it just installs the components required to run the node setup script.
+2. Log in to the EC2 instance created as part of the stack.  It contains all the necessary components set up the autoloader.
+3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
 
 __Notes__
 
-1. This stack will create in the same region where you invoke the template.  
-2. The input parameters are not cross-checked at template creation time, so make sure that the subnet
-   choice matches the availability zone selected.
-3. The stack includes the Lambda trigger as well as the execution role - so they will be managed
-   as part of the stack.  It is expected that the EC2 instance and setup role can be used on an ongoing basis for the administration of the autoloader.
+1. This stack will be created in the same region where you invoke the template.  
+2. The input parameters are not cross-checked at template creation time, so make sure that the subnet   choice matches the availability zone you require.
+3. The stack creates the Lambda trigger as well as the execution role - so they will be managed
+as part of the stack. It is expected that the EC2 instance and setup role can be used on an ongoing basis for the administration of the autoloader.
    
 __Launch Links__
 
