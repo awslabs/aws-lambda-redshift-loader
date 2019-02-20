@@ -1,46 +1,48 @@
 # A Zero Administration AWS Lambda Based Amazon Redshift Database Loader
 
 With this AWS Lambda function, it's never been easier to get file data into Amazon
-Redshift. You simply push files into a variety of locations on Amazon S3, and
-have them automatically loaded into your Amazon Redshift clusters.
+Redshift. You simply drop files into pre-configured locations on Amazon S3, and
+this function automatically loads into your Amazon Redshift clusters.
 
-For automated delivery of streaming data to S3 and subsequently to Redshift, also consider using [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose).
+For automated delivery of streaming data to S3 and into to Redshift, please consider using [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose) instead of this function.
 
 Table of Contents
 =================
 
-  * [A Zero Administration AWS Lambda Based Amazon Redshift Database Loader](#a-zero-administration-aws-lambda-based-amazon-redshift-database-loader)
-    * [Using AWS Lambda with Amazon Redshift](#using-aws-lambda-with-amazon-redshift)
-    * [Getting Started - Lambda Execution Role](#getting-started---lambda-execution-role)
-    * [Getting Started - The CloudFormation Installer (Recommended) ](#getting-started---the-cloudformation-installer)
-    * [Getting Started - Deploying the AWS Lambda Function manually](#getting-started---deploying-the-aws-lambda-function)
-      * [Lambda Function Versions](#lambda-function-versions)
-    * [Getting Started - Granting AWS Lambda rights to access your Redshift cluster](#getting-started---granting-aws-lambda-rights-to-access-your-redshift-cluster)
-      * [Redshift running in VPC](#redshift-running-in-vpc)
-      * [Redshift running in EC2 Classic/Not in VPC](#redshift-running-in-ec2-classicnot-in-vpc)
-      * [If you want to use http proxy instead of NAT gateway](#if-you-want-to-use-http-proxy-instead-of-nat-gateway)
-    * [Getting Started - Support for Notifications &amp; Complex Workflows](#getting-started---support-for-notifications--complex-workflows)
-    * [Getting Started - Entering the Configuration](#getting-started---entering-the-configuration)
-    * [The Configuration S3 Prefix](#the-configuration-s3-prefix)
-      * [Hive Partitioning Style Wildcards](#hive-partitioning-style-wildcards)
-      * [S3 Prefix Matching](#s3-prefix-matching)
-  * [Security](#security)
-    * [Loading multiple Redshift Clusters concurrently](#loading-multiple-redshift-clusters-concurrently)
-    * [Viewing Previous Batches &amp; Status](#viewing-previous-batches--status)
-    * [Working With Processed Files](#working-with-processed-files)
-    * [Reprocessing a Batch](#reprocessing-a-batch)
-    * [Unlocking a Batch](#unlocking-a-batch)
-    * [Changing your stored Database Password or S3 Secret Key Information](#changing-your-stored-database-password-or-s3-secret-key-information)
-    * [Ensuring Loads happen every N minutes](#ensuring-loads-happen-every-n-minutes)
-      * [Using Scheduled Lambda Functions](#using-scheduled-lambda-functions)
-      * [Through a CRON Job](#through-a-cron-job)
-    * [Reviewing Logs](#reviewing-logs)
-    * [Extending and Building New Features](#extending-and-building-new-features)
-  * [Configuration Reference](#configuration-reference)
+<!-- toc -->
 
+- [Using AWS Lambda with Amazon Redshift](#using-aws-lambda-with-amazon-redshift)
+- [Installing with AWS CloudFormation (Recommended)](#installing-with-aws-cloudformation-recommended)
+- [Installing Manually](#installing-manually)
+  * [Before you deploy - Lambda Execution Role](#before-you-deploy---lambda-execution-role)
+  * [Deploy the function](#deploy-the-function)
+  * [Lambda Function Versions](#lambda-function-versions)
+- [Configuring your VPC for connections between AWS Lambda and Redshift](#configuring-your-vpc-for-connections-between-aws-lambda-and-redshift)
+- [Entering the Configuration](#entering-the-configuration)
+  * [The S3 Prefix](#the-s3-prefix)
+  * [Hive Partitioning Style Wildcards](#hive-partitioning-style-wildcards)
+  * [Prefix Matching](#prefix-matching)
+- [Security](#security)
+- [Loading multiple Redshift clusters concurrently](#loading-multiple-redshift-clusters-concurrently)
+- [Support for Notifications & Complex Workflows](#support-for-notifications--complex-workflows)
+- [Operations Guide](#operations-guide)
+  * [Viewing Previous Batches & Status](#viewing-previous-batches--status)
+  * [Working with Processed Files](#working-with-processed-files)
+  * [Reprocessing a Batch](#reprocessing-a-batch)
+  * [Unlocking a Batch](#unlocking-a-batch)
+  * [Deleting Old Batches](#deleting-old-batches)
+  * [Reviewing Logs](#reviewing-logs)
+  * [Changing your stored Database Password or S3 Secret Key Information](#changing-your-stored-database-password-or-s3-secret-key-information)
+  * [Ensuring Loads happen every N minutes](#ensuring-loads-happen-every-n-minutes)
+    + [Using Scheduled Lambda Functions](#using-scheduled-lambda-functions)
+    + [Through a CRON Job](#through-a-cron-job)
+- [Extending and Building New Features](#extending-and-building-new-features)
+- [Configuration Reference](#configuration-reference)
 
+<!-- tocstop -->
 
 ## Using AWS Lambda with Amazon Redshift
+
 Amazon Redshift is a fully managed petabyte scale data warehouse available for
 less than $1000/TB/YR that provides AWS customers with an extremely powerful way to
 analyse their applications and business as a whole. To load their Clusters, customers
@@ -78,52 +80,7 @@ troubleshoot issues. We also support sending notifications of load status throug
 Simple Notification Service - SNS (http://aws.amazon.com/sns), so you have visibility
 into how your loads are progressing over time.
 
-## Getting Started - Lambda Execution Role
-You also need to add an IAM policy as shown below to the role that AWS Lambda
-uses when it runs. Once your function is deployed, add the following policy to
-the `LambdaExecRole` to enable AWS Lambda to call SNS, use DynamoDB, write Manifest
-files to S3, perform encryption with the AWS Key Management Service, and pass STS temporary
-credentials to Redshift for the COPY command:
-
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "Stmt1424787824000",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:DeleteItem",
-                "dynamodb:DescribeTable",
-                "dynamodb:GetItem",
-                "dynamodb:ListTables",
-                "dynamodb:PutItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:UpdateItem",
-                "sns:GetEndpointAttributes",
-                "sns:GetSubscriptionAttributes",
-                "sns:GetTopicAttributes",
-                "sns:ListTopics",
-                "sns:Publish",
-                "sns:Subscribe",
-                "sns:Unsubscribe",
-                "s3:Get*",
-                "s3:Put*",
-                "s3:List*",
-                "kms:Decrypt",
-                "kms:DescribeKey",
-                "kms:GetKeyPolicy"
-            ],
-            "Resource": [
-                "*"
-            ]
-        }
-    ]
-}
-```
-
-## Getting Started - the CloudFormation Installer (Recommended)
+## Installing with AWS CloudFormation (Recommended)
 
 This repository includes a CloudFormation template (deploy.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template. CloudFormation is provided by AWS to simplify the deployment of complex sets of components. More information can be found at http://aws.amazon.com/cloudformation/getting-started
 
@@ -183,7 +140,54 @@ __Launch Links__
 |us-west-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/deploy.yaml) |
 |us-west-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://s3-us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/deploy.yaml) |
 
-## Getting Started - Deploying the AWS Lambda Function manually
+## Installing Manually
+
+### Before you deploy - Lambda Execution Role
+
+You need to create an IAM policy that AWS Lambda
+uses when it runs, and allows it to call SNS, use DynamoDB, write Manifest
+files to S3, perform encryption with the AWS Key Management Service, and pass STS temporary
+credentials to Redshift for the COPY command:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1424787824000",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+                "dynamodb:GetItem",
+                "dynamodb:ListTables",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:UpdateItem",
+                "sns:GetEndpointAttributes",
+                "sns:GetSubscriptionAttributes",
+                "sns:GetTopicAttributes",
+                "sns:ListTopics",
+                "sns:Publish",
+                "sns:Subscribe",
+                "sns:Unsubscribe",
+                "s3:Get*",
+                "s3:Put*",
+                "s3:List*",
+                "kms:Decrypt",
+                "kms:DescribeKey",
+                "kms:GetKeyPolicy"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
+```
+
+### Deploy the function
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and select the 'Author from Scratch' option
@@ -232,11 +236,12 @@ Lambda function will transparently upgrade your configuration to a 2.x compatibl
 format. This uses a loadClusters List type in DynamoDB to track all clusters to
 be loaded.
 
-## Getting Started - Lambda, Redshift, and VPC networking
+## Configuring your VPC for connections between AWS Lambda and Redshift
 
 Please click [here](Networking.md) for a full guide on how to configure AWS Lambda to connect to Redshift in VPC and non-VPC networking environments.
 
-## Getting Started - Entering the Configuration
+## Entering the Configuration
+
 Now that your function is deployed, we need to create a configuration which tells
 it how and if files should be loaded from S3. Simply install AWS SDK for Javascript
 and configure it with credentials as outlined at http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-intro.html and http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html. You'll also need a local instance of Node.js - today the included Client Tools such as `setup.js` only run under pre-ES6 versions of Node (0.10 and 0.12 have been tested). NVM (https://github.com/creationix/nvm/blob/master/README.markdown) is a simple way to install and switch between node versions. Then install dependencies using the following command:
@@ -275,8 +280,6 @@ you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
 the Write IOPS on LambdaRedshiftBatches and LambdaRedshiftProcessedFiles to the
 maximum number of files to be concurrently processed by all Configurations.
 
-
-
 ### The S3 Prefix
 
 When you enter the configuration, you must provide an S3 Prefix. This is used by the function to resolve which configuration to use for an incoming event. There are two dimensions of dynamic resolution provided which will help you respond to events where the path is variable over time or from provider:
@@ -300,7 +303,7 @@ In some cases, you may want to have a configuration for most parts of a prefix, 
 | ```vendor-uploads/inbound/vendor1/csv/upload.zip``` | ```vendor-uploads/inbound/vendor1``` |
 | ```vendor-uploads/inbound/vendor2/csv/upload.zip``` | ```vendor-uploads/inbound/vendor2``` |
 
-# Security
+## Security
 
 The database password, as well as the a master symmetric key used for encryption
 will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
@@ -352,7 +355,9 @@ The loader supports the ability to suppress a failure status of the Lambda funct
 
 To suppress Lambda level failures, set environment variable `SuppressFailureStatusOnSuccessfulNotification = 'true'` in your Lambda configuration.
 
-## Viewing Previous Batches & Status
+## Operations Guide
+
+### Viewing Previous Batches & Status
 
 If you ever need to see what happened to batch loads into your Cluster, you can
 use the 'queryBatches.js' script to look into the LambdaRedshiftBatches DynamoDB
@@ -423,7 +428,8 @@ Which would return the batch information as it is stored in Dynamo DB:
 }
 ```
 
-## Working with Processed Files
+### Working with Processed Files
+
 We'll only load a file once by default, but in certain rare cases you might
 want to re-process a file, such as if a batch goes into error state for some reason.
 If so, use the `processedFiles.js` script to query or delete processed files entries.
@@ -437,7 +443,8 @@ An example of the processed files store can be seen below:
 
 ![Processed Files Table](ProcessedFilesTable.png)
 
-## Reprocessing a Batch
+### Reprocessing a Batch
+
 If you ever need to reprocess a batch - for example if it failed to load the required
 files for some reason - then you can use the `reprocessBatch.js` script. This takes
 the same arguments as `describeBatch.js` (region, batch ID & input location). The
@@ -447,12 +454,13 @@ then the script forces an S3 event to be generated for the file. This will be
 captured and reprocessed by the function as it was originally. Please note you
 can only reprocess batches that are not in 'open' status. Please also note that because this function reads and then re-writes object metadata, it is potentially liable to overwriting metadata added by a different process. If you have frequent S3 metadata re-write as part of your application, use with extreme caution.
 
-## Unlocking a Batch
+### Unlocking a Batch
+
 It is possible, but rare, that a batch would become locked but not be being processed
 by AWS Lambda. If this were to happen, please use ```unlockBatch.js``` including
 the region and Batch ID to set the batch to 'open' state again.
 
-## Deleting Old Batches
+### Deleting Old Batches
 
 As the system runs for some time, you may find that your `LambdaRedshiftBatches` table grows to be very large. In this case, you may want to archive old Completed batches that you no longer require.
 
@@ -561,57 +569,7 @@ Deleted Batch Information:
 
 As you can see the entire contents of the batch are returned to you, so that you can ensure no possiblity of data loss. The most important features of this returned data structure are likely `$entries.SS, $manifestFile.S`, which would allow you to re-inject files into the loader if needed.
 
-## Changing your stored Database Password or S3 Secret Key Information
-Currently you must edit the configuration manually in Dynamo DB to make changes.
-If you need to update your Redshift DB Password, or your Secret Key for allowing
-Redshift to access S3, then you can use the ```encryptValue.js``` script to encrypt
-a value using the Lambda Redshift Loader master key and encryption context.
-
-To run:
-```
-node encryptValue.js --region <region> --input <Value to Encrypt>
-```
-
-This script encrypts the value with Amazon KMS, and then verifies the encryption is
-correct before returning a JSON object which includes the input value and the
-encrypted Ciphertext. You can use the 'encryptedCiphertext' attribute of this object
-to update the Dynamo DB Configuration.
-
-## Ensuring Loads happen every N minutes
-If you have a prefix that doesn't receive files very often, and want to ensure
-that files are loaded every N seconds, use the following process to force periodic loads.
-
-When you create the configuration, specify a `batchTimeoutSecs` and add a filenameFilterRegex such as '.*\.csv' (which
-only loads CSV files that are put into the specified S3 prefix). Then every N seconds,
-schedule one of the included trigger file generators to run:
-
-### Using Scheduled Lambda Functions
-
-You can use an included Lambda function to generate trigger files into all configured prefixes that have a regular expression filter, by completing the following:
-
-* Create a new AWS Lambda Function, and deploy the same zip file from the `dist` folder as you did for the AWS Lambda Redshift Loader. However, when you configure the Handler name, use `createS3TriggerFile.handler`, and configure it with the timeout and RAM required.
-* In the AWS Web Console, select Services/CloudWatch, and in the left hand navigation select 'Events/Rules'
-* Choose Event Source = 'Schedule' and specify the interval for your trigger files to be gnerated
-* Add Target to be the Lambda function you previously configured
-
-Once done, you will see CloudWatch Logs being created on the configured schedule, and trigger files arriving in the specified prefixes
-
-### Through a CRON Job
-
-You can use a Python based script to generate trigger files to specific input buckets and prefixes, using the following utility:
-
-```./path/to/function/dir/generate-trigger-file.py <region> <input bucket> <input prefix> <local working directory>```
-
-* region - the region in which the input bucket for loads resides
-* input bucket - the bucket which is configured as an input location
-* input prefix - the prefix which is configured as an input location
-* local working directory - the location where the stub dummy file will be kept prior to upload into S3
-
-These methods write a file called 'lambda-redshift-trigger-file.dummy' to the configured
-input prefix, which causes your deployed function to scan the open pending batch
-and load the contents if the timeout seconds limit has been reached. The batch timeout is calculated on the basis of when the first file was added to the batch.
-
-## Reviewing Logs
+### Reviewing Logs
 For normal operation, you won't have to do anything from an administration perspective.
 Files placed into the configured S3 locations will be loaded when the number of
 new files equals the configured batch size. You may want to create an operational
@@ -627,6 +585,56 @@ when AWS Lambda last pushed events into CloudWatch Logging.
 You can then review each log stream, and see events where your function simply
 buffered a file, or where it performed a load.
 
+### Changing your stored Database Password or S3 Secret Key Information
+Currently you must edit the configuration manually in Dynamo DB to make changes.
+If you need to update your Redshift DB Password, or your Secret Key for allowing
+Redshift to access S3, then you can use the ```encryptValue.js``` script to encrypt
+a value using the Lambda Redshift Loader master key and encryption context.
+
+To run:
+```
+node encryptValue.js --region <region> --input <Value to Encrypt>
+```
+
+This script encrypts the value with Amazon KMS, and then verifies the encryption is
+correct before returning a JSON object which includes the input value and the
+encrypted Ciphertext. You can use the 'encryptedCiphertext' attribute of this object
+to update the Dynamo DB Configuration.
+
+### Ensuring Loads happen every N minutes
+If you have a prefix that doesn't receive files very often, and want to ensure
+that files are loaded every N seconds, use the following process to force periodic loads.
+
+When you create the configuration, specify a `batchTimeoutSecs` and add a filenameFilterRegex such as '.*\.csv' (which
+only loads CSV files that are put into the specified S3 prefix). Then every N seconds,
+schedule one of the included trigger file generators to run:
+
+#### Using Scheduled Lambda Functions
+
+You can use an included Lambda function to generate trigger files into all configured prefixes that have a regular expression filter, by completing the following:
+
+* Create a new AWS Lambda Function, and deploy the same zip file from the `dist` folder as you did for the AWS Lambda Redshift Loader. However, when you configure the Handler name, use `createS3TriggerFile.handler`, and configure it with the timeout and RAM required.
+* In the AWS Web Console, select Services/CloudWatch, and in the left hand navigation select 'Events/Rules'
+* Choose Event Source = 'Schedule' and specify the interval for your trigger files to be gnerated
+* Add Target to be the Lambda function you previously configured
+
+Once done, you will see CloudWatch Logs being created on the configured schedule, and trigger files arriving in the specified prefixes
+
+#### Through a CRON Job
+
+You can use a Python based script to generate trigger files to specific input buckets and prefixes, using the following utility:
+
+```./path/to/function/dir/generate-trigger-file.py <region> <input bucket> <input prefix> <local working directory>```
+
+* region - the region in which the input bucket for loads resides
+* input bucket - the bucket which is configured as an input location
+* input prefix - the prefix which is configured as an input location
+* local working directory - the location where the stub dummy file will be kept prior to upload into S3
+
+These methods write a file called 'lambda-redshift-trigger-file.dummy' to the configured
+input prefix, which causes your deployed function to scan the open pending batch
+and load the contents if the timeout seconds limit has been reached. The batch timeout is calculated on the basis of when the first file was added to the batch.
+
 ## Extending and Building New Features
 We're excited to offer this AWS Lambda function under the Amazon Software License.
 The GitHub repository does not include all the dependencies for Node.js, so in
@@ -636,7 +644,7 @@ order to build and run locally please install the following modules with npm ins
 * Async - Higher-order functions and common patterns for asynchronous code (https://www.npmjs.com/package/async & `npm install async`)
 * Node UUID - Rigorous implementation of RFC4122 (v1 and v4) UUIDs (https://www.npmjs.com/package/node-uuid & `npm install node-uuid`)
 
-# Configuration Reference
+## Configuration Reference
 
 The following section provides guidance on the configuration options supported.
 For items such as the batch size, please keep in mind that in Preview the Lambda
