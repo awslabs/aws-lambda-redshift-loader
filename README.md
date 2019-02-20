@@ -20,6 +20,7 @@ Table of Contents
       * [If you want to use http proxy instead of NAT gateway](#if-you-want-to-use-http-proxy-instead-of-nat-gateway)
     * [Getting Started - Support for Notifications &amp; Complex Workflows](#getting-started---support-for-notifications--complex-workflows)
     * [Getting Started - Entering the Configuration](#getting-started---entering-the-configuration)
+    * [Getting Started - The CloudFormation Installer](#getting-started---the-cloudformation-installer)
     * [The Configuration S3 Prefix](#the-configuration-s3-prefix)
       * [Hive Partitioning Style Wildcards](#hive-partitioning-style-wildcards)
       * [S3 Prefix Matching](#s3-prefix-matching)
@@ -214,6 +215,48 @@ Lambda function. If you require more than 5 concurrent invocations/second, then
 you MUST increase the Read IOPS on the LambdaRedshiftBatchLoadConfig table, and
 the Write IOPS on LambdaRedshiftBatches and LambdaRedshiftProcessedFiles to the
 maximum number of files to be concurrently processed by all Configurations.
+
+## Getting Started - the CloudFormation Installer
+
+This repository includes a CloudFormation template (deploy.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template.  
+CloudFormation is provided by AWS to simplify the deployment of complex sets of components.  
+More information can be found at http://aws.amazon.com/cloudformation/getting-started
+
+This is a visual architecture of the CloudFormation installer:
+
+![Installer Architecture](cf_installer_architecture.png)
+
+The intent of this template is to simplify the setup work necessary to configure the autoloader.  
+
+Pre-work:
+
+Set up the KMS key to be used by the setup script which encrypts and decrypts the RedShift password.
+This key will require a specific alias, which is how the setup script picks it up.  The alias must be
+"LambdaRedshiftLoaderKey".
+
+Also, a user will be required with the necessary privileges to run the template.  This user will require an access key, which is one of the input parameters required at runtime.
+
+The template requires four input parameters: availability zone, a security group for the EC2 instance, an access keypair, and a subnet for the EC2 instance
+
+Usage Steps
+
+1) Create a CloudFormation stack with the deploy.yaml file.  This stack will include everything needed
+   to set up the autoloader with two exceptions.  The KMS key must be created and managed separately.  
+   And a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not 
+   configure the autoloader - this installs the components required to run the node setup script.
+2) Log in to the EC2 instance created as part of the stack.  It contains all the necessary components 
+   set up the autoloader.
+3) Invoke the setup.js script in the EC2 instance to begin configuring the autoloader.
+
+Notes
+
+1) This stack will create in the same region where you invoke the template.  
+2) The input parameters are not cross-checked at template creation time, so make sure that the subnet
+   choice matches the availability zone selected.
+3) The stack includes the Lambda trigger as well as the execution role - so they will be managed
+   as part of the stack.  It is expected that the EC2 instance and setup role can be used on an ongoing basis
+   for the administration of the autoloader.
+
 
 ## The Configuration S3 Prefix
 
