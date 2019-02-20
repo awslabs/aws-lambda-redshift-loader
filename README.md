@@ -52,9 +52,7 @@ loading Amazon Redshift is to use the COPY command (http://docs.aws.amazon.com/r
 
 Whatever the input, customers must run servers that look for new data on the file
 system, and manage the workflow of loading new data and dealing with any issues
-that might arise. That's why we created the AWS Lambda-based Amazon Redshift loader
-(http://github.com/awslabs/aws-lambda-redshift-loader) - it offers you the ability
-drop files into S3 and load them into any number of database tables in multiple
+that might arise. That's why we created this AWS Lambda-based Amazon Redshift loader. It offers you the ability drop files into S3 and load them into any number of database tables in multiple
 Amazon Redshift Clusters automatically - with no servers to maintain. This is possible
 because AWS Lambda (http://aws.amazon.com/lambda) provides an event-driven, zero-administration
 compute service. It allows developers to create applications that are automatically
@@ -295,13 +293,15 @@ In some cases, you may want to have a configuration for most parts of a prefix, 
 
 ## Security
 
-The database password, as well as the a master symmetric key used for encryption
-will be encrypted by the [Amazon Key Management Service](https://aws.amazon.com/kms). This encryption is done with a KMS Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`.
-
 When the Redshift COPY command is created, by default the Lambda function will use a
 temporary STS token as credentials for Redshift to use when accessing S3. You can also optionally configure
-an Access Key and Secret Key which will be used instead, and
-the setup utility will encrypt the secret key.
+an Access Key and Secret Key which will be used instead, and the setup utility will encrypt the secret key.
+
+Redshift supports two options for connecting to the cluster: [IAM Role based authentication](https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html), and Username/Password based authentication. While we highly recommend using IAM Role based authentication, it is not avialable with this utility as it requires the use of the [Redshift JDBC Driver](https://docs.aws.amazon.com/redshift/latest/mgmt/configure-jdbc-connection.html#download-jdbc-driver), which we don't yet support in this module.
+
+The database password, as well as the master symmetric key used for encryption operations, must be encrypted by the Amazon Key Management Service before running the setup utility. To perform this encryption, you will use the `encryptValue.js` script supplied with this project. The encryption is done with a KMS Customer Master Key with an alias named `alias/LambaRedshiftLoaderKey`. If you supply an unencrypted password to the setup scripts, they will store the value in Dynamodb (__BAD__), but these will not be usable by the system as it will throw a decryption error on execution.
+
+If you would like support for storage of passwords in the [SSM Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html), please [+1 this issue](https://github.com/awslabs/aws-lambda-redshift-loader/issues/178).
 
 ## Loading multiple Redshift clusters concurrently
 
