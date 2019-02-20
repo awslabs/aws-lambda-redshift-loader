@@ -81,10 +81,7 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'HASH'
         }],
         TableName: filesTable,
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        }
+        BillingMode: "PAY_PER_REQUEST"
     };
     var configKey = s3prefix;
     var configSpec = {
@@ -97,10 +94,7 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'HASH'
         }],
         TableName: configTable,
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-        }
+        BillingMode: "PAY_PER_REQUEST"
     };
 
     var batchKey = batchId;
@@ -127,10 +121,7 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'RANGE'
         }],
         TableName: batchTable,
-        ProvisionedThroughput: {
-            ReadCapacityUnits: 1,
-            WriteCapacityUnits: 5
-        },
+        BillingMode: "PAY_PER_REQUEST",
         GlobalSecondaryIndexes: [{
             IndexName: batchStatusGSI,
             KeySchema: [{
