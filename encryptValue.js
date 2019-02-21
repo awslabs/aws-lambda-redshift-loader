@@ -14,35 +14,42 @@ var args = require('minimist')(process.argv.slice(2));
 var region = args.region;
 var input = args.input;
 
-if (!region || !input) {
-    console.log("You must provide a region for the KMS Service and an input value to Encrypt");
-    process.exit(ERROR);
-} else {
+
+let encrypt = function (region, input, callback) {
     kmsCrypto.setRegion(region);
 
-    kmsCrypto.encrypt(input, function(err, encryptedCiphertext) {
-	if (err) {
-	    console.log(err);
-	    process.exit(ERROR);
-	} else {
-	    kmsCrypto.decrypt(encryptedCiphertext, function(err, plaintext) {
-		if (err) {
-		    console.log(err);
-		    process.exit(ERROR);
-		} else {
-		    if (plaintext.toString() === input) {
-			console.log("Encryption completed and verified with AWS KMS");
+    kmsCrypto.encrypt(input, function (err, encryptedCiphertext) {
+        if (err) return callback(err);
 
-			console.log(JSON.stringify({
-			    inputValue : input,
-			    configurationEntryValue : kmsCrypto.toLambdaStringFormat(encryptedCiphertext)
-			}));
-		    } else {
-			console.log("Encryption completed but could not be verified");
-			process.exit(ERROR);
-		    }
-		}
-	    });
-	}
+        kmsCrypto.decrypt(encryptedCiphertext, function (err, plaintext) {
+            if (err) return callback(err);
+
+            if (plaintext.toString() === input) {
+                console.log("Encryption completed and verified with AWS KMS");
+
+                callback({
+                    inputValue: input,
+                    configurationEntryValue: kmsCrypto.toLambdaStringFormat(encryptedCiphertext)
+                });
+            } else {
+                callback("Encryption completed but could not be validated. Result: " + plaintext.toString());
+            }
+        });
+
+    });
+}
+exports.encrypt = encrypt;
+
+if (!region || !input) {
+    console.log("You must provide a region (--region) for the KMS Service and an input value (--input) to Encrypt");
+    process.exit(ERROR);
+} else {
+    encrypt(region, input, function (err, result) {
+        if (err) {
+            console.log(err);
+            process.exit(ERROR);
+        } else {
+            console.log(JSON.stringify(result));
+        }
     });
 }
