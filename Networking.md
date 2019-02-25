@@ -4,7 +4,7 @@
 
 In this model, your Redshift cluster is in a VPC Subnet, and we recommend using [AWS Lambda VPC Endpoints](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html) to manage access to your cluster. The following diagram represents the configuration required to successfully run this solution in a VPC:
 
-![VPC Connectivity](VPCConnectivity.png)
+![VPC Connectivity](img/VPCConnectivity.png)
 
 In this architecture, you expose your AWS Lambda function into a set of private VPC subnets, and then select a security group for your Lambda function. Ideally this would be the same security group as the Redshift cluster was using, but you can also use security group grants to enable access between two SG's. Your Lambda function must also have internet egress enabled so it can read its configuration from DynamoDB, and the easiest way to do this is to use [VPC NAT Gateway](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/vpc-nat-gateway.html). The following steps should be undertaken:
 
@@ -12,7 +12,7 @@ _VPC_
 
 To use Lambda in a VPC, we recommend having both a private and public subnet per AZ. Your Lambda function is enabled to run within the Private AZ, and a NAT Gateway is created in the Public AZ. Your Private Subnets will each have their own Route Table, with a route for 0.0.0.0/0 (public internet) routed to the NAT Gateway in the same AZ. Your Public Subnets will all share a Route Table which routes 0.0.0.0/0 to the Internet Gateway.
 
-![VPCPerAZ](VPCPerAZ.png)
+![VPCPerAZ](img/VPCPerAZ.png)
 
 _AWS Lambda_
 
@@ -47,5 +47,5 @@ INSERT using GRANT (http://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
 
 To configure environment variable of your Lambda function:
 
-1. Add a variable. Key is "https_proxy".
-2. Fill a variable. For example, http://proxy.example.org:3128
+1. Add a variable. Key is `https_proxy`.
+2. Fill a variable. For example `http://proxy.example.org:3128`

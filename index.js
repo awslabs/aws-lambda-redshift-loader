@@ -363,12 +363,7 @@ exports.handler = function (event, context) {
                     // add the file to the pending batch
                     dynamoDB.updateItem(item, function (err, data) {
                         if (err) {
-                            var waitFor = 0;
-
-                            // increase the backoff limit after we've retried a few times
-                            if (tryNumber > (addFileRetryLimit * .2)) {
-                                waitFor = Math.max(Math.pow(tryNumber, 2) * 10, 200);
-                            }
+                            let waitFor = Math.min(Math.pow(tryNumber, 2) * 10, maxRetryMS);
 
                             if (err.code === provisionedThroughputExceeded) {
                                 console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
@@ -1034,6 +1029,14 @@ exports.handler = function (event, context) {
             copyCommand = 'set statement_timeout to 60000;\n';
         }
 
+        // open a transaction so that all pre-sql, load, and post-sql commit at once
+        copyCommand += 'begin;\n';
+
+        // if the presql option is set, insert it into the copyCommand
+        if (clusterInfo.presql && clusterInfo.presql.S) {
+            copyCommand += clusterInfo.presql.S + (clusterInfo.presql.S.slice(-1) == ";" ? "" : ";") + '\n'
+        }
+
         var copyOptions = "manifest ";
 
         // add the truncate option if requested
@@ -1090,9 +1093,9 @@ exports.handler = function (event, context) {
                 }
 
                 if (typeof clusterInfo.columnList === 'undefined') {
-                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
+                    copyCommand = copyCommand + 'COPY ' + clusterInfo.targetTable.S + ' from \'s3://' + manifestInfo.manifestPath + '\'';
                 } else {
-                    copyCommand = copyCommand + 'begin;\nCOPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://' + manifestInfo.manifestPath + '\'';
+                    copyCommand = copyCommand + 'COPY ' + clusterInfo.targetTable.S + ' (' + clusterInfo.columnList.S + ') from \'s3://' + manifestInfo.manifestPath + '\'';
                 }
 
                 // add data formatting directives to copy
@@ -1120,6 +1123,8 @@ exports.handler = function (event, context) {
                     } else {
                         copyOptions = copyOptions + ' \'auto\' \n';
                     }
+                } else if (config.dataFormat.S === 'Parquet' || config.dataFormat.S === 'ORC') {
+                    copyOptions = copyOptions + ' format as ' + config.dataFormat.S;
                 } else {
                     callback(null, {
                         status: ERROR,
@@ -1161,7 +1166,14 @@ exports.handler = function (event, context) {
                 }
 
                 // build the final copy command
-                copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\ncommit;";
+                copyCommand = copyCommand + " with credentials as \'" + credentials + "\' " + copyOptions + ";\n";
+
+                // if the post-sql option is set, insert it into the copyCommand
+                if (clusterInfo.postsql && clusterInfo.postsql.S) {
+                    copyCommand += clusterInfo.postsql.S + (clusterInfo.postsql.S.slice(-1) == ";" ? "" : ";") + '\n'
+                }
+
+                copyCommand += 'commit;';
 
                 if (debug) {
                     console.log(copyCommand);
@@ -1334,7 +1346,7 @@ exports.handler = function (event, context) {
                 context.done(error, JSON.stringify(err));
             } else {
                 // send notifications
-                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function(err) {
+                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function (err) {
                     if (err) {
                         console.log(JSON.stringify(err));
                         context.done(error, JSON.stringify(err) + " " + JSON.stringify(batchError));
@@ -1350,7 +1362,7 @@ exports.handler = function (event, context) {
                         }
                     } else {
                         console.log("Batch Load " + thisBatchId + " Complete");
-                        context.done(null,null)
+                        context.done(null, null)
                     }
                 });
             }

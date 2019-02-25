@@ -210,8 +210,8 @@ q_truncateTable = function (callback) {
 };
 
 q_df = function (callback) {
-    rl.question('Enter the Data Format (CSV, JSON or AVRO) > ', function (answer) {
-        common.validateArrayContains(['CSV', 'JSON', 'AVRO'], answer.toUpperCase(), rl);
+    rl.question('Enter the Data Format (CSV, JSON, AVRO, Parquet, and ORC) > ', function (answer) {
+        common.validateArrayContains(['CSV', 'JSON', 'AVRO', 'Parquet', 'ORC'], answer.toUpperCase(), rl);
         dynamoConfig.Item.dataFormat = {
             S: answer.toUpperCase()
         };

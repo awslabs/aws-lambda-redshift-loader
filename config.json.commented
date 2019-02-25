@@ -35,6 +35,12 @@
   // Option to truncate the table prior to loading.Use this option if you will
   // subsequently process the input patch and only want to see 'new' data with this ELT process.
   "truncateTable": "",
+  // Customized SQL that is placed just before the copy command.
+  // This must end with a semicolon, and work with the other options that generate the copy command.
+  "presql": "",
+  // Customized SQL that is placed just after the copy command.
+  // This must end with a semicolon, and work with the other options that generate the copy command.
+  "postsql": "",
   // Enter the Database Username  Y
   // The username which should be used to connect to perform the COPY.
   // Please note that only table owners can perform COPY, so this should
