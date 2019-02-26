@@ -145,14 +145,17 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallb
 	}
 
 	// upgrade each cluster entry's password for redshift
-	configPre.loadClusters.L.map(function(item) {
-		if (item.M.connectPassword.S.indexOf('[') > -1) {
-			willDoUpgrade = true;
-			item.M.connectPassword.S = new Buffer(JSON.parse(item.M.connectPassword.S)).toString('base64');
-		}
+	if (configPre && configPre.loadClusters && configPre.loadClusters.L) {
+		configPre.loadClusters.L.map(function (item) {
+			if (item.M.connectPassword.S.indexOf('[') > -1) {
+				willDoUpgrade = true;
+				item.M.connectPassword.S = new Buffer(JSON.parse(item.M.connectPassword.S)).toString('base64');
+			}
 
-		loadClusters.push(item);
-	});
+			loadClusters.push(item);
+		});
+	}
+
 	if (loadClusters.length > 0) {
 		expressionAttributeValues[":newLoadClusters"] = {
 			L : loadClusters
