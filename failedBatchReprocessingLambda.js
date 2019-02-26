@@ -96,6 +96,22 @@ function reprocessMessage(message, callback) {
    ]
  }
  */
+function handleSNS(event, context) {
+    if(event.Records[0].EventSource == "aws:sns") {
+        console.log("Received an sns event");
+        if (event.Records[0].EventVersion !== "1.0") {
+            context.done("Unsupported event version " + event.EventVersion);
+        }
+
+        var message = JSON.parse(event.Records[0].Sns.Message);
+
+        reprocessMessage(message, function(msg) {
+            context.done(msg);
+        });
+    } else {
+        context.done("Unable to process events of type " + event.Records[0].EventSource);
+    }
+}
 
 /**
  * An SQS message subscribed to an SNS notification will take the form:
@@ -117,32 +133,25 @@ function reprocessMessage(message, callback) {
     "awsRegion": "eu-west-1"
  }
  */
-function handleSNS(event, context) {
-    if(event.Records[0].eventSource == "aws:sqs" || event.Records[0].EventSource == "aws:sqs") {
-        console.log("Received " + event.Records.length + " sqs event(s)");
+function handleSQS(event, context) {
+    if((event.Records[0].eventSource || event.Records[0].EventSource) == "aws:sqs") {
+        console.log("Received ", event.Records.length, " sqs event(s)");
         for(var i = 0; i < event.Records.length; i++) {
             var body = JSON.parse(event.Records[i].body);
             var message = JSON.parse(body.Message);
 
-            reprocessMessage(message, function(msg) {
-                context.done(msg);
+            reprocessMessage(message, function(err) {
+                if(err) {
+                    console.log("Failed to reprocess BatchId:", message.batchId, err);
+                } else {
+                    console.log("Reprocessed BatchId:", message.batchId);
+                }
             });
         }
-        console.log("finished processing sqs messages");
-    } else if(event.Records[0].EventSource == "aws:sns") {
-        console.log("Received an sns event");
-        if (event.Records[0].EventVersion !== "1.0") {
-            context.done("Unsupported event version " + event.EventVersion);
-        }
-
-        var message = JSON.parse(event.Records[0].Sns.Message);
-
-        reprocessMessage(message, function(msg) {
-            context.done(msg);
-        });
     } else {
         context.done("Unable to process events of type " + event.Records[0].EventSource);
     }
 }
 
 exports.handleSNS = handleSNS;
+exports.handleSQS = handleSQS;
