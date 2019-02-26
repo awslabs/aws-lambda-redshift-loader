@@ -143,9 +143,7 @@ function handleSQS(event, context) {
             reprocessMessage(message, function(err) {
                 if(err) {
                     console.log("Failed to reprocess BatchId:", message.batchId, err);
-                } else {
-                    console.log("Reprocessed BatchId:", message.batchId);
-                }
+                } 
             });
         }
     } else {
