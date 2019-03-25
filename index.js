@@ -47,7 +47,7 @@ kmsCrypto.setRegion(region);
 var common = require('./common');
 var async = require('async');
 var uuid = require('uuid');
-var pg = require('pg');
+const {Client} = require('pg');
 
 // empty import/invocation of the keepalive fix for node-postgres module
 require('pg-ka-fix')();
@@ -909,7 +909,7 @@ exports.handler = function (event, context) {
     /**
      * Function which will run a postgres command with retries
      */
-    exports.runPgCommand = function (clusterInfo, client, done, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
+    exports.runPgCommand = function (clusterInfo, client, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
         var completed = false;
         var retryCount = 0;
         var lastError;
@@ -920,14 +920,9 @@ exports.handler = function (event, context) {
             if (debug === true) {
                 console.log(command);
             }
-            client.query(command, function (err, result) {
-                // release the client thread
-                // back to
-                // the pool
-                done();
-
-                if (err) {
-                    lastError = err;
+            client.query(command, function (queryCommandErr, result) {
+                if (queryCommandErr) {
+                    lastError = queryCommandErr;
                     // check all the included
                     // retryable error traps to
                     // see if
@@ -935,7 +930,7 @@ exports.handler = function (event, context) {
                     var retryable = false;
                     if (retryableErrorTraps) {
                         retryableErrorTraps.map(function (retryableError) {
-                            if (err.detail && err.detail.indexOf(retryableError) > -1) {
+                            if (queryCommandErr.detail && queryCommandErr.detail.indexOf(retryableError) > -1) {
                                 retryable = true;
                             }
                         });
@@ -948,7 +943,7 @@ exports.handler = function (event, context) {
                     // specified error
                     if (!retryable) {
                         completed = true;
-                        asyncCallback(err);
+                        asyncCallback(queryCommandErr);
                     } else {
                         // increment the retry
                         // count
@@ -973,35 +968,44 @@ exports.handler = function (event, context) {
                     }
                 } else {
                     completed = true;
-
-                    asyncCallback(null);
+                    asyncCallback(queryCommandErr);
                 }
             });
-        }, function (err) {
-            if (err) {
-                // callback as error
-                callback(null, {
-                    status: ERROR,
-                    error: err,
-                    cluster: clusterInfo.clusterEndpoint.S
-                });
-            } else {
-                if (!completed) {
-                    // we were unable to complete the command
+        }, function (afterQueryCompletedErr) {
+            // close the server connection
+            client.end((disconnectErr) => {
+                if (disconnectErr) {
+                    console.log("Error during server disconnect: " + disconnectErr.stack);
+                }
+
+                /* check the status of the query completion, but don't worry about disconnection errors here. we can't
+                   fix them, and hopefully the server will just close them effectively :/
+                */
+                if (afterQueryCompletedErr) {
+                    // callback as error
                     callback(null, {
                         status: ERROR,
-                        error: lastError,
+                        error: afterQueryCompletedErr,
                         cluster: clusterInfo.clusterEndpoint.S
                     });
                 } else {
-                    // command ok
-                    callback(null, {
-                        status: OK,
-                        error: null,
-                        cluster: clusterInfo.clusterEndpoint.S
-                    });
+                    if (!completed) {
+                        // we were unable to complete the command
+                        callback(null, {
+                            status: ERROR,
+                            error: lastError,
+                            cluster: clusterInfo.clusterEndpoint.S
+                        });
+                    } else {
+                        // command ok
+                        callback(null, {
+                            status: OK,
+                            error: null,
+                            cluster: clusterInfo.clusterEndpoint.S
+                        });
+                    }
                 }
-            }
+            });
         });
     };
     /**
@@ -1188,12 +1192,23 @@ exports.handler = function (event, context) {
                 if (clusterInfo.useSSL && clusterInfo.useSSL.BOOL === true) {
                     dbString = dbString + '?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory';
                 }
-                console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
+
+                let overrideDbString = process.env['_OVERRIDE_DBSTRING'];
+                if (overrideDbString && overrideDbString !== null) {
+                    dbString = overrideDbString;
+                    console.log("Using Override Database String: " + overrideDbString);
+                } else {
+                    console.log("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
+                }
 
                 /*
                  * connect to database and run the copy command
                  */
-                pg.connect(dbString, function (err, client, done) {
+                const pgClient = new Client({
+                    connectionString: dbString
+                });
+
+                pgClient.connect((err) => {
                     if (err) {
                         callback(null, {
                             status: ERROR,
@@ -1209,7 +1224,7 @@ exports.handler = function (event, context) {
                          * backoff from 30ms with 5 retries - giving a max retry
                          * duration of ~ 1 second
                          */
-                        exports.runPgCommand(clusterInfo, client, done, copyCommand, 5, ["S3ServiceException:The specified key does not exist.,Status 404"], 30, callback);
+                        exports.runPgCommand(clusterInfo, pgClient, copyCommand, 5, ["S3ServiceException:The specified key does not exist.,Status 404"], 30, callback);
                     }
                 });
             }
@@ -1221,7 +1236,7 @@ exports.handler = function (event, context) {
      * accordingly
      */
     exports.failBatch = function (loadState, config, thisBatchId, s3Info, manifestInfo) {
-        console.log("Failing Batch " + thisBatchId + " due to " + loadState);
+        console.log("Failing Batch " + thisBatchId + " due to " + JSON.stringify(loadState));
 
         if (config.failedManifestKey && manifestInfo) {
             // copy the manifest to the failed location

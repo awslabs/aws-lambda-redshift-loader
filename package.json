@@ -12,7 +12,7 @@
         "aws-sdk": "2.399.0",
         "https-proxy-agent": "2.2.1",
         "minimist": "1.2.0",
-        "pg": "7.8.0",
+        "pg": "7.9.0",
         "pg-ka-fix": "1.0.0-rm-fix",
         "pgpass": "1.0.2",
         "regex": "^0.1.1",
