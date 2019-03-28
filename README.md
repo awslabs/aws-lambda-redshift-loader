@@ -184,7 +184,7 @@ credentials to Redshift for the COPY command:
 
 1.	Go to the AWS Lambda Console in the same region as your S3 bucket and Amazon Redshift cluster.
 2.	Select Create a Lambda function and select the 'Author from Scratch' option
-3. Enter the function name `LambdaRedshiftLoader`, and the Runtime value as 'Node.js 6.10'. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing.
+3. Enter the function name `LambdaRedshiftLoader`, and the Runtime value as 'Node.js <version>'. The function name must be `LambdaRedshiftLoader` in order to use automated event source routing. The function was built and comprehensively tested on Node version .10, and is used by customers on a variety of other versions. Please report any issues around Node.js engine compatibility via Issues.
 4. Choose the IAM role that you would like to run the Lambda function under, as configured above
 5. Choose 'Create Function'
 6. Under the 'Function code' section, choose 'Upload a file from Amazon S3', and use the table below to find the correct s3 location for your region.
