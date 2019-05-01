@@ -8,7 +8,7 @@
         "email": "meyersi@amazon.com"
     },
     "dependencies": {
-        "async": "2.6.1",
+        "async": "2.6.2",
         "aws-sdk": "2.399.0",
         "https-proxy-agent": "2.2.1",
         "minimist": "1.2.0",

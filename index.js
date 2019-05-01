@@ -786,7 +786,7 @@ exports.handler = function (event, context) {
                  * from Lambda with '+' and plus values come in as %2B. Redshift
                  * wants the original S3 value
                  */
-                url: 's3://' + batchEntries[i].replace('+', ' ').replace('%2B', '+'),
+                url: 's3://' + batchEntries[i].replace(/\+/g, ' ').replace(/%2B/g, '+'),
                 mandatory: true
             });
         }
