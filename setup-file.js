@@ -227,7 +227,7 @@ q_postsql = function (callback) {
 
 q_df = function (callback) {
     // the Data Format (CSV, JSON, AVRO, Parquet, ORC)
-    common.validateArrayContains(['CSV', 'JSON', 'AVRO', 'Parquet', 'ORC'], answer.toUpperCase(), rl);
+    common.validateArrayContains(['CSV', 'JSON', 'AVRO', 'Parquet', 'ORC'], setupConfig.df.toUpperCase(), rl);
     dynamoConfig.Item.dataFormat = {
         S: setupConfig.df.toUpperCase()
     };
