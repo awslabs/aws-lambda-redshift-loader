@@ -192,23 +192,23 @@ credentials to Redshift for the COPY command:
 
 | Region | Function Code S3 Location |
 | ------ | ---- |
-| eu-north-1 | [s3://awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
-| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.9.zip)
+| eu-north-1 | [s3://awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
 
 When you're done, you'll see that the AWS Lambda function is deployed and you
 can submit test events and view the CloudWatch Logging log streams.
@@ -709,7 +709,7 @@ An example configuration looks like this:
 
 ----
 
-Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright 2014-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Licensed under the Amazon Software License (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
 

@@ -232,7 +232,7 @@ Resources:
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
-        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.6.8.zip'
-      Runtime: nodejs6.10
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip'
+      Runtime: nodejs8.10
 
  
