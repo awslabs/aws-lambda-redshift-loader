@@ -5,7 +5,7 @@
 
         http://aws.amazon.com/asl/
 
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
+    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 
 var async = require('async');
@@ -81,7 +81,10 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'HASH'
         }],
         TableName: filesTable,
-        BillingMode: "PAY_PER_REQUEST"
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 5
+        }
     };
     var configKey = s3prefix;
     var configSpec = {
@@ -94,7 +97,10 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'HASH'
         }],
         TableName: configTable,
-        BillingMode: "PAY_PER_REQUEST"
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 5
+        }
     };
 
     var batchKey = batchId;
@@ -121,7 +127,10 @@ exports.createTables = function (dynamoDB, callback) {
             KeyType: 'RANGE'
         }],
         TableName: batchTable,
-        BillingMode: "PAY_PER_REQUEST",
+        ProvisionedThroughput: {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 5
+        },
         GlobalSecondaryIndexes: [{
             IndexName: batchStatusGSI,
             KeySchema: [{
