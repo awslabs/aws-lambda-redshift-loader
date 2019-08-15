@@ -511,21 +511,6 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
                                 if (err) {
                                     callback(err);
                                 } else {
-                                    // now create the event source mapping
-                                    var newEventConfiguration = {
-                                        Events: ['s3:ObjectCreated:*',],
-                                        LambdaFunctionArn: functionArn,
-                                        Filter: {
-                                            Key: {
-                                                FilterRules: [{
-                                                    Name: 'prefix',
-                                                    Value: prefix + "/"
-                                                }]
-                                            }
-                                        },
-                                        Id: "LambdaRedshiftLoaderEventSource-" + uuid.v4()
-                                    };
-
                                     // add the notification configuration to the
                                     // set of existing lambda configurations
                                     if (!currentNotificationConfiguration) {
@@ -535,24 +520,54 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
                                         currentNotificationConfiguration.LambdaFunctionConfigurations = [];
                                     }
 
-                                    currentNotificationConfiguration.LambdaFunctionConfigurations.push(newEventConfiguration);
+                                    configAlreadyExists = false;
 
-                                    // push the function event trigger
-                                    // configurations back into S3
-                                    var params = {
-                                        Bucket: bucket,
-                                        NotificationConfiguration: currentNotificationConfiguration
-                                    };
-
-                                    s3.putBucketNotificationConfiguration(params, function (err, data) {
-                                        if (err) {
-                                            console.log(this.httpResponse.body.toString());
-                                            console.log(err);
-                                            callback(err);
-                                        } else {
-                                            callback();
+                                    // Let's check our configs to see if we already have one that exists
+                                    currentNotificationConfiguration.LambdaFunctionConfigurations.forEach(config => {
+                                        if (config.Filter.Key.FilterRules[0].Value == prefix + '/') {
+                                            console.log('Skipping creation of notification config because it already exists');
+                                            configAlreadyExists = true;
                                         }
                                     });
+
+                                    // Create a new notification config
+                                    if (!configAlreadyExists) {
+                                        console.log('Creating notification configuration');
+
+                                        // now create the event source mapping
+                                        var newEventConfiguration = {
+                                            Events: ['s3:ObjectCreated:*',],
+                                            LambdaFunctionArn: functionArn,
+                                            Filter: {
+                                                Key: {
+                                                    FilterRules: [{
+                                                        Name: 'prefix',
+                                                        Value: prefix + "/"
+                                                    }]
+                                                }
+                                            },
+                                            Id: "LambdaRedshiftLoaderEventSource-" + uuid.v4()
+                                        };
+
+                                        currentNotificationConfiguration.LambdaFunctionConfigurations.push(newEventConfiguration);
+
+                                        // push the function event trigger
+                                        // configurations back into S3
+                                        var params = {
+                                            Bucket: bucket,
+                                            NotificationConfiguration: currentNotificationConfiguration
+                                        };
+
+                                        s3.putBucketNotificationConfiguration(params, function (err, data) {
+                                            if (err) {
+                                                console.log(this.httpResponse.body.toString());
+                                                console.log(err);
+                                                callback(err);
+                                            } else {
+                                                callback();
+                                            }
+                                        });
+                                    }
                                 }
                             });
                         }
