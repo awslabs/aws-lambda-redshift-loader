@@ -1,8 +1,8 @@
 #This is deploy.yaml V 0.9
-#This file will set up most of what is needed to configure the Lambda Redshift database 
+#This file will set up most of what is needed to configure the Lambda Redshift database
 #loader
 #It will not create the KMS key required for encrypting the database password
-#The user will need to create that key and assign it the alias "LambdaRedshiftLoaderKey" 
+#The user will need to create that key and assign it the alias "LambdaRedshiftLoaderKey"
 #The config script will use the key by its alias
 #
 #Parameters and notes
@@ -10,10 +10,10 @@
 #AvailabilityZone - Note that the stack will create in the current region by default, and
 #                   the list of availability zones available will be created based on the
 #                   region in which the user is creating the CloudFormation stack
-#SecurityGroup    - sets up the networking.  Will require SSH and default Redshift port 
+#SecurityGroup    - sets up the networking.  Will require SSH and default Redshift port
 #                   access.
 #KeyName          - the access key for SSH access to the driver EC2 instance.
-#SubnetId         - The subnet within your selected availability zone to use for the 
+#SubnetId         - The subnet within your selected availability zone to use for the
 #                   driver EC2 instance.  Note that CloudFormation will *not* cross-check
 #                   at runtime to verify that the subnet and availability zone match.
 
@@ -56,9 +56,9 @@ Mappings:
       HVM64: "ami-0ad42f4f66f6c1cc9"
    sa-east-1:
       HVM64: "ami-05145e0b28ad8e0b2"
-   
-Parameters:  
- AvailabilityZone: 
+
+Parameters:
+ AvailabilityZone:
    Description: The availability zone in which to set up the driver and trigger
    Type: AWS::EC2::AvailabilityZone::Name
    Default: us-east-1a
@@ -71,31 +71,31 @@ Parameters:
  SubnetId:
    Description: "The existing Subnet for the EC2 driver instance"
    Type: AWS::EC2::Subnet::Id
-     
-Resources: 
-  EC2LambdaSetupRole: 
+
+Resources:
+  EC2LambdaSetupRole:
     Type: "AWS::IAM::Role"
-    Properties: 
-      AssumeRolePolicyDocument: 
+    Properties:
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
-          - 
+        Statement:
+          -
             Effect: "Allow"
-            Principal: 
-              Service: 
+            Principal:
+              Service:
                 - "ec2.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
       Path: "/"
-      Policies: 
-        - 
+      Policies:
+        -
           PolicyName: "EC2-lambda-setup"
-          PolicyDocument: 
+          PolicyDocument:
             Version: "2012-10-17"
-            Statement: 
-              - 
+            Statement:
+              -
                 Effect: "Allow"
-                Action: 
+                Action:
                     - "dynamodb:CreateTable"
                     - "dynamodb:PutItem"
                     - "dynamodb:ListTables"
@@ -115,7 +115,7 @@ Resources:
                     - "lambda:GetFunctionConfiguration"
                     - "lambda:DeleteFunction"
                     - "lambda:GetPolicy"
-                    - "s3:*"     
+                    - "s3:*"
                     - "kms:Encrypt"
                     - "kms:Decrypt"
                     - "kms:ReEncrypt*"
@@ -125,20 +125,20 @@ Resources:
 
   MyInstanceProfile:
       Type: AWS::IAM::InstanceProfile
-      Properties: 
+      Properties:
           Path: '/'
-          Roles: 
+          Roles:
             - !Ref EC2LambdaSetupRole
           InstanceProfileName: ec2-lambda-setup-instance-profile
-  
-  MyEC2Instance: 
+
+  MyEC2Instance:
         Type: AWS::EC2::Instance
-        Properties: 
+        Properties:
           AvailabilityZone: !Ref AvailabilityZone
           IamInstanceProfile: 'ec2-lambda-setup-instance-profile'
-          BlockDeviceMappings: 
+          BlockDeviceMappings:
           - DeviceName: "/dev/xvda"
-            Ebs: 
+            Ebs:
               DeleteOnTermination: "true"
               VolumeSize: "10"
           ImageId: !FindInMap
@@ -147,7 +147,7 @@ Resources:
              - HVM64
           InstanceType: "t2.micro"
           KeyName: !Ref KeyName
-          SecurityGroupIds: 
+          SecurityGroupIds:
             - !Ref SecurityGroup
           SubnetId: !Ref SubnetId
           UserData:
@@ -158,7 +158,7 @@ Resources:
                     yum install git -y
                     sudo -u ec2-user git clone https://github.com/awslabs/aws-lambda-redshift-loader/ /home/ec2-user/aws-lambda-redshift-loader
                     sudo -u ec2-user git clone https://github.com/creationix/nvm.git /home/ec2-user/.nvm
-                    chmod 755 /home/ec2-user/.nvm/nvm.sh 
+                    chmod 755 /home/ec2-user/.nvm/nvm.sh
                     sudo -u ec2-user [ -s "/home/ec2-user/.nvm/nvm.sh" ] && \. "/home/ec2-user/.nvm/nvm.sh"
                     sudo -u ec2-user echo 'export NVM_DIR="$HOME/.nvm"' >> /home/ec2-user/.bashrc
                     sudo -u ec2-user echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/ec2-user/.bashrc
@@ -172,35 +172,35 @@ Resources:
                     sudo chown ec2-user:ec2-user /usr/bin/setup.sh
                     sudo chmod +x /usr/bin/setup.sh
                     sudo -u ec2-user setup.sh
-          Tags: 
-             - Key: "Name" 
+          Tags:
+             - Key: "Name"
                Value: "CF Created Instance"
              - Key: "Purpose"
                Value: "Lambda Trigger Setup"
- 
-  EC2LambdaTriggerRole: 
+
+  EC2LambdaTriggerRole:
     Type: "AWS::IAM::Role"
-    Properties: 
-      AssumeRolePolicyDocument: 
+    Properties:
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
-          - 
+        Statement:
+          -
             Effect: "Allow"
-            Principal: 
-              Service: 
+            Principal:
+              Service:
                 - lambda.amazonaws.com
-            Action: 
+            Action:
               - sts:AssumeRole
       Path: "/"
-      Policies: 
-        - 
+      Policies:
+        -
           PolicyName: "EC2-lambda-trigger-policy"
-          PolicyDocument: 
+          PolicyDocument:
             Version: "2012-10-17"
-            Statement: 
-              - 
+            Statement:
+              -
                 Effect: "Allow"
-                Action:                     
+                Action:
                     - "dynamodb:DeleteItem"
                     - "dynamodb:DescribeTable"
                     - "dynamodb:GetItem"
@@ -232,7 +232,6 @@ Resources:
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
-        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip'
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.1.zip'
       Runtime: nodejs8.10
 
- 

@@ -155,6 +155,10 @@ q_userName = function (callback) {
 };
 
 q_userPwd = function (callback) {
+    if (!setupConfig.userPwd) {
+        return callback(null);
+    }
+
     // the Database Password
     kmsCrypto.encrypt(setupConfig.userPwd, function (err, ciphertext) {
         if (err) {
