@@ -151,6 +151,7 @@ q_clusterDB = function (callback) {
 
 q_userName = function (callback) {
     rl.question('Enter the Database Username > ', function (answer) {
+        common.validateNotNull(answer, 'You Must Provide a Username', rl);
         dynamoConfig.Item.loadClusters.L[0].M.connectUser = {
             S: answer
         };
@@ -172,15 +173,6 @@ q_userPwd = function (callback) {
                 callback(null);
             }
         });
-    });
-};
-
-q_credstashUserKey = function (callback) {
-    rl.question('Enter the Credstash key for Database Username > ', function (answer) {
-        dynamoConfig.Item.loadClusters.L[0].M.credstashUserKey = {
-            S: answer
-        };
-        callback(null);
     });
 };
 
@@ -447,7 +439,6 @@ qs.push(q_columnList);
 qs.push(q_truncateTable);
 qs.push(q_userName);
 qs.push(q_userPwd);
-qs.push(q_credstashUserKey);
 qs.push(q_credstashPassKey);
 qs.push(q_df);
 qs.push(q_csvDelimiter);

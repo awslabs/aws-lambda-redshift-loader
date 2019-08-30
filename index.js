@@ -1184,16 +1184,10 @@ exports.handler = function (event, context) {
                     console.log(copyCommand);
                 }
 
-                var username = clusterInfo.connectUser.S;
-                var password = encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
-
-                if (clusterInfo.credstashUserKey.S) {
-                    username = await common.credstashValue(clusterInfo.credstashUserKey.S);
-                    password = await common.credstashValue(clusterInfo.credstashPassKey.S);
-                }
+                var password = clusterInfo.credstashPassKey.S ? await common.credstashValue(clusterInfo.credstashPassKey.S) : encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
 
                 // build the connection string
-                var dbString = 'postgres://' + username + ":" + password + "@" + clusterInfo.clusterEndpoint.S + ":"
+                var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + password + "@" + clusterInfo.clusterEndpoint.S + ":"
                     + clusterInfo.clusterPort.N;
                 if (clusterInfo.clusterDB) {
                     dbString = dbString + '/' + clusterInfo.clusterDB.S;

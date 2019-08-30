@@ -169,14 +169,6 @@ q_userPwd = function (callback) {
     });
 };
 
-q_credstashUserKey = function (callback) {
-    // the Credstash key value for Database Username
-    dynamoConfig.Item.loadClusters.L[0].M.credstashUserKey = {
-        S: setupConfig.credstashUserKey
-    };
-    callback(null);
-};
-
 q_credstashPassKey = function (callback) {
     // the Credstash key value for Database Username
     dynamoConfig.Item.loadClusters.L[0].M.credstashPassKey = {
