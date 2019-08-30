@@ -49,6 +49,7 @@ var async = require('async');
 var uuid = require('uuid');
 const {Client} = require('pg');
 
+
 // empty import/invocation of the keepalive fix for node-postgres module
 require('pg-ka-fix')();
 
@@ -1076,7 +1077,7 @@ exports.handler = function (event, context) {
         }
 
         // decrypt the encrypted items
-        kmsCrypto.decryptMap(encryptedItems, function (err, decryptedConfigItems) {
+        kmsCrypto.decryptMap(encryptedItems, async function (err, decryptedConfigItems) {
             if (err) {
                 callback(err, {
                     status: ERROR,
@@ -1183,8 +1184,16 @@ exports.handler = function (event, context) {
                     console.log(copyCommand);
                 }
 
+                var username = clusterInfo.connectUser.S;
+                var password = encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
+
+                if (clusterInfo.credstashUserKey.S) {
+                    username = await common.credstashValue(clusterInfo.credstashUserKey.S);
+                    password = await common.credstashValue(clusterInfo.credstashPassKey.S);
+                }
+
                 // build the connection string
-                var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString()) + "@" + clusterInfo.clusterEndpoint.S + ":"
+                var dbString = 'postgres://' + username + ":" + password + "@" + clusterInfo.clusterEndpoint.S + ":"
                     + clusterInfo.clusterPort.N;
                 if (clusterInfo.clusterDB) {
                     dbString = dbString + '/' + clusterInfo.clusterDB.S;

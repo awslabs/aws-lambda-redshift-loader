@@ -10,6 +10,7 @@
     "dependencies": {
         "async": "2.6.2",
         "aws-sdk": "2.467.0",
+        "credstash": "^1.0.44",
         "https-proxy-agent": "2.2.1",
         "minimist": "1.2.0",
         "pg": "7.11.0",
