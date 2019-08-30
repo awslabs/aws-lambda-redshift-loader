@@ -448,6 +448,7 @@ qs.push(q_presql);
 qs.push(q_postsql);
 qs.push(q_userName);
 qs.push(q_userPwd);
+qs.push(q_credstashPassKey);
 qs.push(q_df);
 qs.push(q_csvDelimiter);
 qs.push(q_ignoreCsvHeader);

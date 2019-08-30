@@ -1068,7 +1068,9 @@ exports.handler = function (event, context) {
         }
 
         // add the cluster password
-        encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
+        if (clusterInfo.connectPassword) {
+            encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
+        }
 
         // add the master encryption key to the list of items to be decrypted,
         // if there is one
@@ -1184,7 +1186,7 @@ exports.handler = function (event, context) {
                     console.log(copyCommand);
                 }
 
-                var password = clusterInfo.credstashPassKey.S ? await common.credstashValue(clusterInfo.credstashPassKey.S) : encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
+                var password = clusterInfo.credstashPassKey && clusterInfo.credstashPassKey.S ? await common.credstashValue(clusterInfo.credstashPassKey.S) : encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
 
                 // build the connection string
                 var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + password + "@" + clusterInfo.clusterEndpoint.S + ":"
