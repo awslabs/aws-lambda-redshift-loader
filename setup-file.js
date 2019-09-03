@@ -148,6 +148,7 @@ q_clusterDB = function (callback) {
 
 q_userName = function (callback) {
     // the Database Username
+    common.validateNotNull(setupConfig.userName, 'You Must Provide a Username', rl);
     dynamoConfig.Item.loadClusters.L[0].M.connectUser = {
         S: setupConfig.userName
     };
