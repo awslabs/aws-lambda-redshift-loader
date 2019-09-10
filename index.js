@@ -48,6 +48,7 @@ var common = require('./common');
 var async = require('async');
 var uuid = require('uuid');
 const {Client} = require('pg');
+const maxRetryMS = 200;
 
 // empty import/invocation of the keepalive fix for node-postgres module
 require('pg-ka-fix')();
