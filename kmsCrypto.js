@@ -18,7 +18,7 @@ var authContext = {
 };
 
 // module key alias to be used for this application
-var moduleKeyName = "alias/LambaRedshiftLoaderKey";
+var moduleKeyName = "alias/LambdaRedshiftLoaderKey";
 
 var setRegion = function(region) {
     if (!region) {
