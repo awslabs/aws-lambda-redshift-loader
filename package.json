@@ -55,5 +55,8 @@
     "repository": {
         "type": "git",
         "url": "http://github.com/awslabs/aws-lambda-redshift-loader"
+    },
+    "devDependencies": {
+        "serverless-plugin-tracing": "^2.0.0"
     }
 }

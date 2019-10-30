@@ -10,6 +10,8 @@
 var debug = process.env['DEBUG'] !== undefined
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
+const awsXRay = require('aws-xray-sdk');
+const awsSdk = awsXRay.captureAWS(require('aws-sdk'));
 
 if (!region || region === null || region === "") {
     region = "us-east-1";
