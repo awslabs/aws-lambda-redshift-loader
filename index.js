@@ -11,14 +11,13 @@ var debug = process.env['DEBUG'] !== undefined
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
 const awsXRay = require('aws-xray-sdk');
-const awsSdk = awsXRay.captureAWS(require('aws-sdk'));
 
 if (!region || region === null || region === "") {
     region = "us-east-1";
     console.log("AWS Lambda Redshift Database Loader using default region " + region);
 }
 
-var aws = require('aws-sdk');
+const aws = awsXRay.captureAWS(require('aws-sdk'));
 aws.config.update({
     region: region
 });
@@ -49,7 +48,7 @@ kmsCrypto.setRegion(region);
 var common = require('./common');
 var async = require('async');
 var uuid = require('uuid');
-const {Client} = require('pg');
+const {Client} = awsXRay.capturePostgres(require('pg'));
 const maxRetryMS = 200;
 
 
