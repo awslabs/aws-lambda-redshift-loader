@@ -156,9 +156,11 @@ q_userName = function (callback) {
 };
 
 q_userPwd = function (callback) {
-    // the Database Password
-    common.validateNotNull(setupConfig.userPwd, 'You Must Provide a Password', rl);
+    if (!setupConfig.userPwd) {
+        return callback(null);
+    }
 
+    // the Database Password
     kmsCrypto.encrypt(setupConfig.userPwd, function (err, ciphertext) {
         if (err) {
             console.log(JSON.stringify(err));
@@ -170,6 +172,14 @@ q_userPwd = function (callback) {
             callback(null);
         }
     });
+};
+
+q_credstashPassKey = function (callback) {
+    // the Credstash key value for Database Username
+    dynamoConfig.Item.loadClusters.L[0].M.credstashPassKey = {
+        S: setupConfig.credstashPassKey
+    };
+    callback(null);
 };
 
 q_table = function (callback) {
@@ -443,6 +453,7 @@ qs.push(q_presql);
 qs.push(q_postsql);
 qs.push(q_userName);
 qs.push(q_userPwd);
+qs.push(q_credstashPassKey);
 qs.push(q_df);
 qs.push(q_csvDelimiter);
 qs.push(q_ignoreCsvHeader);

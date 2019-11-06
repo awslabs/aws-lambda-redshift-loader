@@ -12,6 +12,8 @@ var async = require('async');
 var uuid = require('uuid');
 require('./constants');
 var pjson = require('./package.json');
+const Credstash = require('credstash');
+const credstash = new Credstash();
 
 // function which creates a string representation of now suitable for use in S3
 // paths
@@ -805,4 +807,23 @@ exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
             }
         }
     });
+}
+
+/**
+ * Get a value from credstash with given key
+ *
+ * @param   {string}  key  The key to use
+ *
+ * @return  {Promise}       return a promise to be used with async/await
+ */
+exports.credstashValue = function(key) {
+    return new Promise((resolve, reject) => {
+        credstash.get(key, (e, secret) => {
+            if (e) {
+                reject(e);
+            } else {
+                resolve(secret);
+            }
+        });
+    })
 }

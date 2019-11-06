@@ -10,13 +10,14 @@
 var debug = process.env['DEBUG'] !== undefined
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
+const awsXRay = require('aws-xray-sdk');
 
 if (!region || region === null || region === "") {
     region = "us-east-1";
     console.log("AWS Lambda Redshift Database Loader using default region " + region);
 }
 
-var aws = require('aws-sdk');
+const aws = awsXRay.captureAWS(require('aws-sdk'));
 aws.config.update({
     region: region
 });
@@ -47,8 +48,9 @@ kmsCrypto.setRegion(region);
 var common = require('./common');
 var async = require('async');
 var uuid = require('uuid');
-const {Client} = require('pg');
+const {Client} = awsXRay.capturePostgres(require('pg'));
 const maxRetryMS = 200;
+
 
 // empty import/invocation of the keepalive fix for node-postgres module
 require('pg-ka-fix')();
@@ -1068,7 +1070,9 @@ exports.handler = function (event, context) {
         }
 
         // add the cluster password
-        encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
+        if (clusterInfo.connectPassword) {
+            encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
+        }
 
         // add the master encryption key to the list of items to be decrypted,
         // if there is one
@@ -1077,7 +1081,7 @@ exports.handler = function (event, context) {
         }
 
         // decrypt the encrypted items
-        kmsCrypto.decryptMap(encryptedItems, function (err, decryptedConfigItems) {
+        kmsCrypto.decryptMap(encryptedItems, async function (err, decryptedConfigItems) {
             if (err) {
                 callback(err, {
                     status: ERROR,
@@ -1184,8 +1188,10 @@ exports.handler = function (event, context) {
                     console.log(copyCommand);
                 }
 
+                var password = clusterInfo.credstashPassKey && clusterInfo.credstashPassKey.S ? await common.credstashValue(clusterInfo.credstashPassKey.S) : encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString());
+
                 // build the connection string
-                var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + encodeURIComponent(decryptedConfigItems[passwordKeyMapEntry].toString()) + "@" + clusterInfo.clusterEndpoint.S + ":"
+                var dbString = 'postgres://' + clusterInfo.connectUser.S + ":" + password + "@" + clusterInfo.clusterEndpoint.S + ":"
                     + clusterInfo.clusterPort.N;
                 if (clusterInfo.clusterDB) {
                     dbString = dbString + '/' + clusterInfo.clusterDB.S;

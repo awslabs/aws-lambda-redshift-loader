@@ -5,7 +5,7 @@
 
         http://aws.amazon.com/asl/
 
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License. 
+    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
 var pjson = require('./package.json');
 var common = require('./common');
@@ -147,7 +147,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallb
 	// upgrade each cluster entry's password for redshift
 	if (configPre && configPre.loadClusters && configPre.loadClusters.L) {
 		configPre.loadClusters.L.map(function (item) {
-			if (item.M.connectPassword.S.indexOf('[') > -1) {
+			if (item.M.connectPassword && item.M.connectPassword.S.indexOf('[') > -1) {
 				willDoUpgrade = true;
 				item.M.connectPassword.S = new Buffer(JSON.parse(item.M.connectPassword.S)).toString('base64');
 			}

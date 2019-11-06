@@ -161,7 +161,6 @@ q_userName = function (callback) {
 
 q_userPwd = function (callback) {
     rl.question('Enter the Database Password (will be displayed, but encrypted before storing) > ', function (answer) {
-        common.validateNotNull(answer, 'You Must Provide a Password', rl);
 
         kmsCrypto.encrypt(answer, function (err, ciphertext) {
             if (err) {
@@ -174,6 +173,15 @@ q_userPwd = function (callback) {
                 callback(null);
             }
         });
+    });
+};
+
+q_credstashPassKey = function (callback) {
+    rl.question('Enter the Credstash key for Database Password > ', function (answer) {
+        dynamoConfig.Item.loadClusters.L[0].M.credstashPassKey = {
+            S: answer
+        };
+        callback(null);
     });
 };
 
@@ -431,6 +439,7 @@ qs.push(q_columnList);
 qs.push(q_truncateTable);
 qs.push(q_userName);
 qs.push(q_userPwd);
+qs.push(q_credstashPassKey);
 qs.push(q_df);
 qs.push(q_csvDelimiter);
 qs.push(q_ignoreCsvHeader);
