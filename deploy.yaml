@@ -1,4 +1,4 @@
-#This is deploy.yaml V 0.9
+#This is deploy.yaml V 0.9.1
 #This file will set up most of what is needed to configure the Lambda Redshift database 
 #loader
 #It will not create the KMS key required for encrypting the database password
@@ -232,7 +232,7 @@ Resources:
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
-        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip'
-      Runtime: nodejs8.10
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.1.zip'
+      Runtime: nodejs12.x
 
  
