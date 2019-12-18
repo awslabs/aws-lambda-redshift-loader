@@ -157,23 +157,41 @@ credentials to Redshift for the COPY command:
                 "dynamodb:PutItem",
                 "dynamodb:Query",
                 "dynamodb:Scan",
-                "dynamodb:UpdateItem",
+                "dynamodb:UpdateItem"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftBatches",
+                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftBatchLoadConfig",
+                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftProcessedFiles"              
+            ]
+        },
+        {
+            "Sid": "Stmt1424787824001",
+            "Effect": "Allow",
+            "Action": [
                 "sns:GetEndpointAttributes",
                 "sns:GetSubscriptionAttributes",
                 "sns:GetTopicAttributes",
                 "sns:ListTopics",
                 "sns:Publish",
                 "sns:Subscribe",
-                "sns:Unsubscribe",
-                "s3:Get*",
-                "s3:Put*",
-                "s3:List*",
+                "sns:Unsubscribe"
+            ],
+            "Resource": [
+                "arn:aws:sns:<my region>:<my account>:<success topic>",
+                "arn:aws:sns:<my region>:<my account>:<failure topic>"              
+            ]
+        },
+        {
+            "Sid": "Stmt1424787824002",
+            "Effect": "Allow",
+            "Action": [
                 "kms:Decrypt",
                 "kms:DescribeKey",
                 "kms:GetKeyPolicy"
             ],
             "Resource": [
-                "*"
+                "arn:aws:kms:<my region>:<my account>:key/<key name>"
             ]
         }
     ]
