@@ -71,9 +71,69 @@ Parameters:
  SubnetId:
    Description: "The existing Subnet for the EC2 driver instance"
    Type: AWS::EC2::Subnet::Id
-     
+ KmsKeyArn:
+   Description: "The KMS Key to use for Encryption"
+   Type: AWS::KMS::Key::Id
+        
 Resources: 
-  EC2LambdaSetupRole: 
+  RedshiftLoaderIamPolicy: 
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "RedshiftLambdaLoaderPolicy"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Action: 
+                - "dynamodb:CreateTable"
+                - "dynamodb:PutItem"
+                - "dynamodb:ListTables"
+                - "dynamodb:DeleteItem"
+                - "dynamodb:GetItem"
+                - "dynamodb:Scan"
+                - "dynamodb:Query"
+                - "dynamodb:UpdateItem"
+                - "dynamodb:DeleteTable"
+                - "dynamodb:UpdateTable"
+                - "dynamodb:GetRecords"
+            Resource:
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftBatches
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftBatchLoadConfig
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftProcessedFiles
+        Statement: 
+          - 
+            Effect: "Allow"
+            Action: 
+                - "lambda:CreateFunction"
+                - "lambda:AddPermission"
+                - "lambda:ListFunctions"
+                - "lambda:InvokeFunction"
+                - "lambda:GetFunction"
+                - "lambda:GetFunctionConfiguration"
+                - "lambda:DeleteFunction"
+                - "lambda:GetPolicy"
+            Resource: !Ref LambdaTriggerFunction
+        Statement: 
+          - 
+            Effect: "Allow"
+            Action:
+                - "s3:List*" 
+                - "s3:GetObject"
+                - "s3:PutObject"     
+            Resource: "*"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Action:     
+                - "kms:Encrypt"
+                - "kms:Decrypt"
+                - "kms:ReEncrypt*"
+                - "kms:GenerateDataKey*"
+                - "kms:DescribeKey"
+            Resource: !Ref KmsKeyArn             
+
+  EC2ContainerRole: 
     Type: "AWS::IAM::Role"
     Properties: 
       AssumeRolePolicyDocument: 
@@ -83,52 +143,36 @@ Resources:
             Effect: "Allow"
             Principal: 
               Service: 
-                - "ec2.amazonaws.com"
+                - ec2.amazonaws.com
             Action: 
-              - "sts:AssumeRole"
+              - sts:AssumeRole
       Path: "/"
       Policies: 
-        - 
-          PolicyName: "EC2-lambda-setup"
-          PolicyDocument: 
-            Version: "2012-10-17"
-            Statement: 
-              - 
-                Effect: "Allow"
-                Action: 
-                    - "dynamodb:CreateTable"
-                    - "dynamodb:PutItem"
-                    - "dynamodb:ListTables"
-                    - "dynamodb:DeleteItem"
-                    - "dynamodb:GetItem"
-                    - "dynamodb:Scan"
-                    - "dynamodb:Query"
-                    - "dynamodb:UpdateItem"
-                    - "dynamodb:DeleteTable"
-                    - "dynamodb:UpdateTable"
-                    - "dynamodb:GetRecords"
-                    - "lambda:CreateFunction"
-                    - "lambda:AddPermission"
-                    - "lambda:ListFunctions"
-                    - "lambda:InvokeFunction"
-                    - "lambda:GetFunction"
-                    - "lambda:GetFunctionConfiguration"
-                    - "lambda:DeleteFunction"
-                    - "lambda:GetPolicy"
-                    - "s3:*"     
-                    - "kms:Encrypt"
-                    - "kms:Decrypt"
-                    - "kms:ReEncrypt*"
-                    - "kms:GenerateDataKey*"
-                    - "kms:DescribeKey"
-                Resource: "*"
-
+        - !Ref RedshiftLoaderIamPolicy
+        
+  LambdaTriggerRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - lambda.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Path: "/"
+      Policies: 
+        - !Ref RedshiftLoaderIamPolicy
+        
   MyInstanceProfile:
       Type: AWS::IAM::InstanceProfile
       Properties: 
           Path: '/'
           Roles: 
-            - !Ref EC2LambdaSetupRole
+            - !Ref EC2ContainerRole
           InstanceProfileName: ec2-lambda-setup-instance-profile
   
   MyEC2Instance: 
@@ -174,52 +218,9 @@ Resources:
                     sudo -u ec2-user setup.sh
           Tags: 
              - Key: "Name" 
-               Value: "CF Created Instance"
+               Value: "Redshift Loader Container Provider"
              - Key: "Purpose"
-               Value: "Lambda Trigger Setup"
- 
-  EC2LambdaTriggerRole: 
-    Type: "AWS::IAM::Role"
-    Properties: 
-      AssumeRolePolicyDocument: 
-        Version: "2012-10-17"
-        Statement: 
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
-                - lambda.amazonaws.com
-            Action: 
-              - sts:AssumeRole
-      Path: "/"
-      Policies: 
-        - 
-          PolicyName: "EC2-lambda-trigger-policy"
-          PolicyDocument: 
-            Version: "2012-10-17"
-            Statement: 
-              - 
-                Effect: "Allow"
-                Action:                     
-                    - "dynamodb:DeleteItem"
-                    - "dynamodb:DescribeTable"
-                    - "dynamodb:GetItem"
-                    - "dynamodb:ListTables"
-                    - "dynamodb:PutItem"
-                    - "dynamodb:Query"
-                    - "dynamodb:Scan"
-                    - "dynamodb:UpdateItem"
-                    - "sns:GetEndpointAttributes"
-                    - "sns:GetSubscriptionAttributes"
-                    - "sns:GetTopicAttributes"
-                    - "sns:ListTopics"
-                    - "sns:Publish"
-                    - "sns:Subscribe"
-                    - "sns:Unsubscribe"
-                    - "s3:Get*"
-                    - "s3:Put*"
-                    - "s3:List*"
-                Resource: "*"
+               Value: "Redshift Lambda Trigger Setup"
 
   LambdaTriggerFunction:
     Type: 'AWS::Lambda::Function'
@@ -228,7 +229,7 @@ Resources:
       Handler: index.handler
       Role:
         'Fn::GetAtt':
-          - EC2LambdaTriggerRole
+          - LambdaTriggerRole
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
