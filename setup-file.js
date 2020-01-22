@@ -22,8 +22,11 @@ var s3;
 var lambda;
 var kmsCrypto = require('./kmsCrypto');
 var setRegion;
-
-var configJson = process.argv[2] || './config.json';
+let configFile = process.argv[2]
+if (configFile) {
+	console.log("Loading Configuration from " + configFile);
+}
+var configJson = configFile || './config.json';
 var setupConfig = require(configJson);
 
 dynamoConfig = {
@@ -73,7 +76,7 @@ q_region = function (callback) {
 
         callback(null);
     } else {
-        console.log('You must provide a region from ' + regionsArray.toString())
+        console.log('You must provide a valid AWS region shortname');
     }
 };
 
@@ -227,7 +230,7 @@ q_postsql = function (callback) {
 
 q_df = function (callback) {
     // the Data Format (CSV, JSON, AVRO, Parquet, ORC)
-    common.validateArrayContains(['CSV', 'JSON', 'AVRO', 'Parquet', 'ORC'], setupConfig.df.toUpperCase(), rl);
+    common.validateArrayContains(['CSV', 'JSON', 'AVRO', 'PARQUET', 'ORC'], setupConfig.df.toUpperCase(), rl);
     dynamoConfig.Item.dataFormat = {
         S: setupConfig.df.toUpperCase()
     };
@@ -412,18 +415,11 @@ q_copyOptions = function (callback) {
 last = function (callback) {
     rl.close();
 
-    setup(null, callback);
+    setup(callback);
 };
 
-setup = function (overrideConfig, callback) {
-    // set which configuration to use
-    var useConfig = undefined;
-    if (overrideConfig) {
-        useConfig = overrideConfig;
-    } else {
-        useConfig = dynamoConfig;
-    }
-    common.setup(useConfig, dynamoDB, s3, lambda, callback);
+setup = function (callback) {
+    common.setup(dynamoConfig, dynamoDB, s3, lambda, callback);
 };
 // export the setup module so that customers can programmatically add new
 // configurations

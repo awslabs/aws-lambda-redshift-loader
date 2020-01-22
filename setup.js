@@ -234,7 +234,7 @@ q_csvDelimiter = function (callback) {
 };
 
 q_ignoreCsvHeader = function (callback) {
-    rl.question('ignore Header (first line) of the CSV file? (Y/N) > ', function (answer) {
+    rl.question('Ignore Header (first line) of the CSV file? (Y/N) > ', function (answer) {
         dynamoConfig.Item.ignoreCsvHeader = {
             BOOL: common.getBooleanValue(answer)
         };
@@ -415,6 +415,7 @@ last = function (callback) {
 // export the setup module so that customers can programmatically add new
 // configurations
 setup = function (useConfig, callback) {
+	console.log(JSON.stringify(useConfig));
     common.setup(useConfig, dynamoDB, s3, lambda, callback);
 };
 exports.setup = setup;

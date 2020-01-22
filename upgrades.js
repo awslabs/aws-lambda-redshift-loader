@@ -108,7 +108,8 @@ exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 	}
 };
 
-exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallback) {
+exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
+		forwardCallback) {
 	var willDoUpgrade = false;
 
 	// convert the encrypted items from the previous native storage format to
@@ -127,17 +128,21 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallb
 		}
 	};
 
-	if (configPre.masterSymmetricKey && configPre.masterSymmetricKey.S.indexOf('[') > -1) {
+	if (configPre.masterSymmetricKey
+			&& configPre.masterSymmetricKey.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newMasterSymmetricKey = new Buffer(JSON.parse(configPre.masterSymmetricKey.S)).toString('base64');
+		newMasterSymmetricKey = new Buffer.from(JSON
+				.parse(configPre.masterSymmetricKey.S)).toString('base64');
 		updateExpressions.push("masterSymmetricKey = :masterSymmetricKey");
 		expressionAttributeValues[":masterSymmetricKey"] = {
 			S : newMasterSymmetricKey
 		};
 	}
-	if (configPre.secretKeyForS3 && configPre.secretKeyForS3.S.indexOf('[') > -1) {
+	if (configPre.secretKeyForS3
+			&& configPre.secretKeyForS3.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newSecretKeyForS3 = new Buffer(JSON.parse(configPre.secretKeyForS3.S)).toString('base64');
+		newSecretKeyForS3 = new Buffer.from(JSON
+				.parse(configPre.secretKeyForS3.S)).toString('base64');
 		updateExpressions.push("secretKeyForS3 = :s3secretAccessKey");
 		expressionAttributeValues[":s3secretAccessKey"] = {
 			S : newSecretKeyForS3
@@ -146,10 +151,11 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallb
 
 	// upgrade each cluster entry's password for redshift
 	if (configPre && configPre.loadClusters && configPre.loadClusters.L) {
-		configPre.loadClusters.L.map(function (item) {
+		configPre.loadClusters.L.map(function(item) {
 			if (item.M.connectPassword.S.indexOf('[') > -1) {
 				willDoUpgrade = true;
-				item.M.connectPassword.S = new Buffer(JSON.parse(item.M.connectPassword.S)).toString('base64');
+				item.M.connectPassword.S = new Buffer.from(JSON
+						.parse(item.M.connectPassword.S)).toString('base64');
 			}
 
 			loadClusters.push(item);
@@ -171,7 +177,8 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre, forwardCallb
 			},
 			TableName : configTable,
 			UpdateExpression : "SET #loadClusters = :newLoadClusters, lastUpdate = :updateTime, #ver = :version "
-					+ (updateExpressions.length > 0 ? "," + updateExpressions.join(',') : ""),
+					+ (updateExpressions.length > 0 ? ","
+							+ updateExpressions.join(',') : ""),
 			ExpressionAttributeValues : expressionAttributeValues,
 			ExpressionAttributeNames : {
 				"#ver" : 'version',

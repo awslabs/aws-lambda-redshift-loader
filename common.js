@@ -51,7 +51,7 @@ exports.readableTime = function (epochSeconds) {
     return exports.getFormattedDate(d);
 };
 
-exports.createTableAndWait = function (tableParams, dynamoDB, callback) {
+function createTableAndWait (tableParams, dynamoDB, callback) {
     dynamoDB.createTable(tableParams, function (err, data) {
         if (err) {
             if (err.code !== 'ResourceInUseException') {
@@ -67,8 +67,9 @@ exports.createTableAndWait = function (tableParams, dynamoDB, callback) {
         }
     });
 };
+exports.createTableAndWait = createTableAndWait;
 
-exports.createTables = function (dynamoDB, callback) {
+function createTables (dynamoDB, callback) {
     // processed files table spec
     var pfKey = 'loadFile';
     var processedFilesSpec = {
@@ -150,9 +151,11 @@ exports.createTables = function (dynamoDB, callback) {
         }]
     };
 
-    console.log("Creating Tables in Dynamo DB if Required");
-    var functions = [exports.createTableAndWait.bind(undefined, processedFilesSpec, dynamoDB), exports.createTableAndWait.bind(undefined, batchSpec, dynamoDB),
-        exports.createTableAndWait.bind(undefined, configSpec, dynamoDB)];
+    let functions = [
+    	exports.createTableAndWait.bind(undefined, processedFilesSpec, dynamoDB), 
+    	exports.createTableAndWait.bind(undefined, batchSpec, dynamoDB),
+        exports.createTableAndWait.bind(undefined, configSpec, dynamoDB)
+    ];
     async.waterfall(functions, function (err, results) {
         if (err) {
             console.log(err);
@@ -162,6 +165,7 @@ exports.createTables = function (dynamoDB, callback) {
         }
     });
 };
+exports.createTables = createTables;
 
 exports.retryableUpdate = function (dynamoDB, updateRequest, callback) {
     var tryNumber = 0;
@@ -198,21 +202,21 @@ exports.retryableUpdate = function (dynamoDB, updateRequest, callback) {
             }
         });
     }, function (err, data) {
+    	console.log(err);
         callback(err, data);
     });
 };
 
-exports.retryablePut = function (dynamoDB, putRequest, callback) {
+function retryablePut (dynamoDB, putRequest, callback) {
     var tryNumber = 0;
     var writeRetryLimit = 100;
     var done = false;
 
-    async.whilst(function () {
+    async.whilst(function test(test_cb) {
         // retry until the try count is hit
-        return tryNumber < writeRetryLimit && done === false;
+        test_cb(null, tryNumber < writeRetryLimit && done === false);
     }, function (asyncCallback) {
         tryNumber++;
-
         dynamoDB.putItem(putRequest, function (err, data) {
             if (err) {
                 if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
@@ -222,6 +226,7 @@ exports.retryablePut = function (dynamoDB, putRequest, callback) {
                 } else {
                     console.log(JSON.stringify(putRequest));
                     console.log(err);
+                    done=true;
                     asyncCallback(err);
                 }
             } else {
@@ -232,6 +237,7 @@ exports.retryablePut = function (dynamoDB, putRequest, callback) {
                 } else {
                     var msg = "Wrote to DynamoDB but didn't receive a verification data element";
                     console.log(msg);
+                    done=true;
                     asyncCallback(msg);
                 }
             }
@@ -240,6 +246,7 @@ exports.retryablePut = function (dynamoDB, putRequest, callback) {
         callback(err);
     });
 };
+exports.retryablePut = retryablePut;
 
 exports.dropTables = function (dynamoDB, callback) {
     // drop the config table
@@ -322,7 +329,7 @@ exports.validateNotNull = function (value, message, rl) {
 
 /* turn blank lines read from STDIN to Null */
 exports.blank = function (value) {
-    if (value === '') {
+    if (!value || value === '') {
         return null;
     } else {
         return value;
@@ -444,7 +451,8 @@ exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionN
                         foundMatch = true;
                     }
                 } catch (e) {
-                    // this is OK - just means that the policy structure doesn't match the above format
+                    // this is OK - just means that the policy structure doesn't
+					// match the above format
 
                 }
             });
@@ -477,12 +485,13 @@ exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionN
     });
 };
 
-exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName, callback) {
+function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback) {
     console.log("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
 
     // lookup the deployed function name to get the ARN
     exports.getFunctionArn(lambda, functionName, function (err, functionArn) {
         if (err) {
+        	console.log(err);
             callback(err);
         } else {
             // blow up if there's no deployed function - can't create the event
@@ -522,7 +531,8 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
 
                                     configAlreadyExists = false;
 
-                                    // Let's check our configs to see if we already have one that exists
+                                    // Let's check our configs to see if we
+									// already have one that exists
                                     currentNotificationConfiguration.LambdaFunctionConfigurations.forEach(config => {
                                         if (config.Filter.Key.FilterRules[0].Value == prefix + '/') {
                                             console.log('Skipping creation of notification config because it already exists');
@@ -577,39 +587,43 @@ exports.createS3EventSource = function (s3, lambda, bucket, prefix, functionName
         }
     });
 };
+exports.createS3EventSource = createS3EventSource;
 
 // function which sets up the tables, writes the configuration, and creates the
 // event source for S3->Lambda
-exports.setup = function (useConfig, dynamoDB, s3, lambda, callback) {
+function setup (useConfig, dynamoDB, s3, lambda, callback) {
     // function to create tables
-    var createTables = function (c) {
-        exports.createTables(dynamoDB, function (err) {
+    var ct = function (c) {
+    	console.log("Creating required configuration tables in DynamoDB")
+        createTables(dynamoDB, function (err) {
             c(err);
         });
     };
 
     // function to write the configuration into the config tables
-    var writeConfig = function (c) {
-        exports.retryablePut(dynamoDB, useConfig, function (err) {
+    var wc = function (c) {
+    	console.log("Creating Configuration");
+    	retryablePut(dynamoDB, useConfig, function (err) {
             c(err);
         });
     };
 
     // function which invokes the creation of the event source for the bucket
     // and prefix
-    var createEventSource = function (c) {
+    var ces = function (c) {
+    	console.log("Creating S3 Event Source")
         var s3prefix = useConfig.Item.s3Prefix.S;
         var tokens = s3prefix.split("/");
         var bucket = tokens[0];
         var prefix = tokens.slice(1).join("/");
 
         // deployedFunctionName is defined in constants.js
-        exports.createS3EventSource(s3, lambda, bucket, prefix, deployedFunctionName, function (err, configId) {
+        createS3EventSource(s3, lambda, bucket, prefix, deployedFunctionName, function (err, configId) {
             c(err);
         });
     };
 
-    async.waterfall([createTables, writeConfig, createEventSource], function (err, result) {
+    async.waterfall([ct, wc, ces], function (err, result) {
         if (err) {
             console.log(err);
             callback(err);
@@ -618,6 +632,7 @@ exports.setup = function (useConfig, dynamoDB, s3, lambda, callback) {
         }
     });
 };
+exports.setup = setup;
 
 exports.inPlaceCopyFile = function (s3, batchId, batchEntry, callback) {
     // issue a same source/target copy command to S3, which will cause
@@ -787,7 +802,8 @@ exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
                     if (err) {
                         callback(err);
                     } else {
-                        // now the file needs an in-place copy with new metadata to cause a reprocess
+                        // now the file needs an in-place copy with new metadata
+						// to cause a reprocess
                         exports.inPlaceCopyFile(s3, undefined, file, function (err, data) {
                             if (callback) {
                                 callback(err);
