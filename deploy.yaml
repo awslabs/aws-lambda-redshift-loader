@@ -73,13 +73,16 @@ Parameters:
    Type: AWS::EC2::Subnet::Id
  KmsKeyArn:
    Description: "The KMS Key to use for Encryption"
-   Type: AWS::KMS::Key::Id
+   Type: String
         
 Resources: 
   RedshiftLoaderIamPolicy: 
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: "RedshiftLambdaLoaderPolicy"
+      Roles:
+          - !Ref EC2ContainerRole
+          - !Ref LambdaTriggerRole
       PolicyDocument: 
         Version: "2012-10-17"
         Statement: 
@@ -147,8 +150,6 @@ Resources:
             Action: 
               - sts:AssumeRole
       Path: "/"
-      Policies: 
-        - !Ref RedshiftLoaderIamPolicy
         
   LambdaTriggerRole: 
     Type: "AWS::IAM::Role"
@@ -164,8 +165,6 @@ Resources:
             Action: 
               - sts:AssumeRole
       Path: "/"
-      Policies: 
-        - !Ref RedshiftLoaderIamPolicy
         
   MyInstanceProfile:
       Type: AWS::IAM::InstanceProfile
