@@ -91,7 +91,6 @@ Resources:
             Action: 
                 - "dynamodb:CreateTable"
                 - "dynamodb:PutItem"
-                - "dynamodb:ListTables"
                 - "dynamodb:DeleteItem"
                 - "dynamodb:GetItem"
                 - "dynamodb:Scan"
@@ -110,7 +109,6 @@ Resources:
             Action: 
                 - "lambda:CreateFunction"
                 - "lambda:AddPermission"
-                - "lambda:ListFunctions"
                 - "lambda:InvokeFunction"
                 - "lambda:GetFunction"
                 - "lambda:GetFunctionConfiguration"
@@ -121,6 +119,8 @@ Resources:
           - 
             Effect: "Allow"
             Action:
+                - "dynamodb:ListTables"
+                - "lambda:ListFunctions"                
                 - "s3:List*" 
                 - "s3:GetObject"
                 - "s3:PutObject"     

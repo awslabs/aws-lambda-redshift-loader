@@ -15,7 +15,7 @@ var pjson = require('./package.json');
 
 // function which creates a string representation of now suitable for use in S3
 // paths
-exports.getFormattedDate = function (date) {
+function getFormattedDate(date) {
     if (!date) {
         date = new Date();
     }
@@ -39,17 +39,20 @@ exports.getFormattedDate = function (date) {
 
     return year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec;
 };
+exports.getFormattedDate = getFormattedDate;
 
 /* current time as seconds */
-exports.now = function () {
+function now() {
     return new Date().getTime() / 1000;
 };
+exports.now = now;
 
-exports.readableTime = function (epochSeconds) {
+function readableTime(epochSeconds) {
     var d = new Date(0);
     d.setUTCSeconds(epochSeconds);
-    return exports.getFormattedDate(d);
+    return getFormattedDate(d);
 };
+exports.readableTime = readableTime;
 
 function createTableAndWait (tableParams, dynamoDB, callback) {
     dynamoDB.createTable(tableParams, function (err, data) {
@@ -152,9 +155,9 @@ function createTables (dynamoDB, callback) {
     };
 
     let functions = [
-    	exports.createTableAndWait.bind(undefined, processedFilesSpec, dynamoDB), 
-    	exports.createTableAndWait.bind(undefined, batchSpec, dynamoDB),
-        exports.createTableAndWait.bind(undefined, configSpec, dynamoDB)
+    	createTableAndWait.bind(undefined, processedFilesSpec, dynamoDB), 
+    	createTableAndWait.bind(undefined, batchSpec, dynamoDB),
+        createTableAndWait.bind(undefined, configSpec, dynamoDB)
     ];
     async.waterfall(functions, function (err, results) {
         if (err) {
@@ -167,12 +170,12 @@ function createTables (dynamoDB, callback) {
 };
 exports.createTables = createTables;
 
-exports.retryableUpdate = function (dynamoDB, updateRequest, callback) {
+function retryableUpdate(dynamoDB, updateRequest, callback) {
     var tryNumber = 0;
     var writeRetryLimit = 100;
     var done = false;
 
-    async.whilst(function test(test_cb) {
+    async.whilst(function (test_cb) {
         // retry until the try count is hit
         test_cb(null, tryNumber < writeRetryLimit && done === false);
     }, function (asyncCallback) {
@@ -206,13 +209,14 @@ exports.retryableUpdate = function (dynamoDB, updateRequest, callback) {
         callback(err, data);
     });
 };
+exports.retryableUpdate = retryableUpdate;
 
 function retryablePut (dynamoDB, putRequest, callback) {
     var tryNumber = 0;
     var writeRetryLimit = 100;
     var done = false;
 
-    async.whilst(function test(test_cb) {
+    async.whilst(function (test_cb) {
         // retry until the try count is hit
         test_cb(null, tryNumber < writeRetryLimit && done === false);
     }, function (asyncCallback) {
@@ -248,7 +252,7 @@ function retryablePut (dynamoDB, putRequest, callback) {
 };
 exports.retryablePut = retryablePut;
 
-exports.dropTables = function (dynamoDB, callback) {
+function dropTables(dynamoDB, callback) {
     // drop the config table
     dynamoDB.deleteTable({
         TableName: configTable
@@ -286,9 +290,10 @@ exports.dropTables = function (dynamoDB, callback) {
         }
     });
 };
+exports.dropTables = dropTables;
 
 /* validate that the given value is a number, and if so return it */
-exports.getIntValue = function (value, rl) {
+function getIntValue(value, rl) {
     if (!value || value === null) {
         rl.close();
         console.log('Null Value');
@@ -305,8 +310,9 @@ exports.getIntValue = function (value, rl) {
         }
     }
 };
+exports.getIntValue = getIntValue;
 
-exports.getBooleanValue = function (value) {
+function getBooleanValue(value) {
     if (value) {
         if (['TRUE', '1', 'YES', 'Y'].indexOf(value.toUpperCase()) > -1) {
             return true;
@@ -317,38 +323,43 @@ exports.getBooleanValue = function (value) {
         return false;
     }
 };
+exports.getBooleanValue = getBooleanValue;
 
 /* validate that the provided value is not null/undefined */
-exports.validateNotNull = function (value, message, rl) {
+function validateNotNull(value, message, rl) {
     if (!value || value === null || value === '') {
         rl.close();
         console.log(message);
         process.exit(INVALID_ARG);
     }
 };
+exports.validateNotNull = validateNotNull;
 
 /* turn blank lines read from STDIN to Null */
-exports.blank = function (value) {
+function blank(value) {
     if (!value || value === '') {
         return null;
     } else {
         return value;
     }
 };
+exports.blank = blank;
 
-exports.validateArrayContains = function (array, value, rl) {
+function validateArrayContains(array, value, rl) {
     if (array.indexOf(value) === -1) {
         rl.close();
         console.log('Value must be one of ' + array.toString());
         process.exit(INVALID_ARG);
     }
 };
+exports.validateArrayContains = validateArrayContains;
 
-exports.createManifestInfo = function (config) {
+
+function createManifestInfo(config) {
     // manifest file will be at the configuration location, with a fixed
     // prefix and the date plus a random value for uniqueness across all
     // executing functions
-    var dateName = exports.getFormattedDate();
+    var dateName = getFormattedDate();
     var rand = Math.floor(Math.random() * 10000);
 
     var manifestInfo = {
@@ -361,12 +372,14 @@ exports.createManifestInfo = function (config) {
 
     return manifestInfo;
 };
+exports.createManifestInfo = createManifestInfo;
 
-exports.randomInt = function (low, high) {
+function randomInt(low, high) {
     return Math.floor(Math.random() * (high - low) + low);
 };
+exports.randomInt = randomInt;
 
-exports.getFunctionArn = function (lambda, functionName, callback) {
+function getFunctionArn(lambda, functionName, callback) {
     var params = {
         FunctionName: functionName
     };
@@ -383,8 +396,9 @@ exports.getFunctionArn = function (lambda, functionName, callback) {
         }
     });
 };
+exports.getFunctionArn = getFunctionArn;
 
-exports.getS3NotificationConfiguration = function (s3, bucket, prefix, functionArn, callback) {
+function getS3NotificationConfiguration(s3, bucket, prefix, functionArn, callback) {
     var params = {
         Bucket: bucket
     };
@@ -418,6 +432,7 @@ exports.getS3NotificationConfiguration = function (s3, bucket, prefix, functionA
         }
     });
 };
+exports.getS3NotificationConfiguration = getS3NotificationConfiguration;
 
 function getS3Arn(bucket, prefix) {
     var arn = "arn:aws:s3:::" + bucket;
@@ -428,8 +443,9 @@ function getS3Arn(bucket, prefix) {
 
     return arn;
 }
+exports.getS3Arn = getS3Arn;
 
-exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionName, functionArn, callback) {
+function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functionArn, callback) {
     lambda.getPolicy({
         FunctionName: functionName
     }, function (err, data) {
@@ -483,13 +499,14 @@ exports.ensureS3InvokePermisssions = function (lambda, bucket, prefix, functionN
             });
         }
     });
-};
+}
+exports.ensureS3InvokePermisssions = ensureS3InvokePermisssions;
 
 function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback) {
     console.log("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
 
     // lookup the deployed function name to get the ARN
-    exports.getFunctionArn(lambda, functionName, function (err, functionArn) {
+    getFunctionArn(lambda, functionName, function (err, functionArn) {
         if (err) {
         	console.log(err);
             callback(err);
@@ -501,7 +518,7 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
                 console.log(msg);
                 callback(msg);
             } else {
-                exports.getS3NotificationConfiguration(s3, bucket, prefix, functionArn, function (err, lambdaFunctionId, currentNotificationConfiguration) {
+                getS3NotificationConfiguration(s3, bucket, prefix, functionArn, function (err, lambdaFunctionId, currentNotificationConfiguration) {
                     if (err) {
                         // this almost certainly will be because the bucket name
                         // doesn't exist
@@ -516,7 +533,7 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
                             // there isn't a matching event
                             // configuration so create a new one for the
                             // specified prefix
-                            exports.ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functionArn, function (err, data) {
+                            ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functionArn, function (err, data) {
                                 if (err) {
                                     callback(err);
                                 } else {
@@ -634,7 +651,7 @@ function setup (useConfig, dynamoDB, s3, lambda, callback) {
 };
 exports.setup = setup;
 
-exports.inPlaceCopyFile = function (s3, batchId, batchEntry, callback) {
+function inPlaceCopyFile(s3, batchId, batchEntry, callback) {
     // issue a same source/target copy command to S3, which will cause
     // Lambda to receive a new event
     var bucketName = batchEntry.split("/")[0];
@@ -683,9 +700,10 @@ exports.inPlaceCopyFile = function (s3, batchId, batchEntry, callback) {
             });
         }
     });
-};
+}
+exports.inPlaceCopyFile = inPlaceCopyFile;
 
-exports.updateConfig = function (s3Prefix, configAttribute, configValue, dynamoDB, callback) {
+function updateConfig(s3Prefix, configAttribute, configValue, dynamoDB, callback) {
     var dynamoConfig = {
         TableName: configTable,
         Key: {
@@ -714,12 +732,13 @@ exports.updateConfig = function (s3Prefix, configAttribute, configValue, dynamoD
         dynamoConfig.UpdateExpression = "remove #attribute";
     }
 
-    exports.retryableUpdate(dynamoDB, dynamoConfig, function (err, data) {
+    retryableUpdate(dynamoDB, dynamoConfig, function (err, data) {
         callback(err);
     });
 }
+exports.updateConfig = updateConfig;
 
-exports.deleteFile = function (dynamoDB, region, file, callback) {
+function deleteFile(dynamoDB, region, file, callback) {
     var fileItem = {
         Key: {
             loadFile: {
@@ -733,8 +752,9 @@ exports.deleteFile = function (dynamoDB, region, file, callback) {
         callback(err, data);
     });
 }
+exports.deleteFile = deleteFile;
 
-exports.queryFile = function (dynamoDB, region, file, callback) {
+function queryFile(dynamoDB, region, file, callback) {
     var fileItem = {
         Key: {
             loadFile: {
@@ -748,8 +768,9 @@ exports.queryFile = function (dynamoDB, region, file, callback) {
         callback(err, data);
     });
 }
+exports.queryFile = queryFile;
 
-exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
+function reprocessFile(dynamoDB, s3, region, file, callback) {
     // get the file so we know what the current batch ID is
     var fileItem = {
         Key: {
@@ -804,7 +825,7 @@ exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
                     } else {
                         // now the file needs an in-place copy with new metadata
 						// to cause a reprocess
-                        exports.inPlaceCopyFile(s3, undefined, file, function (err, data) {
+                        inPlaceCopyFile(s3, undefined, file, function (err, data) {
                             if (callback) {
                                 callback(err);
                             }
@@ -813,7 +834,7 @@ exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
                 });
             } else {
                 // not currently assigned to a batch, so just do an s3 update
-                exports.inPlaceCopyFile(s3, undefined, file, function (err, data) {
+                inPlaceCopyFile(s3, undefined, file, function (err, data) {
                     if (callback) {
                         callback(err);
                     }
@@ -822,3 +843,4 @@ exports.reprocessFile = function (dynamoDB, s3, region, file, callback) {
         }
     });
 }
+exports.reprocessFile = reprocessFile;

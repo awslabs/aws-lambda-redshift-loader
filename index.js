@@ -95,7 +95,7 @@ exports.getConfigWithRetry = function (prefix, callback) {
         ConsistentRead: true
     };
 
-    async.whilst(function test(test_cb) {
+    async.whilst(function (test_cb) {
         // return OK if the proceed flag has been set, or if
         // we've hit the retry count
         test_cb(!proceed && tryNumber < lookupConfigTries);
@@ -136,10 +136,10 @@ exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback
     var searchPrefix = prefix;
     var config;
 
-    async.until(function () {
+    async.until(function (test_cb) {
         // run until we have found a configuration item, or the search
         // prefix is undefined due to the shortening being completed
-        return config || !searchPrefix;
+        test_cb(null, config || !searchPrefix);
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
@@ -915,8 +915,8 @@ exports.handler = function (event, context) {
         var retryCount = 0;
         var lastError;
 
-        async.until(function () {
-            return completed || !retries || retryCount >= retries;
+        async.until(function (test_cb) {
+            test_cb(null, completed || !retries || retryCount >= retries);
         }, function (asyncCallback) {
             if (debug === true) {
                 console.log(command);

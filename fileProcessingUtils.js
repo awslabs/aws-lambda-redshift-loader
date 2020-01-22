@@ -50,8 +50,8 @@ function reprocessS3Prefix(setRegion, bucket, prefix, regexFilter, callback) {
             Bucket: bucket,
             Prefix: prefix
         };
-        async.whilst(function () {
-            return processing;
+        async.whilst(function (test_cb) {
+            test_cb(null, processing);
         }, function (whilstCallback) {
             s3.listObjectsV2(params, function (err, data) {
                 if (err) {
