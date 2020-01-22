@@ -172,9 +172,9 @@ exports.retryableUpdate = function (dynamoDB, updateRequest, callback) {
     var writeRetryLimit = 100;
     var done = false;
 
-    async.whilst(function () {
+    async.whilst(function test(test_cb) {
         // retry until the try count is hit
-        return tryNumber < writeRetryLimit && done === false;
+        test_cb(null, tryNumber < writeRetryLimit && done === false);
     }, function (asyncCallback) {
         tryNumber++;
 

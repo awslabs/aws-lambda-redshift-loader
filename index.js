@@ -95,10 +95,10 @@ exports.getConfigWithRetry = function (prefix, callback) {
         ConsistentRead: true
     };
 
-    async.whilst(function () {
+    async.whilst(function test(test_cb) {
         // return OK if the proceed flag has been set, or if
         // we've hit the retry count
-        return !proceed && tryNumber < lookupConfigTries;
+        test_cb(!proceed && tryNumber < lookupConfigTries);
     }, function (callback) {
         tryNumber++;
 
