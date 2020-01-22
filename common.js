@@ -551,7 +551,7 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
                                     // Let's check our configs to see if we
 									// already have one that exists
                                     currentNotificationConfiguration.LambdaFunctionConfigurations.forEach(config => {
-                                        if (config.Filter.Key.FilterRules[0].Value == prefix + '/') {
+                                        if (config && config.Filter && config.Filter.Key && config.Filter.Key.FilterRules && config.Filter.Key.FilterRules[0].Value == prefix + '/') {
                                             console.log('Skipping creation of notification config because it already exists');
                                             configAlreadyExists = true;
                                         }
