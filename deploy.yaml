@@ -86,8 +86,7 @@ Resources:
       PolicyDocument: 
         Version: "2012-10-17"
         Statement: 
-          - 
-            Effect: "Allow"
+          - Effect: "Allow"
             Action: 
                 - "dynamodb:CreateTable"
                 - "dynamodb:PutItem"
@@ -102,10 +101,8 @@ Resources:
             Resource:
               - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftBatches
               - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftBatchLoadConfig
-              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftProcessedFiles
-        Statement: 
-          - 
-            Effect: "Allow"
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/LambdaRedshiftProcessedFiles 
+          - Effect: "Allow"
             Action: 
                 - "lambda:CreateFunction"
                 - "lambda:AddPermission"
@@ -114,10 +111,11 @@ Resources:
                 - "lambda:GetFunctionConfiguration"
                 - "lambda:DeleteFunction"
                 - "lambda:GetPolicy"
-            Resource: !Ref LambdaTriggerFunction
-        Statement: 
-          - 
-            Effect: "Allow"
+            Resource: 
+              'Fn::GetAtt':
+                - LambdaTriggerFunction
+                - Arn
+          - Effect: "Allow"
             Action:
                 - "dynamodb:ListTables"
                 - "lambda:ListFunctions"                
@@ -125,9 +123,7 @@ Resources:
                 - "s3:GetObject"
                 - "s3:PutObject"     
             Resource: "*"
-        Statement: 
-          - 
-            Effect: "Allow"
+          - Effect: "Allow"
             Action:     
                 - "kms:Encrypt"
                 - "kms:Decrypt"
