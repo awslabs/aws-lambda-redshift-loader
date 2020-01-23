@@ -139,7 +139,7 @@ function doQuery(setRegion, batchStatus, queryStartDate, queryEndDate, callback)
     queryParams.ExpressionAttributeNames = keyConditionNames;
     queryParams.ExpressionAttributeValues = keyConditionValues;
 
-    if (debug) {
+    if (debug == true) {
         console.log(queryParams);
     }
 

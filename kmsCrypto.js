@@ -140,7 +140,7 @@ var encrypt = function(toEncrypt, callback) {
 			// encrypt the data
 			var params = {
 				KeyId : keyMetadata.KeyId,
-				Plaintext : new Buffer.from(toEncrypt),
+				Plaintext : Buffer.from(toEncrypt),
 				EncryptionContext : authContext
 			};
 			kms.encrypt(params, function(err, encryptData) {

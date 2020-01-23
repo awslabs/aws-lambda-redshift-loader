@@ -11,7 +11,7 @@ var pjson = require('./package.json');
 var common = require('./common');
 var async = require('async');
 var dynamoClient;
-var debug = false;
+var debug = (process.env['DEBUG'] === 'true')
 
 exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 	if (configPre.clusterEndpoint) {
@@ -66,7 +66,7 @@ exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 			ReturnValues : "ALL_NEW"
 		};
 
-		if (debug) {
+		if (debug === true) {
 			console.log(JSON.stringify(updateRequest));
 		}
 
@@ -131,7 +131,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 	if (configPre.masterSymmetricKey
 			&& configPre.masterSymmetricKey.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newMasterSymmetricKey = new Buffer.from(JSON
+		newMasterSymmetricKey = Buffer.from(JSON
 				.parse(configPre.masterSymmetricKey.S)).toString('base64');
 		updateExpressions.push("masterSymmetricKey = :masterSymmetricKey");
 		expressionAttributeValues[":masterSymmetricKey"] = {
@@ -141,7 +141,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 	if (configPre.secretKeyForS3
 			&& configPre.secretKeyForS3.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newSecretKeyForS3 = new Buffer.from(JSON
+		newSecretKeyForS3 = Buffer.from(JSON
 				.parse(configPre.secretKeyForS3.S)).toString('base64');
 		updateExpressions.push("secretKeyForS3 = :s3secretAccessKey");
 		expressionAttributeValues[":s3secretAccessKey"] = {
@@ -154,7 +154,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 		configPre.loadClusters.L.map(function(item) {
 			if (item.M.connectPassword.S.indexOf('[') > -1) {
 				willDoUpgrade = true;
-				item.M.connectPassword.S = new Buffer.from(JSON
+				item.M.connectPassword.S = Buffer.from(JSON
 						.parse(item.M.connectPassword.S)).toString('base64');
 			}
 
@@ -195,7 +195,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 		};
 
 		console.log("Upgrading to 2.4.x Base64 encoded encryption values");
-		if (debug) {
+		if (debug === true) {
 			console.log(JSON.stringify(updateRequest));
 		}
 

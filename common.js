@@ -58,7 +58,7 @@ function createTableAndWait (tableParams, dynamoDB, callback) {
     dynamoDB.createTable(tableParams, function (err, data) {
         if (err) {
             if (err.code !== 'ResourceInUseException') {
-                console.log(err.toString());
+                console.log(err);
                 callback(err);
             } else {
                 console.log("Table " + tableParams.TableName + " already exists");
@@ -205,7 +205,6 @@ function retryableUpdate(dynamoDB, updateRequest, callback) {
             }
         });
     }, function (err, data) {
-    	console.log(err);
         callback(err, data);
     });
 };

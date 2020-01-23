@@ -7,7 +7,7 @@
 
     or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and limitations under the License.
  */
-var debug = process.env['DEBUG'] !== undefined
+var debug = (process.env['DEBUG'] === 'true')
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
 
@@ -79,7 +79,7 @@ String.prototype.transformHiveStylePrefix = function () {
     return processedTokens.join('/');
 };
 
-exports.getConfigWithRetry = function (prefix, callback) {
+function getConfigWithRetry(prefix, callback) {
     var proceed = false;
     var lookupConfigTries = 10;
     var tryNumber = 0;
@@ -98,9 +98,13 @@ exports.getConfigWithRetry = function (prefix, callback) {
     async.whilst(function (test_cb) {
         // return OK if the proceed flag has been set, or if
         // we've hit the retry count
-        test_cb(!proceed && tryNumber < lookupConfigTries);
+        test_cb(null, !proceed && tryNumber < lookupConfigTries);
     }, function (callback) {
         tryNumber++;
+        
+        if (debug == true) {
+        	console.log(JSON.stringify(dynamoLookup));
+        }
 
         // lookup the configuration item, and run
         // foundConfig on completion
@@ -131,8 +135,9 @@ exports.getConfigWithRetry = function (prefix, callback) {
         }
     });
 };
+exports.getConfigWithRetry = getConfigWithRetry;
 
-exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback) {
+function resolveConfig(prefix, successCallback, noConfigFoundCallback) {
     var searchPrefix = prefix;
     var config;
 
@@ -143,7 +148,7 @@ exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
-        exports.getConfigWithRetry(searchPrefix, function (err, data) {
+        getConfigWithRetry(searchPrefix, function (err, data) {
             if (err) {
                 untilCallback(err);
             } else {
@@ -166,16 +171,17 @@ exports.resolveConfig = function (prefix, successCallback, noConfigFoundCallback
         }
     });
 };
+exports.resolveConfig = resolveConfig;
 
 // main function for AWS Lambda
-exports.handler = function (event, context) {
+function handler(event, context) {
     /** runtime functions * */
 
     /*
      * Function which performs all version upgrades over time - must be able to
      * do a forward migration from any version to 'current' at all times!
      */
-    exports.upgradeConfig = function (s3Info, currentConfig, callback) {
+    function upgradeConfig(s3Info, currentConfig, callback) {
         // v 1.x to 2.x upgrade for multi-cluster loaders
         if (currentConfig.version !== pjson.version) {
             upgrade.upgradeAll(dynamoDB, s3Info, currentConfig, callback);
@@ -183,10 +189,10 @@ exports.handler = function (event, context) {
             // no upgrade needed
             callback(null, s3Info, currentConfig);
         }
-    };
+    }
 
     /* callback run when we find a configuration for load in Dynamo DB */
-    exports.foundConfig = function (s3Info, err, data) {
+    function foundConfig(s3Info, err, data) {
         if (err) {
             console.log(err);
             var msg = 'Error getting Redshift Configuration for ' + s3Info.prefix + ' from DynamoDB ';
@@ -200,7 +206,7 @@ exports.handler = function (event, context) {
         var thisBatchId = config.currentBatch.S;
 
         // run all configuration upgrades required
-        exports.upgradeConfig(s3Info, config, function (err, s3Info, useConfig) {
+        upgradeConfig(s3Info, config, function (err, s3Info, useConfig) {
             if (err) {
                 console.log(JSON.stringify(err));
                 context.done(error, JSON.stringify(err));
@@ -218,18 +224,16 @@ exports.handler = function (event, context) {
                         console.log(e);
                     }
                     if (isFilterRegexMatch) {
-                        exports.checkFileProcessed(useConfig, thisBatchId, s3Info);
+                        checkFileProcessed(useConfig, thisBatchId, s3Info);
                     } else {
                         console.log('Object ' + s3Info.key + ' excluded by filename filter \'' + useConfig.filenameFilterRegex.S + '\'');
 
-                        // scan the current batch to decide
-                        // if it needs to be
-                        // flushed due to batch timeout
-                        exports.processPendingBatch(useConfig, thisBatchId, s3Info);
+                        // scan the current batch to decide if it needs to be flushed due to batch timeout
+                        processPendingBatch(useConfig, thisBatchId, s3Info);
                     }
                 } else {
                     // no filter, so we'll load the data
-                    exports.checkFileProcessed(useConfig, thisBatchId, s3Info);
+                    checkFileProcessed(useConfig, thisBatchId, s3Info);
                 }
             }
         });
@@ -240,7 +244,7 @@ exports.handler = function (event, context) {
      * function to add a file to the pending batch set and then call the success
      * callback
      */
-    exports.checkFileProcessed = function (config, thisBatchId, s3Info) {
+    function checkFileProcessed(config, thisBatchId, s3Info) {
         var itemEntry = s3Info.bucket + '/' + s3Info.key;
 
         // perform the idempotency check for the file before we put it
@@ -288,7 +292,7 @@ exports.handler = function (event, context) {
                         // update was successful, and either this is the first event and there was no batch ID
                         // specified, or the file is a reprocess but the batch ID attachment didn't work - proceed
                         // with adding the entry to the pending batch
-                        exports.addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry);
+                        addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry);
                     }
                 }
             }
@@ -300,7 +304,7 @@ exports.handler = function (event, context) {
      * repeatedly try to write and if unsuccessful it will requery the batch ID
      * on the configuration
      */
-    exports.addFileToPendingBatch = function (config, thisBatchId, s3Info, itemEntry) {
+    function addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry) {
         console.log("Adding Pending Batch Entry for " + itemEntry);
 
         var proceed = false;
@@ -309,195 +313,182 @@ exports.handler = function (event, context) {
         var tryNumber = 0;
         var configReloads = 0;
 
-        async
-            .whilst(
-                function () {
-                    // return OK if the proceed flag has
-                    // been set, or if we've hit the
-                    // retry count
-                    return !proceed && tryNumber < addFileRetryLimit;
-                },
-                function (callback) {
-                    tryNumber++;
+        async.whilst(
+            function (test_cb) {
+                // return OK if the proceed flag has been set, or if we've hit the retry count
+                test_cb(null, !proceed && tryNumber < addFileRetryLimit);
+            },
+            function (callback) {
+                tryNumber++;
 
-                    // build the reference to the
-                    // pending batch, with an
-                    // atomic add of the current file
-                    var now = common.now();
-                    var item = {
-                        Key: {
-                            batchId: {
-                                S: thisBatchId
-                            },
-                            s3Prefix: {
-                                S: s3Info.prefix
-                            }
+                // build the reference to the pending batch, with an atomic add of the current file
+                var now = common.now();
+                var item = {
+                    Key: {
+                        batchId: {
+                            S: thisBatchId
                         },
-                        TableName: batchTable,
-                        UpdateExpression: "add entries :entry, writeDates :appendFileDate, size :size set #stat = :open, lastUpdate = :updateTime",
-                        ExpressionAttributeNames: {
-                            "#stat": 'status'
+                        s3Prefix: {
+                            S: s3Info.prefix
+                        }
+                    },
+                    TableName: batchTable,
+                    UpdateExpression: "add entries :entry, writeDates :appendFileDate, size :size set #stat = :open, lastUpdate = :updateTime",
+                    ExpressionAttributeNames: {
+                        "#stat": 'status'
+                    },
+                    ExpressionAttributeValues: {
+                        ":entry": {
+                            SS: [itemEntry]
                         },
-                        ExpressionAttributeValues: {
-                            ":entry": {
-                                SS: [itemEntry]
-                            },
-                            ":appendFileDate": {
-                                NS: ['' + now]
-                            },
-                            ":updateTime": {
-                                N: '' + now
-                            },
-                            ":open": {
-                                S: open
-                            },
-                            ":size": {
-                                N: '' + s3Info.size
-                            }
+                        ":appendFileDate": {
+                            NS: ['' + now]
                         },
-                        /*
-                         * current batch can't be locked
-                         */
-                        ConditionExpression: "#stat = :open or attribute_not_exists(#stat)"
-                    };
+                        ":updateTime": {
+                            N: '' + now
+                        },
+                        ":open": {
+                            S: open
+                        },
+                        ":size": {
+                            N: '' + s3Info.size
+                        }
+                    },
+                    /*
+                     * current batch can't be locked
+                     */
+                    ConditionExpression: "#stat = :open or attribute_not_exists(#stat)"
+                };
 
-                    // add the file to the pending batch
-                    dynamoDB.updateItem(item, function (err, data) {
-                        if (err) {
-                            let waitFor = Math.min(Math.pow(tryNumber, 2) * 10, maxRetryMS);
+                // add the file to the pending batch
+                dynamoDB.updateItem(item, function (err, data) {
+                    if (err) {
+                        let waitFor = Math.min(Math.pow(tryNumber, 2) * 10, maxRetryMS);
 
-                            if (err.code === provisionedThroughputExceeded) {
-                                console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
-                                setTimeout(callback, waitFor);
-                            } else if (err.code === conditionCheckFailed) {
-                                /*
-                                 * the batch I have a reference to was
-                                 * locked so reload the current batch ID
-                                 * from the config
-                                 */
-                                var configReloadRequest = {
-                                    Key: {
-                                        s3Prefix: {
-                                            S: s3Info.prefix
-                                        }
-                                    },
-                                    TableName: configTable,
-                                    /* we need a consistent read here to ensure we get the latest batch ID */
-                                    ConsistentRead: true
-                                };
-                                dynamoDB.getItem(configReloadRequest, function (err, data) {
-                                    configReloads++;
-                                    if (err) {
-                                        if (err === provisionedThroughputExceeded) {
-                                            console.log("Provisioned Throughput Exceeded on reload of " + configTable + " due to locked batch write");
-                                            callback();
-                                        } else {
-                                            console.log(err);
-                                            callback(err);
-                                        }
-                                    } else {
-                                        if (data.Item.currentBatch.S === thisBatchId) {
-                                            // we've obtained the same batch ID back from the configuration as we have now, meaning it hasn't yet rotated
-                                            console.log("Batch " + thisBatchId + " still current after configuration reload attempt " + configReloads + ". Recycling in " + waitFor + " ms.");
-
-                                            // because the batch hasn't been reloaded on the configuration, we'll backoff here for a moment to let that happen
-                                            setTimeout(callback, waitFor);
-                                        } else {
-                                            // we've got an updated batch id, so use this in the next cycle of file add
-                                            thisBatchId = data.Item.currentBatch.S;
-
-                                            console.log("Obtained new Batch ID " + thisBatchId + " after configuration reload. Attempt " + configReloads);
-
-                                            /*
-                                             callback immediately, as we should now have a valid and open batch to use
-                                             */
-                                            callback();
-                                        }
+                        if (err.code === provisionedThroughputExceeded) {
+                            console.log("Provisioned Throughput Exceeded on addition of " + s3Info.prefix + " to pending batch " + thisBatchId + ". Trying again in " + waitFor + " ms");
+                            setTimeout(callback, waitFor);
+                        } else if (err.code === conditionCheckFailed) {
+                            //the batch I have a reference to was locked so reload the current batch ID from the config
+                            var configReloadRequest = {
+                                Key: {
+                                    s3Prefix: {
+                                        S: s3Info.prefix
                                     }
-                                });
-                            } else {
-                                asyncError = err;
-                                proceed = true;
-                                callback();
-                            }
+                                },
+                                TableName: configTable,
+                                /* we need a consistent read here to ensure we get the latest batch ID */
+                                ConsistentRead: true
+                            };
+                            dynamoDB.getItem(configReloadRequest, function (err, data) {
+                                configReloads++;
+                                if (err) {
+                                    if (err === provisionedThroughputExceeded) {
+                                        console.log("Provisioned Throughput Exceeded on reload of " + configTable + " due to locked batch write");
+                                        callback();
+                                    } else {
+                                        console.log(err);
+                                        callback(err);
+                                    }
+                                } else {
+                                    if (data.Item.currentBatch.S === thisBatchId) {
+                                        // we've obtained the same batch ID back from the configuration as we have now, meaning it hasn't yet rotated
+                                        console.log("Batch " + thisBatchId + " still current after configuration reload attempt " + configReloads + ". Recycling in " + waitFor + " ms.");
+
+                                        // because the batch hasn't been reloaded on the configuration, we'll backoff here for a moment to let that happen
+                                        setTimeout(callback, waitFor);
+                                    } else {
+                                        // we've got an updated batch id, so use this in the next cycle of file add
+                                        thisBatchId = data.Item.currentBatch.S;
+
+                                        console.log("Obtained new Batch ID " + thisBatchId + " after configuration reload. Attempt " + configReloads);
+
+                                        /*
+                                         callback immediately, as we should now have a valid and open batch to use
+                                         */
+                                        callback();
+                                    }
+                                }
+                            });
                         } else {
-                            /*
-                             * no error - the file was added to the
-                             * batch, so mark the operation as OK so
-                             * async will not retry
-                             */
+                            asyncError = err;
                             proceed = true;
                             callback();
                         }
-                    });
-                },
-                function (err) {
-                    if (err) {
-                        // throw presented errors
-                        console.log(JSON.stringify(err));
-                        context.done(error, JSON.stringify(err));
                     } else {
-                        if (asyncError) {
-                            /*
-                             * throw errors which were encountered
-                             * during the async calls
-                             */
-                            console.log(JSON.stringify(asyncError));
-                            context.done(error, JSON.stringify(asyncError));
-                        } else {
-                            if (!proceed) {
-                                /*
-                                 * process what happened if the
-                                 * iterative request to write to the
-                                 * open pending batch timed out
-                                 *
-                                 * TODO Can we force a rotation of the
-                                 * current batch at this point?
-                                 */
-                                var e = "Unable to write "
-                                    + itemEntry
-                                    + " in "
-                                    + addFileRetryLimit
-                                    + " attempts. Failing further processing to Batch "
-                                    + thisBatchId
-                                    + " which may be stuck in '"
-                                    + locked
-                                    + "' state. If so, unlock the back using `node unlockBatch.js <batch ID>`, delete the processed file marker with `node processedFiles.js -d <filename>`, and then re-store the file in S3";
-                                console.log(e);
-
-                                var msg = "Lambda Redshift Loader unable to write to Open Pending Batch";
-
-                                if (config.failureTopicARN) {
-                                    exports.sendSNS(config.failureTopicARN.S, msg, e, function () {
-                                        context.done(error, e);
-                                    }, function (err) {
-                                        console.log(err);
-                                        context.done(error, "Unable to Send SNS Notification");
-                                    });
-                                } else {
-                                    console.log("Unable to send failure notifications");
-                                    console.log(msg);
-                                    context.done(error, msg);
-                                }
-                            } else {
-                                // the add of the file was successful,
-                                // so we
-                                exports.linkProcessedFileToBatch(itemEntry, thisBatchId);
-                                // which is async, so may fail but we'll
-                                // still sweep
-                                // the pending batch
-                                exports.processPendingBatch(config, thisBatchId, s3Info);
-                            }
-                        }
+                        // no error - the file was added to the batch, so mark the operation as OK so async will not retry
+                        proceed = true;
+                        callback();
                     }
                 });
+            },
+            function (err) {
+                if (err) {
+                    // throw presented errors
+                    console.log(JSON.stringify(err));
+                    context.done(error, JSON.stringify(err));
+                } else {
+                    if (asyncError) {
+                        /*
+                         * throw errors which were encountered
+                         * during the async calls
+                         */
+                        console.log(JSON.stringify(asyncError));
+                        context.done(error, JSON.stringify(asyncError));
+                    } else {
+                        if (!proceed) {
+                            /*
+                             * process what happened if the
+                             * iterative request to write to the
+                             * open pending batch timed out
+                             *
+                             * TODO Can we force a rotation of the
+                             * current batch at this point?
+                             */
+                            var e = "Unable to write "
+                                + itemEntry
+                                + " in "
+                                + addFileRetryLimit
+                                + " attempts. Failing further processing to Batch "
+                                + thisBatchId
+                                + " which may be stuck in '"
+                                + locked
+                                + "' state. If so, unlock the back using `node unlockBatch.js <batch ID>`, delete the processed file marker with `node processedFiles.js -d <filename>`, and then re-store the file in S3";
+                            console.log(e);
+
+                            var msg = "Lambda Redshift Loader unable to write to Open Pending Batch";
+
+                            if (config.failureTopicARN) {
+                                sendSNS(config.failureTopicARN.S, msg, e, function () {
+                                    context.done(error, e);
+                                }, function (err) {
+                                    console.log(err);
+                                    context.done(error, "Unable to Send SNS Notification");
+                                });
+                            } else {
+                                console.log("Unable to send failure notifications");
+                                console.log(msg);
+                                context.done(error, msg);
+                            }
+                        } else {
+                            // the add of the file was successful,
+                            // so we
+                            linkProcessedFileToBatch(itemEntry, thisBatchId);
+                            // which is async, so may fail but we'll
+                            // still sweep
+                            // the pending batch
+                            processPendingBatch(config, thisBatchId, s3Info);
+                        }
+                    }
+                }
+            });
     };
 
     /**
      * Function which will link the deduplication table entry for the file to
      * the batch into which the file was finally added
      */
-    exports.linkProcessedFileToBatch = function (itemEntry, batchId) {
+    function linkProcessedFileToBatch(itemEntry, batchId) {
         var updateProcessedFile = {
             Key: {
                 loadFile: {
@@ -528,7 +519,7 @@ exports.handler = function (event, context) {
      * Function which links the manifest name used to load redshift onto the
      * batch table entry
      */
-    exports.addManifestToBatch = function (config, thisBatchId, s3Info, manifestInfo) {
+    function addManifestToBatch(config, thisBatchId, s3Info, manifestInfo) {
         // build the reference to the pending batch, with an atomic
         // add of the current file
         var item = {
@@ -570,7 +561,7 @@ exports.handler = function (event, context) {
      * Function to process the current pending batch, and create a batch load
      * process if required on the basis of size or timeout
      */
-    exports.processPendingBatch = function (config, thisBatchId, s3Info) {
+    function processPendingBatch(config, thisBatchId, s3Info) {
         // make the request for the current batch
         var currentBatchRequest = {
             Key: {
@@ -599,10 +590,7 @@ exports.handler = function (event, context) {
                 console.log(msg);
                 context.done(null, msg);
             } else {
-
-                // first step is to resolve the earliest
-                // writeDate as the batch
-                // creation date
+                // first step is to resolve the earliest writeDate as the batch creation date
                 var batchCreateDate;
                 data.Item.writeDates.NS.map(function (item) {
                     var t = parseInt(item);
@@ -693,11 +681,10 @@ exports.handler = function (event, context) {
                     common.retryableUpdate(dynamoDB, updateCurrentBatchStatus, function (err, data) {
                         if (err) {
                             if (err.code === conditionCheckFailed) {
-                                /*
-                                 * some other Lambda function has locked the
-                                 * batch - this is OK and we'll just exit
-                                 * quietly
-                                 */
+                                // some other Lambda function has locked the batch - this is OK and we'll just exit quietly
+                            	if (debug === true) {
+                            		console.log("Batch is ready to be processed, but another thread has locked it for loading");
+                            	}
                                 context.done(null, null);
                             } else if (err.code === provisionedThroughputExceeded) {
                                 console.log("Provisioned Throughput Exceeded on " + batchTable + " while trying to lock Batch");
@@ -753,7 +740,7 @@ exports.handler = function (event, context) {
                                         context.done(error, JSON.stringify(err));
                                     } else {
                                         // OK - let's create the manifest file
-                                        exports.createManifest(config, thisBatchId, s3Info, pendingEntries);
+                                        createManifest(config, thisBatchId, s3Info, pendingEntries);
                                     }
                                 });
                             }
@@ -770,7 +757,7 @@ exports.handler = function (event, context) {
     /**
      * Function which will create the manifest for a given batch and entries
      */
-    exports.createManifest = function (config, thisBatchId, s3Info, batchEntries) {
+    function createManifest(config, thisBatchId, s3Info, batchEntries) {
         console.log("Creating Manifest for Batch " + thisBatchId);
 
         var manifestInfo = common.createManifestInfo(config);
@@ -805,23 +792,23 @@ exports.handler = function (event, context) {
          * in the callback letting us know that the manifest was created
          * correctly
          */
-        s3.putObject(s3PutParams, exports.loadRedshiftWithManifest.bind(undefined, config, thisBatchId, s3Info, manifestInfo));
+        s3.putObject(s3PutParams, loadRedshiftWithManifest.bind(undefined, config, thisBatchId, s3Info, manifestInfo));
     };
 
     /**
      * Function run when the Redshift manifest write completes succesfully
      */
-    exports.loadRedshiftWithManifest = function (config, thisBatchId, s3Info, manifestInfo, err, data) {
+    function loadRedshiftWithManifest(config, thisBatchId, s3Info, manifestInfo, err, data) {
         if (err) {
             console.log("Error on Manifest Creation");
             console.log(err);
-            exports.failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+            failBatch(err, config, thisBatchId, s3Info, manifestInfo);
         } else {
             console.log("Created Manifest " + manifestInfo.manifestPath + " Successfully");
 
             // add the manifest file to the batch - this will NOT stop
             // processing if it fails
-            exports.addManifestToBatch(config, thisBatchId, s3Info, manifestInfo);
+            addManifestToBatch(config, thisBatchId, s3Info, manifestInfo);
 
             // convert the config.loadClusters list into a format that
             // looks like a native dynamo entry
@@ -834,18 +821,15 @@ exports.handler = function (event, context) {
 
             // run all the cluster loaders in parallel
             async.map(clustersToLoad, function (item, callback) {
-                // call the load cluster function, passing it
-                // the
-                // continuation callback
-                exports.loadCluster(config, thisBatchId, s3Info, manifestInfo, item, callback);
+                // call the load cluster function, passing it  the continuation callback
+                loadCluster(config, thisBatchId, s3Info, manifestInfo, item, callback);
             }, function (err, results) {
                 if (err) {
                     console.log(err);
                 }
 
                 // go through all the results - if they were all
-                // OK,
-                // then close the batch OK - otherwise fail
+                // OK, then close the batch OK - otherwise fail
                 var allOK = true;
                 var loadState = {};
 
@@ -890,16 +874,16 @@ exports.handler = function (event, context) {
                 common.retryableUpdate(dynamoDB, loadStateRequest, function (err, data) {
                     if (err) {
                         console.log("Error while attaching per-Cluster Load State");
-                        exports.failBatch(err, config, thisBatchId, s3Info, manifestInfo);
+                        failBatch(err, config, thisBatchId, s3Info, manifestInfo);
                     } else {
                         if (allOK === true) {
                             // close the batch
                             // as OK
-                            exports.closeBatch(null, config, thisBatchId, s3Info, manifestInfo, loadState);
+                            closeBatch(null, config, thisBatchId, s3Info, manifestInfo, loadState);
                         } else {
                             // close the batch
                             // as failure
-                            exports.failBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
+                            failBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
                         }
                     }
                 });
@@ -910,7 +894,7 @@ exports.handler = function (event, context) {
     /**
      * Function which will run a postgres command with retries
      */
-    exports.runPgCommand = function (clusterInfo, client, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
+    function runPgCommand(clusterInfo, client, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
         var completed = false;
         var retryCount = 0;
         var lastError;
@@ -950,7 +934,7 @@ exports.handler = function (event, context) {
                         // count
                         retryCount += 1;
 
-                        if (debug) {
+                        if (debug == true) {
                             console.log("Retryable Error detected. Try Attempt " + retryCount);
                         }
 
@@ -1013,7 +997,7 @@ exports.handler = function (event, context) {
      * Function which loads a redshift cluster
      *
      */
-    exports.loadCluster = function (config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
+    function loadCluster(config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
         /* build the redshift copy command */
         var copyCommand = '';
 
@@ -1026,7 +1010,7 @@ exports.handler = function (event, context) {
             remainingMillis = context.getRemainingTimeInMillis();
 
             if (remainingMillis < 10000) {
-                exports.failBatch("Remaining duration of " + remainingMillis + ' insufficient to load cluster', config, thisBatchId, s3Info, manifestInfo);
+                failBatch("Remaining duration of " + remainingMillis + ' insufficient to load cluster', config, thisBatchId, s3Info, manifestInfo);
             } else {
                 copyCommand = 'set statement_timeout to ' + (remainingMillis - 10000) + ';\n';
             }
@@ -1059,21 +1043,21 @@ exports.handler = function (event, context) {
             symmetricKeyMapEntry = "symmetricKey";
 
         if (config.secretKeyForS3) {
-            encryptedItems[s3secretKeyMapEntry] = new Buffer(config.secretKeyForS3.S, 'base64');
+            encryptedItems[s3secretKeyMapEntry] = Buffer.from(config.secretKeyForS3.S, 'base64');
             useLambdaCredentialsToLoad = false;
         }
 
-        if (debug) {
+        if (debug == true) {
             console.log("Loading Cluster " + clusterInfo.clusterEndpoint.S + " with " + (useLambdaCredentialsToLoad === true ? "Lambda" : "configured") + " credentials");
         }
 
         // add the cluster password
-        encryptedItems[passwordKeyMapEntry] = new Buffer(clusterInfo.connectPassword.S, 'base64');
+        encryptedItems[passwordKeyMapEntry] = Buffer.from(clusterInfo.connectPassword.S, 'base64');
 
         // add the master encryption key to the list of items to be decrypted,
         // if there is one
         if (config.masterSymmetricKey) {
-            encryptedItems[symmetricKeyMapEntry] = new Buffer(config.masterSymmetricKey.S, 'base64');
+            encryptedItems[symmetricKeyMapEntry] = Buffer.from(config.masterSymmetricKey.S, 'base64');
         }
 
         // decrypt the encrypted items
@@ -1180,7 +1164,7 @@ exports.handler = function (event, context) {
 
                 copyCommand += 'commit;';
 
-                if (debug) {
+                if (debug == true) {
                     console.log(copyCommand);
                 }
 
@@ -1225,7 +1209,7 @@ exports.handler = function (event, context) {
                          * backoff from 30ms with 5 retries - giving a max retry
                          * duration of ~ 1 second
                          */
-                        exports.runPgCommand(clusterInfo, pgClient, copyCommand, 5, ["S3ServiceException:The specified key does not exist.,Status 404"], 30, callback);
+                        runPgCommand(clusterInfo, pgClient, copyCommand, 5, ["S3ServiceException:The specified key does not exist.,Status 404"], 30, callback);
                     }
                 });
             }
@@ -1236,7 +1220,7 @@ exports.handler = function (event, context) {
      * Function which marks a batch as failed and sends notifications
      * accordingly
      */
-    exports.failBatch = function (loadState, config, thisBatchId, s3Info, manifestInfo) {
+    function failBatch(loadState, config, thisBatchId, s3Info, manifestInfo) {
         console.log("Failing Batch " + thisBatchId + " due to " + JSON.stringify(loadState));
 
         if (config.failedManifestKey && manifestInfo) {
@@ -1255,7 +1239,7 @@ exports.handler = function (event, context) {
             s3.copyObject(copySpec, function (err, data) {
                 if (err) {
                     console.log(err);
-                    exports.closeBatch(err, config, thisBatchId, s3Info, manifestInfo);
+                    closeBatch(err, config, thisBatchId, s3Info, manifestInfo);
                 } else {
                     console.log('Created new Failed Manifest ' + manifestInfo.failedManifestPath);
 
@@ -1290,18 +1274,18 @@ exports.handler = function (event, context) {
                         if (err) {
                             console.log(err);
                             // add this new error to the original failed load state
-                            exports.closeBatch(loadState + " " + err, config, thisBatchId, s3Info, manifestInfo);
+                            closeBatch(loadState + " " + err, config, thisBatchId, s3Info, manifestInfo);
                         } else {
                             // close the batch with the original
                             // calling error
-                            exports.closeBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
+                            closeBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
                         }
                     });
                 }
             });
         } else {
             console.log('Not requesting copy of Manifest to Failed S3 Location');
-            exports.closeBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
+            closeBatch(loadState, config, thisBatchId, s3Info, manifestInfo);
         }
     };
 
@@ -1309,7 +1293,7 @@ exports.handler = function (event, context) {
      * Function which closes the batch to mark it as done, including
      * notifications
      */
-    exports.closeBatch = function (batchError, config, thisBatchId, s3Info, manifestInfo) {
+    function closeBatch(batchError, config, thisBatchId, s3Info, manifestInfo) {
         var item = {
             Key: {
                 batchId: {
@@ -1362,7 +1346,7 @@ exports.handler = function (event, context) {
                 context.done(error, JSON.stringify(err));
             } else {
                 // send notifications
-                exports.notify(config, thisBatchId, s3Info, manifestInfo, batchError, function (err) {
+                notify(config, thisBatchId, s3Info, manifestInfo, batchError, function (err) {
                     if (err) {
                         console.log(JSON.stringify(err));
                         context.done(error, JSON.stringify(err) + " " + JSON.stringify(batchError));
@@ -1386,7 +1370,7 @@ exports.handler = function (event, context) {
     };
 
     /** send an SNS message to a topic */
-    exports.sendSNS = function (topic, subj, msg, callback) {
+    function sendSNS(topic, subj, msg, callback) {
         var m = {
             Message: JSON.stringify(msg),
             Subject: subj,
@@ -1399,7 +1383,7 @@ exports.handler = function (event, context) {
     };
 
     /** Send SNS notifications if configured for OK vs Failed status */
-    exports.notify = function (config, thisBatchId, s3Info, manifestInfo, batchError, callback) {
+    function notify(config, thisBatchId, s3Info, manifestInfo, batchError, callback) {
         var statusMessage = batchError ? 'error' : 'ok';
         var errorMessage = batchError ? JSON.stringify(batchError) : null;
         var messageBody = {
@@ -1421,22 +1405,22 @@ exports.handler = function (event, context) {
             console.log(JSON.stringify(batchError));
 
             if (config.failureTopicARN) {
-                sendNotifications.push(exports.sendSNS.bind(undefined, config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody));
+                sendNotifications.push(sendSNS.bind(undefined, config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody));
             }
         }
 
         if (config.successTopicARN) {
-            sendNotifications.push(exports.sendSNS.bind(undefined, config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody));
+            sendNotifications.push(sendSNS.bind(undefined, config.successTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " OK", messageBody));
         }
 
         async.waterfall(sendNotifications, function (err) {
             callback(err);
         });
-    };
+    }
     /* end of runtime functions */
 
     try {
-        if (debug) {
+        if (debug == true) {
             console.log(JSON.stringify(event));
         }
 
@@ -1496,7 +1480,7 @@ exports.handler = function (event, context) {
                     // add the object size to inputInfo
                     inputInfo.size = r.s3.object.size;
 
-                    exports.resolveConfig(inputInfo.prefix, function (err, configData) {
+                    resolveConfig(inputInfo.prefix, function (err, configData) {
                         /*
                          * we did get a configuration found by the resolveConfig
                          * method
@@ -1510,13 +1494,13 @@ exports.handler = function (event, context) {
                             // config entry
                             inputInfo.prefix = configData.Item.s3Prefix.S;
 
-                            if (debug) {
+                            if (debug == true) {
                                 console.log(JSON.stringify(inputInfo));
                             }
 
                             // call the foundConfig method with the data
                             // item
-                            exports.foundConfig(inputInfo, null, configData);
+                            foundConfig(inputInfo, null, configData);
                         }
                     }, function (err) {
                         // finish with no exception - where this file sits
@@ -1538,4 +1522,5 @@ exports.handler = function (event, context) {
         console.log(JSON.stringify(event));
         context.done(error, JSON.stringify(e));
     }
-};
+}
+exports.handler = handler;
