@@ -80,7 +80,7 @@ into how your loads are progressing over time.
 
 ## Installing with AWS CloudFormation (Recommended)
 
-This repository includes a CloudFormation template (deploy.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template. CloudFormation is provided by AWS to simplify the deployment of complex sets of components. More information can be found at http://aws.amazon.com/cloudformation/getting-started
+This repository includes two CloudFormation templates (deploy.yaml, and deploy-vpc.yaml) which will create much of what is needed to set up the autoloader.  This section details the setup and use of the template. 
 
 This is a visual architecture of the CloudFormation installer:
 
@@ -94,15 +94,13 @@ Set up the KMS key to be used by the setup script which encrypts and decrypts th
 This key will require a specific alias, which is how the setup script picks it up.  The alias must be
 `LambdaRedshiftLoaderKey`.
 
-Also, a user will be required with the necessary privileges to run the template.  This user will require an access key, which is one of the input parameters required at runtime.
+Also, a user will be required with the necessary privileges to run the template. This user will require an access key, which is one of the input parameters required at runtime.
 
-The template requires four input parameters: availability zone, a security group for the EC2 instance, an access keypair, and a subnet for the EC2 instance
+The template requires several input parameters: KMS Key ARN which will be granted access from above, and if you are in VPC the Subnet ID's in which the function should egress network traffic, and which Security Groups should be granted to the function.
 
 __Usage Steps__
 
-1. Create a CloudFormation stack with the deploy.yaml file, or launch using the table of links below.  This stack will include everything needed to set up the autoloader with two exceptions.  The KMS key must be created and managed separately, and a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not configure the autoloader - it just installs the components required to run the node setup script.
-2. Log in to the EC2 instance created as part of the stack.  It contains all the necessary components set up the autoloader.
-3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
+Create a CloudFormation stack with template that you require, based upon whether you run in VPC or not. YOu can also use the table of links below. This stack will include everything needed to set up the autoloader with two exceptions. The KMS key must be created and managed separately, and a RedShift cluster will be required when setting up the autoloader. Note that this stack does not configure the autoloader, which must be done on your workstation or with an EC2 instance.
 
 __Notes__
 
@@ -132,6 +130,13 @@ __Launch Links__
 |us-east-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://awslabs-code-us-east-2.s3.amazonaws.com/LambdaRedshiftLoader/deploy.yaml) |[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/new?stackName=LambdaRedshiftLoaderVPC&templateURL=https://awslabs-code-us-east-2.s3.amazonaws.com/LambdaRedshiftLoader/deploy-vpc.yaml) |
 |us-west-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://awslabs-code-us-west-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy.yaml) |[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=LambdaRedshiftLoaderVPC&templateURL=https://awslabs-code-us-west-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy-vpc.yaml) |
 |us-west-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://awslabs-code-us-west-2.s3.amazonaws.com/LambdaRedshiftLoader/deploy.yaml) |[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=LambdaRedshiftLoaderVPC&templateURL=https://awslabs-code-us-west-2.s3.amazonaws.com/LambdaRedshiftLoader/deploy-vpc.yaml) |
+
+__Post Install__
+
+If you prefer to use an EC2 instance to configure the database loader rather than your lapto, then run the `deploy-admin-host.yaml` file using CloudFormation.
+
+Once launched, log in to the EC2 instance created as part of the stack. It contains all the necessary components set up the autoloader.
+3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
 
 ### Function Configuration
 
