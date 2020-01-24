@@ -133,7 +133,7 @@ __Launch Links__
 
 __Post Install__
 
-If you prefer to use an EC2 instance to configure the database loader rather than your lapto, then run the `deploy-admin-host.yaml` file using CloudFormation.
+If you prefer to use an EC2 instance to configure the database loader rather than your lapto, then run [this template](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=LambdaRedshiftLoaderVPC&templateURL=https://awslabs-code-us-east-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy-admin-host.yaml) using CloudFormation.
 
 Once launched, log in to the EC2 instance created as part of the stack. It contains all the necessary components set up the autoloader.
 3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
