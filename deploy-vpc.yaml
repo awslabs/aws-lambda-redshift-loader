@@ -59,21 +59,29 @@ Mappings:
    
 Parameters:  
  AvailabilityZone: 
-   Description: The availability zone in which to set up the driver and trigger
+   Description: The availability zone in which to set up the admin EC2 instance
    Type: AWS::EC2::AvailabilityZone::Name
    Default: us-east-1a
  SecurityGroup:
    Description: "The security group for the EC2 driver instance"
    Type: AWS::EC2::SecurityGroup::Id
  KeyName:
-   Description: "The existing EC2 keypair to enable SSH to the EC2 driver instance"
+   Description: "The existing EC2 keypair to enable SSH to the EC2 admin instance"
    Type: AWS::EC2::KeyPair::KeyName
  SubnetId:
-   Description: "The existing Subnet for the EC2 driver instance"
+   Description: "The existing Subnet for the EC2 admin instance"
    Type: AWS::EC2::Subnet::Id
  KmsKeyArn:
-   Description: "The KMS Key to use for Encryption"
+   Description: "The KMS Key to use for Encryption of the database password"
    Type: String
+ SecurityGroups:
+   Default: mygroup1, mygroup2
+   Description: Security Groups as CSV list to use for the deployed function (may be required for Redshift security policy)
+   Type: CommaDelimitedList
+ SubnetIds:
+   Default: subnet1, subnet2, subnet3
+   Description: List of private Subnets in VPC in which the function will egress network connections
+   Type: CommaDelimitedList   
         
 Resources: 
   RedshiftLoaderIamPolicy: 
@@ -134,8 +142,7 @@ Resources:
 
   EC2ContainerRole: 
     Type: "AWS::IAM::Role"
-    Properties:
-      Name: "LambdaRedshiftLoaderAdminEc2Role" 
+    Properties: 
       Path: "/"    
       AssumeRolePolicyDocument: 
         Version: "2012-10-17"
@@ -151,8 +158,9 @@ Resources:
   LambdaTriggerRole: 
     Type: "AWS::IAM::Role"
     Properties:
-      Name: "LambdaRedshiftLoaderRole"
-      Path: "/"      
+      Path: "/"
+      ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"      
       AssumeRolePolicyDocument: 
         Version: "2012-10-17"
         Statement: 
@@ -232,5 +240,10 @@ Resources:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
         S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip'
       Runtime: nodejs12.x
+      VpcConfig:
+        SecurityGroupIds:
+          !Ref SecurityGroups
+        SubnetIds:
+          !Ref SubnetIds      
 
  
