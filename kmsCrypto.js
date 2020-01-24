@@ -11,7 +11,16 @@ var useRegion = undefined;
 var aws = require('aws-sdk');
 var async = require('async');
 var kms = undefined;
+var debug = (process.env['DEBUG'] === 'true');
+var log_level = process.env['LOG_LEVEL'] || 'info';
+const winston = require('winston');
 
+const logger = winston.createLogger({
+	level : debug === true ? 'debug' : log_level,
+	transports : [ new winston.transports.Console({
+		format : winston.format.simple()
+	}) ]
+});
 var authContext = {
 	module : "AWSLambdaRedshiftLoader",
 	region : null
@@ -20,13 +29,13 @@ var authContext = {
 // module key alias to be used for this application
 var moduleKeyName = "alias/LambdaRedshiftLoaderKey";
 
-var setRegion = function(region) {
+function setRegion(region) {
 	if (!region) {
 		useRegion = process.env['AWS_REGION'];
 
 		if (!useRegion) {
 			useRegion = 'us-east-1';
-			console.log("AWS KMS using default region " + useRegion);
+			logger.info("AWS KMS using default region " + useRegion);
 		}
 	} else {
 		useRegion = region;
@@ -51,76 +60,57 @@ exports.setRegion = setRegion;
  * <li>KeyMetadata - KMS Key Metadata including ID and ARN for this module's
  * master key</li>
  */
-var getOrCreateMasterKey = function(callback) {
-	kms
-			.describeKey(
-					{
-						KeyId : moduleKeyName
-					},
-					function(err, data) {
-						if (err) {
-							if (err.code === 'InvalidArnException'
-									|| err.code === 'NotFoundException') {
-								// master key for the module doesn't exist, so
-								// create it
-								var createKeyParams = {
-									Description : "Lambda Redshift Loader Master Encryption Key",
-									KeyUsage : 'ENCRYPT_DECRYPT'
-								};
+function getOrCreateMasterKey(callback) {
+	kms.describeKey({
+		KeyId : moduleKeyName
+	}, function(err, data) {
+		if (err) {
+			if (err.code === 'InvalidArnException' || err.code === 'NotFoundException') {
+				// master key for the module doesn't exist, so
+				// create it
+				var createKeyParams = {
+					Description : "Lambda Redshift Loader Master Encryption Key",
+					KeyUsage : 'ENCRYPT_DECRYPT'
+				};
 
-								// create the master key for this module and
-								// bind an alias to it
-								kms
-										.createKey(
-												createKeyParams,
-												function(err, createKeyData) {
-													if (err) {
-														console
-																.log("Error during Master Key creation");
-														return callback(err);
-													} else {
-														// create an alias for
-														// the master key
-														var createAliasParams = {
-															AliasName : moduleKeyName,
-															TargetKeyId : createKeyData.KeyMetadata.KeyId
-														};
-														kms
-																.createAlias(
-																		createAliasParams,
-																		function(
-																				err,
-																				createAliasData) {
-																			if (err) {
-																				console
-																						.log("Error during creation of Alias "
-																								+ moduleKeyName
-																								+ " for Master Key "
-																								+ createKeyData.KeyMetadata.Arn);
-																				return callback(err);
-																			} else {
-																				// invoke
-																				// the
-																				// callback
-																				return callback(
-																						undefined,
-																						createKeyData.KeyMetadata);
-																			}
-																		});
-													}
-												});
-							} else {
-								// got an unknown error while describing the key
-								console
-										.log("Unknown Error during Customer Master Key describe");
+				// create the master key for this module and
+				// bind an alias to it
+				kms.createKey(createKeyParams, function(err, createKeyData) {
+					if (err) {
+						logger.error("Error during Master Key creation");
+						return callback(err);
+					} else {
+						// create an alias for
+						// the master key
+						var createAliasParams = {
+							AliasName : moduleKeyName,
+							TargetKeyId : createKeyData.KeyMetadata.KeyId
+						};
+						kms.createAlias(createAliasParams, function(err, createAliasData) {
+							if (err) {
+								logger.error("Error during creation of Alias " + moduleKeyName + " for Master Key "
+										+ createKeyData.KeyMetadata.Arn);
 								return callback(err);
+							} else {
+								// invoke
+								// the
+								// callback
+								return callback(undefined, createKeyData.KeyMetadata);
 							}
-						} else {
-							// ok - we got the previously generated key, so
-							// callback
-							return callback(undefined, data.KeyMetadata);
-						}
-					});
+						});
+					}
+				});
+			} else {
+				// got an unknown error while describing the key
+				logger.info("Unknown Error during Customer Master Key describe");
+				return callback(err);
+			}
+		} else {
+			// ok - we got the previously generated key, so
+			// callback
+			return callback(undefined, data.KeyMetadata);
+		}
+	});
 };
 exports.getOrCreateMasterKey = getOrCreateMasterKey;
 
@@ -130,7 +120,7 @@ exports.getOrCreateMasterKey = getOrCreateMasterKey;
  * <li>toEncrypt - value to be encrypted</li>
  * <li>callback(err, encrypted) - function invoked once encryption is completed</li>
  */
-var encrypt = function(toEncrypt, callback) {
+function encrypt(toEncrypt, callback) {
 	// get the master key
 	getOrCreateMasterKey(function(err, keyMetadata) {
 		if (err) {
@@ -145,7 +135,7 @@ var encrypt = function(toEncrypt, callback) {
 			};
 			kms.encrypt(params, function(err, encryptData) {
 				if (err) {
-					console.log("Error during Encryption");
+					logger.error("Error during Encryption");
 					return callback(err);
 				} else {
 					return callback(undefined, encryptData.CiphertextBlob);
@@ -165,7 +155,7 @@ exports.encrypt = encrypt;
  * <li>afterDecryptionCallback - function invoked once encryption has been
  * completed</li>
  */
-var encryptAll = function(plaintextArray, afterEncryptionCallback) {
+function encryptAll(plaintextArray, afterEncryptionCallback) {
 	async.map(plaintextArray, function(item, callback) {
 		// decrypt the value using internal decrypt
 		encrypt(item, function(err, ciphertext) {
@@ -178,7 +168,7 @@ var encryptAll = function(plaintextArray, afterEncryptionCallback) {
 };
 exports.encryptAll = encryptAll;
 
-var encryptMap = function(valueMap, afterEncryptionCallback) {
+function encryptMap(valueMap, afterEncryptionCallback) {
 	var encryptedValueMap = {};
 
 	async.each(Object.keys(valueMap), function(key, callback) {
@@ -204,7 +194,7 @@ exports.encryptMap = encryptMap;
  * <li>callback(err, decrypted) - Callback to be invoked after decryption which
  * receives the decrypted value, and errors that were generated</li>
  */
-var decrypt = function(encryptedCiphertext, callback) {
+function decrypt(encryptedCiphertext, callback) {
 	var params = {
 		CiphertextBlob : encryptedCiphertext,
 		EncryptionContext : authContext
@@ -212,11 +202,11 @@ var decrypt = function(encryptedCiphertext, callback) {
 
 	kms.decrypt(params, function(err, decryptData) {
 		if (err) {
-			console.log("Error during Decryption");
+			logger.error("Error during Decryption");
 			return callback(err);
 		} else {
 			if (!decryptData) {
-				console.log("Failed to decrypt ciphertext");
+				logger.error("Failed to decrypt ciphertext");
 				return callback(undefined);
 			} else {
 				return callback(undefined, decryptData.Plaintext);
@@ -235,7 +225,7 @@ exports.decrypt = decrypt;
  * <li>afterDecryptionCallback - function invoked once decryption has been
  * completed</li>
  */
-var decryptAll = function(encryptedArray, afterDecryptionCallback) {
+function decryptAll(encryptedArray, afterDecryptionCallback) {
 	async.map(encryptedArray, function(item, callback) {
 		// decrypt the value using internal decrypt
 		decrypt(item, function(err, plaintext) {
@@ -248,14 +238,14 @@ var decryptAll = function(encryptedArray, afterDecryptionCallback) {
 };
 exports.decryptAll = decryptAll;
 
-var decryptMap = function(encryptedValueMap, afterDecryptionCallback) {
+function decryptMap(encryptedValueMap, afterDecryptionCallback) {
 	var decryptedValueMap = {};
 
 	async.each(Object.keys(encryptedValueMap), function(key, callback) {
 		// decrypt the value using internal decrypt
 		decrypt(encryptedValueMap[key], function(err, plaintext) {
 			if (err) {
-				console.log(JSON.stringify(err));
+				logger.error(JSON.stringify(err));
 				callback(err);
 			} else {
 				decryptedValueMap[key] = plaintext;
@@ -269,7 +259,7 @@ var decryptMap = function(encryptedValueMap, afterDecryptionCallback) {
 };
 exports.decryptMap = decryptMap;
 
-var toLambdaStringFormat = function(buffer) {
+function toLambdaStringFormat(buffer) {
 	return buffer.toString('base64');
 };
 exports.toLambdaStringFormat = toLambdaStringFormat;

@@ -10,46 +10,56 @@
 require('./constants');
 var kmsCrypto = require('./kmsCrypto');
 var args = require('minimist')(process.argv.slice(2));
-
 var region = args.region;
 var input = args.input;
+var debug = (process.env['DEBUG'] === 'true');
+var log_level = process.env['LOG_LEVEL'] || 'info';
+const winston = require('winston');
 
+const logger = winston.createLogger({
+	level : debug === true ? 'debug' : log_level,
+	transports : [ new winston.transports.Console({
+		format : winston.format.simple()
+	}) ]
+});
 
-let encrypt = function (region, input, callback) {
-    kmsCrypto.setRegion(region);
+function encrypt(region, input, callback) {
+	kmsCrypto.setRegion(region);
 
-    kmsCrypto.encrypt(input, function (err, encryptedCiphertext) {
-        if (err) return callback(err);
+	kmsCrypto.encrypt(input, function(err, encryptedCiphertext) {
+		if (err)
+			return callback(err);
 
-        kmsCrypto.decrypt(encryptedCiphertext, function (err, plaintext) {
-            if (err) return callback(err);
+		kmsCrypto.decrypt(encryptedCiphertext, function(err, plaintext) {
+			if (err)
+				return callback(err);
 
-            if (plaintext.toString() === input) {
-                console.log("Encryption completed and verified with AWS KMS");
+			if (plaintext.toString() === input) {
+				logger.info("Encryption completed and verified with AWS KMS");
 
-                callback({
-                    inputValue: input,
-                    configurationEntryValue: kmsCrypto.toLambdaStringFormat(encryptedCiphertext)
-                });
-            } else {
-                callback("Encryption completed but could not be validated. Result: " + plaintext.toString());
-            }
-        });
+				callback({
+					inputValue : input,
+					configurationEntryValue : kmsCrypto.toLambdaStringFormat(encryptedCiphertext)
+				});
+			} else {
+				callback("Encryption completed but could not be validated. Result: " + plaintext.toString());
+			}
+		});
 
-    });
+	});
 }
 exports.encrypt = encrypt;
 
 if (!region || !input) {
-    console.log("You must provide a region (--region) for the KMS Service and an input value (--input) to Encrypt");
-    process.exit(ERROR);
+	logger.error("You must provide a region (--region) for the KMS Service and an input value (--input) to Encrypt");
+	process.exit(ERROR);
 } else {
-    encrypt(region, input, function (err, result) {
-        if (err) {
-            console.log(err);
-            process.exit(ERROR);
-        } else {
-            console.log(JSON.stringify(result));
-        }
-    });
+	encrypt(region, input, function(err, result) {
+		if (err) {
+			logger.error(err);
+			process.exit(ERROR);
+		} else {
+			logger.info(JSON.stringify(result));
+		}
+	});
 }

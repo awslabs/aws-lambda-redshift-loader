@@ -11,11 +11,20 @@ var pjson = require('./package.json');
 var common = require('./common');
 var async = require('async');
 var dynamoClient;
-var debug = (process.env['DEBUG'] === 'true')
+var debug = (process.env['DEBUG'] === 'true');
+var log_level = process.env['LOG_LEVEL'] || 'info';
+const winston = require('winston');
 
-exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
+const logger = winston.createLogger({
+	level : debug === true ? 'debug' : log_level,
+	transports : [ new winston.transports.Console({
+		format : winston.format.simple()
+	}) ]
+});
+
+function v1_v2(err, s3Info, configPre, forwardCallback) {
 	if (configPre.clusterEndpoint) {
-		console.log("Upgrading to Version 2.x multi-cluster configuration");
+		logger.warn("Upgrading to Version 2.x multi-cluster configuration");
 
 		// bind the current config items into the new config map
 		var clusterConfig = {
@@ -30,8 +39,7 @@ exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 		clusterConfig.M.truncateTarget = configPre.truncateTarget;
 
 		// update dynamo, adding the new config map as 'loadClusters' and
-		// removing
-		// the old values
+		// removing the old values
 		var updateRequest = {
 			Key : {
 				s3Prefix : {
@@ -61,22 +69,18 @@ exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 			 * upgrade
 			 */
 			ConditionExpression : "(attribute_not_exists(#ver) or #ver != :version) and attribute_not_exists(#loadCluster)",
-			// add the ALL_NEW return values so we have the
-			// get the config after update
+			// add the ALL_NEW return values so we have the get the config after
+			// update
 			ReturnValues : "ALL_NEW"
 		};
 
-		if (debug === true) {
-			console.log(JSON.stringify(updateRequest));
-		}
+		logger.debug(JSON.stringify(updateRequest));
 
 		dynamoClient.updateItem(updateRequest, function(err, data) {
 			if (err) {
 				if (err.code === conditionCheckFailed) {
 					// no problem - configuration was upgraded by someone else
-					// while
-					// we were
-					// running - requery and return
+					// while we were running - requery and return
 					var dynamoLookup = {
 						Key : {
 							s3Prefix : {
@@ -106,10 +110,10 @@ exports.v1_v2 = function(err, s3Info, configPre, forwardCallback) {
 		// no upgrade required
 		forwardCallback(null, s3Info, configPre);
 	}
-};
+}
+exports.v1_v2 = v1_v2;
 
-exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
-		forwardCallback) {
+function fixEncryptedItemEncoding(err, s3Info, configPre, forwardCallback) {
 	var willDoUpgrade = false;
 
 	// convert the encrypted items from the previous native storage format to
@@ -128,21 +132,17 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 		}
 	};
 
-	if (configPre.masterSymmetricKey
-			&& configPre.masterSymmetricKey.S.indexOf('[') > -1) {
+	if (configPre.masterSymmetricKey && configPre.masterSymmetricKey.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newMasterSymmetricKey = Buffer.from(JSON
-				.parse(configPre.masterSymmetricKey.S)).toString('base64');
+		newMasterSymmetricKey = Buffer.from(JSON.parse(configPre.masterSymmetricKey.S)).toString('base64');
 		updateExpressions.push("masterSymmetricKey = :masterSymmetricKey");
 		expressionAttributeValues[":masterSymmetricKey"] = {
 			S : newMasterSymmetricKey
 		};
 	}
-	if (configPre.secretKeyForS3
-			&& configPre.secretKeyForS3.S.indexOf('[') > -1) {
+	if (configPre.secretKeyForS3 && configPre.secretKeyForS3.S.indexOf('[') > -1) {
 		willDoUpgrade = true;
-		newSecretKeyForS3 = Buffer.from(JSON
-				.parse(configPre.secretKeyForS3.S)).toString('base64');
+		newSecretKeyForS3 = Buffer.from(JSON.parse(configPre.secretKeyForS3.S)).toString('base64');
 		updateExpressions.push("secretKeyForS3 = :s3secretAccessKey");
 		expressionAttributeValues[":s3secretAccessKey"] = {
 			S : newSecretKeyForS3
@@ -154,8 +154,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 		configPre.loadClusters.L.map(function(item) {
 			if (item.M.connectPassword.S.indexOf('[') > -1) {
 				willDoUpgrade = true;
-				item.M.connectPassword.S = Buffer.from(JSON
-						.parse(item.M.connectPassword.S)).toString('base64');
+				item.M.connectPassword.S = Buffer.from(JSON.parse(item.M.connectPassword.S)).toString('base64');
 			}
 
 			loadClusters.push(item);
@@ -177,8 +176,7 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 			},
 			TableName : configTable,
 			UpdateExpression : "SET #loadClusters = :newLoadClusters, lastUpdate = :updateTime, #ver = :version "
-					+ (updateExpressions.length > 0 ? ","
-							+ updateExpressions.join(',') : ""),
+					+ (updateExpressions.length > 0 ? "," + updateExpressions.join(',') : ""),
 			ExpressionAttributeValues : expressionAttributeValues,
 			ExpressionAttributeNames : {
 				"#ver" : 'version',
@@ -194,18 +192,14 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 			ReturnValues : "ALL_NEW"
 		};
 
-		console.log("Upgrading to 2.4.x Base64 encoded encryption values");
-		if (debug === true) {
-			console.log(JSON.stringify(updateRequest));
-		}
+		logger.info("Upgrading to 2.4.x Base64 encoded encryption values");
+		logger.debug(JSON.stringify(updateRequest));
 
 		dynamoClient.updateItem(updateRequest, function(err, data) {
 			if (err) {
 				if (err.code === conditionCheckFailed) {
 					// no problem - configuration was upgraded by someone else
-					// while
-					// we were
-					// running - requery and return
+					// while we were running - requery and return
 					var dynamoLookup = {
 						Key : {
 							s3Prefix : {
@@ -233,9 +227,10 @@ exports.fixEncryptedItemEncoding = function(err, s3Info, configPre,
 	} else {
 		forwardCallback(null, s3Info, configPre)
 	}
-};
+}
+exports.fixEncryptedItemEncoding = fixEncryptedItemEncoding;
 
-exports.upgradeAll = function(dynamoDB, s3Info, configPre, finalCallback) {
+function upgradeAll(dynamoDB, s3Info, configPre, finalCallback) {
 	dynamoClient = dynamoDB;
 
 	// add required upgrades here
@@ -251,10 +246,11 @@ exports.upgradeAll = function(dynamoDB, s3Info, configPre, finalCallback) {
 	// run all the upgrades in order
 	async.waterfall(upgrades, function(err, s3Info, finalConfig) {
 		if (err) {
-			console.log(err);
+			logger.error(err);
 		}
 
 		// run the final callback
 		finalCallback(err, s3Info, finalConfig);
 	});
-};
+}
+exports.upgradeAll = upgradeAll;

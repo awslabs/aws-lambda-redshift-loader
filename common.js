@@ -12,6 +12,18 @@ var async = require('async');
 var uuid = require('uuid');
 require('./constants');
 var pjson = require('./package.json');
+var debug = (process.env['DEBUG'] === 'true');
+var log_level = process.env['LOG_LEVEL'] || 'info';
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: debug === true ? 'debug' : log_level,
+  transports: [
+    new winston.transports.Console({
+        format: winston.format.simple()
+    })
+  ]
+});
 
 // function which creates a string representation of now suitable for use in S3
 // paths
@@ -58,14 +70,14 @@ function createTableAndWait (tableParams, dynamoDB, callback) {
     dynamoDB.createTable(tableParams, function (err, data) {
         if (err) {
             if (err.code !== 'ResourceInUseException') {
-                console.log(err);
+                logger.error(err);
                 callback(err);
             } else {
-                console.log("Table " + tableParams.TableName + " already exists");
+                logger.warn("Table " + tableParams.TableName + " already exists");
                 callback();
             }
         } else {
-            console.log("Created DynamoDB Table " + tableParams.TableName);
+            logger.info("Created DynamoDB Table " + tableParams.TableName);
             setTimeout(callback, 1000);
         }
     });
@@ -161,7 +173,7 @@ function createTables (dynamoDB, callback) {
     ];
     async.waterfall(functions, function (err, results) {
         if (err) {
-            console.log(err);
+        	logger.error(err);
             callback(err);
         } else {
             callback();
@@ -186,10 +198,11 @@ function retryableUpdate(dynamoDB, updateRequest, callback) {
                 if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
                     // retry in 1 second if the table is still in the process of
                     // being created
+                	logger.warn("Performing retry on DynamoDB UPDATE due to updating Table state");
                     setTimeout(asyncCallback, 1000);
                 } else {
-                    console.log(JSON.stringify(updateRequest));
-                    console.log(err);
+                	logger.error(JSON.stringify(updateRequest));
+                	logger.error(err);
                     asyncCallback(err);
                 }
             } else {
@@ -199,7 +212,7 @@ function retryableUpdate(dynamoDB, updateRequest, callback) {
                     asyncCallback(undefined, data);
                 } else {
                     var msg = "Wrote to DynamoDB but didn't receive a verification data element";
-                    console.log(msg);
+                    logger.error(msg);
                     asyncCallback(msg);
                 }
             }
@@ -225,10 +238,11 @@ function retryablePut (dynamoDB, putRequest, callback) {
                 if (err.code === 'ResourceInUseException' || err.code === 'ResourceNotFoundException' || err.code === 'ProvisionedThroughputExceededException') {
                     // retry in 1 second if the table is still in the process of
                     // being created
+                	logger.warn("Performing retry on DynamoDB PUT due to updating Table state");
                     setTimeout(asyncCallback, 1000);
                 } else {
-                    console.log(JSON.stringify(putRequest));
-                    console.log(err);
+                    logger.error(JSON.stringify(putRequest));
+                    logger.error(err);
                     done=true;
                     asyncCallback(err);
                 }
@@ -239,7 +253,7 @@ function retryablePut (dynamoDB, putRequest, callback) {
                     asyncCallback(undefined, data);
                 } else {
                     var msg = "Wrote to DynamoDB but didn't receive a verification data element";
-                    console.log(msg);
+                    logger.error(msg);
                     done=true;
                     asyncCallback(msg);
                 }
@@ -257,7 +271,7 @@ function dropTables(dynamoDB, callback) {
         TableName: configTable
     }, function (err, data) {
         if (err && err.code !== 'ResourceNotFoundException') {
-            console.log(err);
+        	logger.error(err);
             callback(err);
         } else {
             // drop the processed files table
@@ -265,7 +279,7 @@ function dropTables(dynamoDB, callback) {
                 TableName: filesTable
             }, function (err, data) {
                 if (err && err.code !== 'ResourceNotFoundException') {
-                    console.log(err);
+                    logger.error(err);
                     callback(err);
                 } else {
                     // drop the batches table
@@ -273,11 +287,11 @@ function dropTables(dynamoDB, callback) {
                         TableName: batchTable
                     }, function (err, data) {
                         if (err && err.code !== 'ResourceNotFoundException') {
-                            console.log(err);
+                            logger.error(err);
                             callback(err);
                         }
 
-                        console.log("All Configuration Tables Dropped");
+                        logger.info("All Configuration Tables Dropped");
 
                         // call the callback requested
                         if (callback) {
@@ -295,14 +309,14 @@ exports.dropTables = dropTables;
 function getIntValue(value, rl) {
     if (!value || value === null) {
         rl.close();
-        console.log('Null Value');
+        logger.error('Null Value');
         process.exit(INVALID_ARG);
     } else {
         var num = parseInt(value);
 
         if (isNaN(num)) {
             rl.close();
-            console.log('Value \'' + value + '\' is not a Number');
+            logger.error('Value \'' + value + '\' is not a Number');
             process.exit(INVALID_ARG);
         } else {
             return num;
@@ -328,7 +342,7 @@ exports.getBooleanValue = getBooleanValue;
 function validateNotNull(value, message, rl) {
     if (!value || value === null || value === '') {
         rl.close();
-        console.log(message);
+        logger.error(message);
         process.exit(INVALID_ARG);
     }
 };
@@ -347,7 +361,7 @@ exports.blank = blank;
 function validateArrayContains(array, value, rl) {
     if (array.indexOf(value) === -1) {
         rl.close();
-        console.log('Value must be one of ' + array.toString());
+        logger.error('Value must be one of ' + array.toString());
         process.exit(INVALID_ARG);
     }
 };
@@ -384,7 +398,7 @@ function getFunctionArn(lambda, functionName, callback) {
     };
     lambda.getFunction(params, function (err, data) {
         if (err) {
-            console.log(err);
+            logger.error(err);
             callback(err);
         } else {
             if (data && data.Configuration) {
@@ -474,7 +488,7 @@ function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functi
         }
 
         if (foundMatch === true) {
-            console.log("Found existing Policy match for S3 path to invoke " + functionName);
+            logger.info("Found existing Policy match for S3 path to invoke " + functionName);
             callback();
         } else {
             var lambdaPermissions = {
@@ -489,10 +503,10 @@ function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functi
 
             lambda.addPermission(lambdaPermissions, function (err, data) {
                 if (err) {
-                    console.log(err);
+                    logger.error(err);
                     callback(err);
                 } else {
-                    console.log("Granted S3 permission to invoke " + functionArn);
+                    logger.info("Granted S3 permission to invoke " + functionArn);
                     callback();
                 }
             });
@@ -502,31 +516,31 @@ function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functi
 exports.ensureS3InvokePermisssions = ensureS3InvokePermisssions;
 
 function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback) {
-    console.log("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
+    logger.info("Creating S3 Event Source for s3://" + bucket + "/" + prefix);
 
     // lookup the deployed function name to get the ARN
     getFunctionArn(lambda, functionName, function (err, functionArn) {
         if (err) {
-        	console.log(err);
+        	logger.error(err);
             callback(err);
         } else {
             // blow up if there's no deployed function - can't create the event
             // source
             if (!functionArn) {
                 var msg = "Unable to resolve Function ARN for " + functionName;
-                console.log(msg);
+                logger.error(msg);
                 callback(msg);
             } else {
                 getS3NotificationConfiguration(s3, bucket, prefix, functionArn, function (err, lambdaFunctionId, currentNotificationConfiguration) {
                     if (err) {
                         // this almost certainly will be because the bucket name
                         // doesn't exist
-                        console.log(err);
+                        logger.error(err);
                         callback(err);
                     } else {
                         if (lambdaFunctionId) {
                             // found an existing function
-                            console.log("Found existing event source for s3://" + bucket + "/" + prefix + " forwarding notifications to " + functionArn);
+                            logger.warn("Found existing event source for s3://" + bucket + "/" + prefix + " forwarding notifications to " + functionArn);
                             callback(undefined, lambdaFunctionId);
                         } else {
                             // there isn't a matching event
@@ -551,14 +565,14 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
 									// already have one that exists
                                     currentNotificationConfiguration.LambdaFunctionConfigurations.forEach(config => {
                                         if (config && config.Filter && config.Filter.Key && config.Filter.Key.FilterRules && config.Filter.Key.FilterRules[0].Value == prefix + '/') {
-                                            console.log('Skipping creation of notification config because it already exists');
+                                            logger.warn('Skipping creation of notification config because it already exists');
                                             configAlreadyExists = true;
                                         }
                                     });
 
                                     // Create a new notification config
                                     if (!configAlreadyExists) {
-                                        console.log('Creating notification configuration');
+                                        logger.info('Creating notification configuration');
 
                                         // now create the event source mapping
                                         var newEventConfiguration = {
@@ -586,8 +600,8 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
 
                                         s3.putBucketNotificationConfiguration(params, function (err, data) {
                                             if (err) {
-                                                console.log(this.httpResponse.body.toString());
-                                                console.log(err);
+                                                logger.error(this.httpResponse.body.toString());
+                                                logger.error(err);
                                                 callback(err);
                                             } else {
                                                 callback();
@@ -610,7 +624,7 @@ exports.createS3EventSource = createS3EventSource;
 function setup (useConfig, dynamoDB, s3, lambda, callback) {
     // function to create tables
     var ct = function (c) {
-    	console.log("Creating required configuration tables in DynamoDB")
+    	logger.info("Creating required configuration tables in DynamoDB")
         createTables(dynamoDB, function (err) {
             c(err);
         });
@@ -618,7 +632,7 @@ function setup (useConfig, dynamoDB, s3, lambda, callback) {
 
     // function to write the configuration into the config tables
     var wc = function (c) {
-    	console.log("Creating Configuration");
+    	logger.info("Creating Configuration");
     	retryablePut(dynamoDB, useConfig, function (err) {
             c(err);
         });
@@ -627,7 +641,7 @@ function setup (useConfig, dynamoDB, s3, lambda, callback) {
     // function which invokes the creation of the event source for the bucket
     // and prefix
     var ces = function (c) {
-    	console.log("Creating S3 Event Source")
+    	logger.info("Creating S3 Event Source")
         var s3prefix = useConfig.Item.s3Prefix.S;
         var tokens = s3prefix.split("/");
         var bucket = tokens[0];
@@ -641,7 +655,7 @@ function setup (useConfig, dynamoDB, s3, lambda, callback) {
 
     async.waterfall([ct, wc, ces], function (err, result) {
         if (err) {
-            console.log(err);
+            logger.error(err);
             callback(err);
         } else {
             callback();
@@ -661,7 +675,7 @@ function inPlaceCopyFile(s3, batchId, batchEntry, callback) {
     };
     s3.headObject(headSpec, function (err, data) {
         if (err) {
-            console.log(err);
+            logger.error(err);
             callback(err);
         } else {
             // Modify the metadata to allow the in-place copy
@@ -688,10 +702,10 @@ function inPlaceCopyFile(s3, batchId, batchEntry, callback) {
             };
             s3.copyObject(copySpec, function (err, data) {
                 if (err) {
-                    console.log(err);
+                    logger.error(err);
                     callback(err);
                 } else {
-                    console.log("Submitted reprocess request for " + batchEntry);
+                    logger.info("Submitted reprocess request for " + batchEntry);
 
                     // done - call the callback
                     callback();

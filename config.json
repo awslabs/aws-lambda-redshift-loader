@@ -3,7 +3,7 @@
 	"s3Prefix": "mybucket/data",
 	"filenameFilter": "",
 	"clusterEndpoint": "streamingdatademo.c9mviyg16e04.us-west-2.redshift.amazonaws.com",
-	"clusterPort": "5439",
+	"clusterPort": 5439,
 	"clusterUseSSL": "N",
 	"clusterDB": "dev",
 	"table": "sensor_data_raw",
@@ -24,9 +24,9 @@
 	"secretKey": "",
 	"successTopic": "",
 	"failureTopic": "",
-	"batchSize": "3",
-	"batchSizeBytes": "",
-	"batchTimeoutSecs": "120",
+	"batchSize": 3,
+	"batchSizeBytes": 1024,
+	"batchTimeoutSecs": 120,
 	"copyOptions": "",
 	"symmetricKey": ""
 }

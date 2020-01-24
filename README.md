@@ -100,7 +100,7 @@ The template requires four input parameters: availability zone, a security group
 
 __Usage Steps__
 
-1. Create a CloudFormation stack with the deploy.yaml file, or use the table of links below.  This stack will include everything needed to set up the autoloader with two exceptions.  The KMS key must be created and managed separately, and a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not configure the autoloader - it just installs the components required to run the node setup script.
+1. Create a CloudFormation stack with the deploy.yaml file, or launch using the table of links below.  This stack will include everything needed to set up the autoloader with two exceptions.  The KMS key must be created and managed separately, and a RedShift cluster will be required when setting up the autoloader.  Note that this stack does not configure the autoloader - it just installs the components required to run the node setup script.
 2. Log in to the EC2 instance created as part of the stack.  It contains all the necessary components set up the autoloader.
 3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
 
@@ -133,70 +133,23 @@ __Launch Links__
 |us-west-1 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://awslabs-code-us-west-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy.yaml) |
 |us-west-2 |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" target=\”_blank\”>](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=LambdaRedshiftLoader&templateURL=https://awslabs-code-us-west-2.s3.amazonaws.com/LambdaRedshiftLoader/deploy.yaml) |
 
+### Function Configuration
+
+You can set the logging behaviour of the function by adding environment variables:
+
+* `DEBUG` Sets log level debug and all messages will be shown in CloudWatch Logs
+* `LOG_LEVEL` Sets the log level to whatever you require, per [Winston documentation](https://github.com/winstonjs/winston#logging-levels)
+
 ## Installing Manually
+
+This option is not recommended, but can be used if you just want to patch the binaries, etc. Proceed with caution.
 
 ### Before you deploy - Lambda Execution Role
 
 You need to create an IAM policy that AWS Lambda
 uses when it runs, and allows it to call SNS, use DynamoDB, write Manifest
 files to S3, perform encryption with the AWS Key Management Service, and pass STS temporary
-credentials to Redshift for the COPY command:
-
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "Stmt1424787824000",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:DeleteItem",
-                "dynamodb:DescribeTable",
-                "dynamodb:GetItem",
-                "dynamodb:ListTables",
-                "dynamodb:PutItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:UpdateItem"
-            ],
-            "Resource": [
-                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftBatches",
-                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftBatchLoadConfig",
-                "arn:aws:dynamodb:<my region>:<my account>:table/LambdaRedshiftProcessedFiles"              
-            ]
-        },
-        {
-            "Sid": "Stmt1424787824001",
-            "Effect": "Allow",
-            "Action": [
-                "sns:GetEndpointAttributes",
-                "sns:GetSubscriptionAttributes",
-                "sns:GetTopicAttributes",
-                "sns:ListTopics",
-                "sns:Publish",
-                "sns:Subscribe",
-                "sns:Unsubscribe"
-            ],
-            "Resource": [
-                "arn:aws:sns:<my region>:<my account>:<success topic>",
-                "arn:aws:sns:<my region>:<my account>:<failure topic>"              
-            ]
-        },
-        {
-            "Sid": "Stmt1424787824002",
-            "Effect": "Allow",
-            "Action": [
-                "kms:Decrypt",
-                "kms:DescribeKey",
-                "kms:GetKeyPolicy"
-            ],
-            "Resource": [
-                "arn:aws:kms:<my region>:<my account>:key/<key name>"
-            ]
-        }
-    ]
-}
-```
+credentials to Redshift for the COPY command. We recommend that you obtain the required permissions from the contents of the deploy.yaml as they will always be up to date.
 
 ### Deploy the function
 
@@ -210,23 +163,23 @@ credentials to Redshift for the COPY command:
 
 | Region | Function Code S3 Location |
 | ------ | ---- |
-| eu-north-1 | [s3://awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
-| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.0.zip)
+| eu-north-1 | [s3://awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.eu-north-1.amazonaws.com/awslabs-code-eu-north-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-south-1 | [s3://awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-south-1.amazonaws.com/awslabs-code-ap-south-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| eu-west-3 | [s3://awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.eu-west-3.amazonaws.com/awslabs-code-eu-west-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| eu-west-2 | [s3://awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.eu-west-2.amazonaws.com/awslabs-code-eu-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| eu-west-1 | [s3://awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.eu-west-1.amazonaws.com/awslabs-code-eu-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-northeast-3 | [s3://awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-northeast-3.amazonaws.com/awslabs-code-ap-northeast-3/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-northeast-2 | [s3://awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-northeast-2.amazonaws.com/awslabs-code-ap-northeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-northeast-1 | [s3://awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-northeast-1.amazonaws.com/awslabs-code-ap-northeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| sa-east-1 | [s3://awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.sa-east-1.amazonaws.com/awslabs-code-sa-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ca-central-1 | [s3://awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ca-central-1.amazonaws.com/awslabs-code-ca-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-southeast-1 | [s3://awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-southeast-1.amazonaws.com/awslabs-code-ap-southeast-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| ap-southeast-2 | [s3://awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.ap-southeast-2.amazonaws.com/awslabs-code-ap-southeast-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| eu-central-1 | [s3://awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.eu-central-1.amazonaws.com/awslabs-code-eu-central-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| us-east-1 | [s3://awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.amazonaws.com/awslabs-code-us-east-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| us-east-2 | [s3://awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.us-east-2.amazonaws.com/awslabs-code-us-east-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| us-west-1 | [s3://awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.us-west-1.amazonaws.com/awslabs-code-us-west-1/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
+| us-west-2 | [s3://awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip](https://s3.us-west-2.amazonaws.com/awslabs-code-us-west-2/LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip)
 
 When you're done, you'll see that the AWS Lambda function is deployed and you
 can submit test events and view the CloudWatch Logging log streams.

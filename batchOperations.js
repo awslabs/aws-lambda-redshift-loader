@@ -5,6 +5,18 @@ var async = require('async');
 var debug = true;
 var dynamoDB;
 var s3;
+var debug = (process.env['DEBUG'] === 'true');
+var log_level = process.env['LOG_LEVEL'] || 'info';
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: debug === true ? 'debug' : log_level,
+  transports: [
+    new winston.transports.Console({
+        format: winston.format.simple()
+    })
+  ]
+});
 
 /**
  * Initialisation for the module - connect to DDB etc
@@ -145,7 +157,7 @@ function doQuery(setRegion, batchStatus, queryStartDate, queryEndDate, callback)
 
     dynamoDB.query(queryParams, function (err, data) {
         if (err) {
-            console.log(err);
+            logger.error(err);
             process.exit(ERROR);
         } else {
             if (data && data.Items) {
@@ -220,7 +232,7 @@ function deleteBatches(setRegion, batchStatus, startDate, endDate, dryRun, callb
             callback(err);
         } else {
             if (dryRun && !JSON.parse(dryRun)) {
-                console.log("Deleting " + data.length + " Batches in status " + batchStatus);
+                logger.info("Deleting " + data.length + " Batches in status " + batchStatus);
 
                 async.map(data, function (batchItem, asyncCallback) {
                     // pass the request through the function that deletes the
@@ -244,8 +256,8 @@ function deleteBatches(setRegion, batchStatus, startDate, endDate, dryRun, callb
                     }
                 });
             } else {
-                console.log("Dry run only - no batches will be modified");
-                console.log("Resolved " + data.length + " Batches for Deletion");
+                logger.info("Dry run only - no batches will be modified");
+                logger.info("Resolved " + data.length + " Batches for Deletion");
                 callback(null, {
                     batchCountDeleted: 0,
                     batchesDeleted: data
@@ -272,11 +284,11 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
             if (data) {
                 if (!data.entries.SS) {
                     msg = "Batch is Empty!";
-                    console.log(msg);
+                    logger.info(msg);
                     callback(msg);
                 } else if (data.status.S === open) {
                     msg = "Cannot reprocess an Open Batch";
-                    console.log(msg);
+                    logger.error(msg);
                     callback(msg);
                 } else {
                     // the batch to be unlocked must be in locked or error state - we
@@ -331,7 +343,7 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                 }
             } else {
                 msg = "Unable to retrieve batch " + batchId + " for prefix " + s3Prefix;
-                console.log(msg);
+                logger.error(msg);
                 callback(msg);
             }
         }
