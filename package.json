@@ -11,7 +11,7 @@
         "async": "3.1.0",
         "aws-sdk": "2.608.0",
         "https-proxy-agent": "3.0.1",
-        "minimist": "1.2.0",
+        "minimist": "1.2.2",
         "pg": "7.14.0",
         "pg-ka-fix": "1.0.0-rm-fix",
         "pgpass": "1.0.2",
