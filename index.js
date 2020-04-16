@@ -53,12 +53,12 @@ const maxRetryMS = 200;
 const winston = require('winston');
 
 const logger = winston.createLogger({
-  level: debug === true ? 'debug' : log_level,
-  transports: [
-    new winston.transports.Console({
-        format: winston.format.simple()
-    })
-  ]
+    level: debug === true ? 'debug' : log_level,
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.simple()
+        })
+    ]
 });
 
 // empty import/invocation of the keepalive fix for node-postgres module
@@ -107,14 +107,14 @@ function getConfigWithRetry(prefix, callback) {
     };
 
     logger.debug(JSON.stringify(dynamoLookup));
-    
+
     async.whilst(function (test_cb) {
         // return OK if the proceed flag has been set, or if
         // we've hit the retry count
         test_cb(null, !proceed && tryNumber < lookupConfigTries);
     }, function (callback) {
         tryNumber++;
-        
+
         logger.debug("Fetching S3 Configuration: Try " + tryNumber);
 
         // lookup the configuration item, and run foundConfig on completion
@@ -138,7 +138,7 @@ function getConfigWithRetry(prefix, callback) {
         });
     }, function (err) {
         if (err) {
-        	logger.error(err);
+            logger.error(err);
             callback(err);
         } else {
             callback(null, configData);
@@ -158,8 +158,8 @@ function resolveConfig(prefix, successCallback, noConfigFoundCallback) {
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
-    	logger.debug("Extracing S3 Config for Path: " + searchPrefix);
-    	
+        logger.debug("Extracing S3 Config for Path: " + searchPrefix);
+
         getConfigWithRetry(searchPrefix, function (err, data) {
             if (err) {
                 untilCallback(err);
@@ -175,15 +175,15 @@ function resolveConfig(prefix, successCallback, noConfigFoundCallback) {
             }
         });
     }, function (err) {
-    	if (err) {
-    		noConfigFoundCallback(err)
-    	} else {
-	        if (config) {
-	            successCallback(err, config);
-	        } else {
-	            noConfigFoundCallback(err);
-	        }
-    	}
+        if (err) {
+            noConfigFoundCallback(err)
+        } else {
+            if (config) {
+                successCallback(err, config);
+            } else {
+                noConfigFoundCallback(err);
+            }
+        }
     });
 };
 exports.resolveConfig = resolveConfig;
@@ -200,7 +200,7 @@ function handler(event, context) {
     function upgradeConfig(s3Info, currentConfig, callback) {
         // v 1.x to 2.x upgrade for multi-cluster loaders
         if (currentConfig.version !== pjson.version) {
-        	logger.debug(`Performing version upgrade from ${currentConfig.version} to ${pjson.version}`);
+            logger.debug(`Performing version upgrade from ${currentConfig.version} to ${pjson.version}`);
             upgrade.upgradeAll(dynamoDB, s3Info, currentConfig, callback);
         } else {
             // no upgrade needed
@@ -235,9 +235,9 @@ function handler(event, context) {
                         isFilterRegexMatch = s3Info.key.match(useConfig.filenameFilterRegex.S);
                     } catch (e) {
                         // suppress this error - it may have been a malformed
-						// regex as well as just a non-match
+                        // regex as well as just a non-match
                         // exceptions are treated as a file match here - we'd
-						// rather process a file and have the batch
+                        // rather process a file and have the batch
                         // fail than erroneously ignore it
                         logger.error("Error on filename filter evaluation. File will be included for processing");
                         logger.error(e);
@@ -248,7 +248,7 @@ function handler(event, context) {
                         logger.info('Object ' + s3Info.key + ' excluded by filename filter \'' + useConfig.filenameFilterRegex.S + '\'');
 
                         // scan the current batch to decide if it needs to be
-						// flushed due to batch timeout
+                        // flushed due to batch timeout
                         processPendingBatch(useConfig, thisBatchId, s3Info);
                     }
                 } else {
@@ -289,7 +289,7 @@ function handler(event, context) {
             UpdateExpression: "set #rcvDate = :rcvDate add timesReceived :incr",
             ReturnValues: "ALL_NEW"
         };
-        
+
         logger.debug("Checking whether File is already processed");
         logger.debug(JSON.stringify(fileEntry));
 
@@ -308,14 +308,14 @@ function handler(event, context) {
                 } else {
                     if (data.Attributes.batchId && data.Attributes.batchId.S) {
                         // there's already a pending batch link, so this is a
-						// full duplicate and we'll discard
+                        // full duplicate and we'll discard
                         logger.info("File " + itemEntry + " Already Processed");
                         context.done(null, null);
                     } else {
                         // update was successful, and either this is the first
-						// event and there was no batch ID
+                        // event and there was no batch ID
                         // specified, or the file is a reprocess but the batch
-						// ID attachment didn't work - proceed
+                        // ID attachment didn't work - proceed
                         // with adding the entry to the pending batch
                         addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry);
                     }
@@ -325,10 +325,10 @@ function handler(event, context) {
     };
 
     /**
-	 * Function run to add a file to the existing open batch. This will
-	 * repeatedly try to write and if unsuccessful it will requery the batch ID
-	 * on the configuration
-	 */
+     * Function run to add a file to the existing open batch. This will
+     * repeatedly try to write and if unsuccessful it will requery the batch ID
+     * on the configuration
+     */
     function addFileToPendingBatch(config, thisBatchId, s3Info, itemEntry) {
         console.log("Adding Pending Batch Entry for " + itemEntry);
 
@@ -341,14 +341,14 @@ function handler(event, context) {
         async.whilst(
             function (test_cb) {
                 // return OK if the proceed flag has been set, or if we've hit
-				// the retry count
+                // the retry count
                 test_cb(null, !proceed && tryNumber < addFileRetryLimit);
             },
             function (callback) {
                 tryNumber++;
 
                 // build the reference to the pending batch, with an atomic add
-				// of the current file
+                // of the current file
                 var now = common.now();
                 var item = {
                     Key: {
@@ -397,7 +397,7 @@ function handler(event, context) {
                             setTimeout(callback, waitFor);
                         } else if (err.code === conditionCheckFailed) {
                             // the batch I have a reference to was locked so
-							// reload the current batch ID from the config
+                            // reload the current batch ID from the config
                             var configReloadRequest = {
                                 Key: {
                                     s3Prefix: {
@@ -424,18 +424,18 @@ function handler(event, context) {
                                 } else {
                                     if (data.Item.currentBatch.S === thisBatchId) {
                                         // we've obtained the same batch ID back
-										// from the configuration as we have
-										// now, meaning it hasn't yet rotated
+                                        // from the configuration as we have
+                                        // now, meaning it hasn't yet rotated
                                         logger.warn("Batch " + thisBatchId + " still current after configuration reload attempt " + configReloads + ". Recycling in " + waitFor + " ms.");
 
                                         // because the batch hasn't been
-										// reloaded on the configuration, we'll
-										// backoff here for a moment to let that
-										// happen
+                                        // reloaded on the configuration, we'll
+                                        // backoff here for a moment to let that
+                                        // happen
                                         setTimeout(callback, waitFor);
                                     } else {
                                         // we've got an updated batch id, so use
-										// this in the next cycle of file add
+                                        // this in the next cycle of file add
                                         thisBatchId = data.Item.currentBatch.S;
 
                                         logger.warn("Obtained new Batch ID " + thisBatchId + " after configuration reload. Attempt " + configReloads);
@@ -456,7 +456,7 @@ function handler(event, context) {
                         }
                     } else {
                         // no error - the file was added to the batch, so mark
-						// the operation as OK so async will not retry
+                        // the operation as OK so async will not retry
                         proceed = true;
                         callback();
                     }
@@ -524,9 +524,9 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which will link the deduplication table entry for the file to
-	 * the batch into which the file was finally added
-	 */
+     * Function which will link the deduplication table entry for the file to
+     * the batch into which the file was finally added
+     */
     function linkProcessedFileToBatch(itemEntry, batchId) {
         var updateProcessedFile = {
             Key: {
@@ -544,10 +544,10 @@ function handler(event, context) {
                 }
             }
         };
-        
+
         logger.debug("Linking file to current batch");
         logger.debug(JSON.stringify(updateProcessedFile));
-        
+
         common.retryableUpdate(dynamoDB, updateProcessedFile, function (err, data) {
             // because this is an async call which doesn't affect
             // process flow, we'll just log the error and do nothing with the OK
@@ -559,9 +559,9 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which links the manifest name used to load redshift onto the
-	 * batch table entry
-	 */
+     * Function which links the manifest name used to load redshift onto the
+     * batch table entry
+     */
     function addManifestToBatch(config, thisBatchId, s3Info, manifestInfo) {
         // build the reference to the pending batch, with an atomic
         // add of the current file
@@ -590,7 +590,7 @@ function handler(event, context) {
                 }
             }
         };
-        
+
         logger.debug("Linking manifest file pointer to Batch");
         logger.debug(JSON.stringify(item));
 
@@ -604,9 +604,9 @@ function handler(event, context) {
     };
 
     /**
-	 * Function to process the current pending batch, and create a batch load
-	 * process if required on the basis of size or timeout
-	 */
+     * Function to process the current pending batch, and create a batch load
+     * process if required on the basis of size or timeout
+     */
     function processPendingBatch(config, thisBatchId, s3Info) {
         // make the request for the current batch
         var currentBatchRequest = {
@@ -621,7 +621,7 @@ function handler(event, context) {
             TableName: batchTable,
             ConsistentRead: true
         };
-        
+
         logger.debug("Loading current Batch record from prefix config");
         logger.debug(JSON.stringify(currentBatchRequest));
 
@@ -640,13 +640,13 @@ function handler(event, context) {
                 context.done(null, msg);
             } else {
                 // first step is to resolve the earliest writeDate as the batch
-				// creation date
+                // creation date
                 var batchCreateDate;
                 data.Item.writeDates.NS.map(function (item) {
                     var t = parseInt(item);
-                    
+
                     logger.debug(`Batch entry epoch timestamp: ${item}`);
-                    
+
                     if (!batchCreateDate || t < batchCreateDate) {
                         batchCreateDate = t;
                     }
@@ -659,24 +659,30 @@ function handler(event, context) {
                     logger.info("Batch count " + config.batchSize.N + " reached");
                     doProcessBatch = true;
                 } else {
-                    logger.debug("Current batch count of " + pendingEntries.length + " below batch limit of " + config.batchSize.N);
+                    if (config.batchSize && config.batchSize.N) {
+                        logger.debug("Current batch count of " + pendingEntries.length + " below batch limit of " + config.batchSize.N);
+                    }
                 }
 
                 // check whether the current batch is bigger than the configured
-				// max count, size, or older than configured max age
+                // max count, size, or older than configured max age
                 if (config.batchTimeoutSecs && config.batchTimeoutSecs.N && pendingEntries.length > 0 && common.now() - batchCreateDate > parseInt(config.batchTimeoutSecs.N)) {
                     logger.info("Batch age " + config.batchTimeoutSecs.N + " seconds reached");
                     doProcessBatch = true;
                 } else {
-                    logger.debug("Current batch age of " + (common.now() - batchCreateDate) + " seconds below batch timeout: "
-                            + (config.batchTimeoutSecs.N ? config.batchTimeoutSecs.N : "None Defined"));                    
+                    if (config.batchTimeoutSecs && config.batchTimeoutSecs.N) {
+                        logger.debug("Current batch age of " + (common.now() - batchCreateDate) + " seconds below batch timeout: "
+                            + (config.batchTimeoutSecs.N ? config.batchTimeoutSecs.N : "None Defined"));
+                    }
                 }
 
                 if (config.batchSizeBytes && config.batchSizeBytes.N && pendingEntries.length > 0 && parseInt(config.batchSizeBytes.N) <= parseInt(data.Item.size.N)) {
                     logger.info("Batch size " + config.batchSizeBytes.N + " bytes reached");
                     doProcessBatch = true;
                 } else {
-                    logger.debug("Current batch size of " + data.Item.size.N + " below batch threshold or not configured");
+                    if (data.Item.size.N) {
+                        logger.debug("Current batch size of " + data.Item.size.N + " below batch threshold or not configured");
+                    }
                 }
 
                 if (doProcessBatch) {
@@ -724,17 +730,17 @@ function handler(event, context) {
 						 */
                         ReturnValues: "ALL_NEW"
                     };
-                    
+
                     logger.debug("Attempting to lock Batch for processing");
                     logger.debug(JSON.stringify(updateCurrentBatchStatus));
-                    
+
                     common.retryableUpdate(dynamoDB, updateCurrentBatchStatus, function (err, data) {
                         if (err) {
                             if (err.code === conditionCheckFailed) {
                                 // some other Lambda function has locked the
-								// batch - this is OK and we'll just exit
-								// quietly
-                            	logger.debug("Batch is ready to be processed, but another thread has locked it for loading");
+                                // batch - this is OK and we'll just exit
+                                // quietly
+                                logger.debug("Batch is ready to be processed, but another thread has locked it for loading");
                                 context.done(null, null);
                             } else if (err.code === provisionedThroughputExceeded) {
                                 logger.error("Provisioned Throughput Exceeded on " + batchTable + " while trying to lock Batch");
@@ -782,14 +788,14 @@ function handler(event, context) {
                                         }
                                     }
                                 };
-                                
+
                                 logger.debug("Allocating new Batch ID for future processing");
                                 logger.debug(JSON.stringify(allocateNewBatchRequest));
 
                                 common.retryableUpdate(dynamoDB, allocateNewBatchRequest, function (err, data) {
                                     if (err) {
-                                    	logger.error("Error while allocating new Pending Batch ID");
-                                    	logger.error(JSON.stringify(err));
+                                        logger.error("Error while allocating new Pending Batch ID");
+                                        logger.error(JSON.stringify(err));
                                         context.done(error, JSON.stringify(err));
                                     } else {
                                         // OK - let's create the manifest file
@@ -808,8 +814,8 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which will create the manifest for a given batch and entries
-	 */
+     * Function which will create the manifest for a given batch and entries
+     */
     function createManifest(config, thisBatchId, s3Info, batchEntries) {
         logger.info("Creating Manifest for Batch " + thisBatchId);
 
@@ -821,17 +827,17 @@ function handler(event, context) {
         };
 
         logger.debug("Building new COPY Manifest");
-        
+
         for (var i = 0; i < batchEntries.length; i++) {
             /*
 			 * fix url encoding for files with spaces. Space values come in from
 			 * Lambda with '+' and plus values come in as %2B. Redshift wants
 			 * the original S3 value
 			 */
-        	u = 's3://' + batchEntries[i].replace(/\+/g, ' ').replace(/%2B/g, '+')
-        	
-        	logger.debug(u);
-        	
+            u = 's3://' + batchEntries[i].replace(/\+/g, ' ').replace(/%2B/g, '+')
+
+            logger.debug(u);
+
             manifestContents.entries.push({
                 url: u,
                 mandatory: true
@@ -855,12 +861,12 @@ function handler(event, context) {
     };
 
     /**
-	 * Function run when the Redshift manifest write completes succesfully
-	 */
+     * Function run when the Redshift manifest write completes succesfully
+     */
     function loadRedshiftWithManifest(config, thisBatchId, s3Info, manifestInfo, err, data) {
         if (err) {
-        	logger.error("Error on Manifest Creation");
-        	logger.error(err);
+            logger.error("Error on Manifest Creation");
+            logger.error(err);
             failBatch(err, config, thisBatchId, s3Info, manifestInfo);
         } else {
             logger.info("Created Manifest " + manifestInfo.manifestPath + " Successfully");
@@ -881,11 +887,11 @@ function handler(event, context) {
             // run all the cluster loaders in parallel
             async.map(clustersToLoad, function (item, callback) {
                 // call the load cluster function, passing it the continuation
-				// callback
+                // callback
                 loadCluster(config, thisBatchId, s3Info, manifestInfo, item, callback);
             }, function (err, results) {
                 if (err) {
-                	logger.error(err);
+                    logger.error(err);
                 }
 
                 // go through all the results - if they were all
@@ -931,13 +937,13 @@ function handler(event, context) {
                         }
                     }
                 };
-                
+
                 logger.debug("Linking Batch load state for cluster");
                 logger.debug(JSON.stringify(loadStateRequest));
-                
+
                 common.retryableUpdate(dynamoDB, loadStateRequest, function (err, data) {
                     if (err) {
-                    	logger.error("Error while attaching per-Cluster Load State");
+                        logger.error("Error while attaching per-Cluster Load State");
                         failBatch(err, config, thisBatchId, s3Info, manifestInfo);
                     } else {
                         if (allOK === true) {
@@ -954,8 +960,8 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which will run a postgres command with retries
-	 */
+     * Function which will run a postgres command with retries
+     */
     function runPgCommand(clusterInfo, client, command, retries, retryableErrorTraps, retryBackoffBaseMs, callback) {
         var completed = false;
         var retryCount = 0;
@@ -964,14 +970,14 @@ function handler(event, context) {
         async.until(function (test_cb) {
             test_cb(null, completed || !retries || retryCount >= retries);
         }, function (asyncCallback) {
-        	logger.debug("Performing Database Command:");
+            logger.debug("Performing Database Command:");
             logger.debug(command);
-            
+
             client.query(command, function (queryCommandErr, result) {
                 if (queryCommandErr) {
                     lastError = queryCommandErr;
                     // check all the included retryable error traps to see if
-					// this is a retryable error
+                    // this is a retryable error
                     var retryable = false;
                     if (retryableErrorTraps) {
                         retryableErrorTraps.map(function (retryableError) {
@@ -982,12 +988,12 @@ function handler(event, context) {
                     }
 
                     // if the error is not retryable, then fail by calling the
-					// async callback with the specified error
+                    // async callback with the specified error
                     if (!retryable) {
                         completed = true;
-                    	if (queryCommandErr && queryCommandErr.detail) {
-                    		logger.error(queryCommandErr.detail);
-                    	}
+                        if (queryCommandErr && queryCommandErr.detail) {
+                            logger.error(queryCommandErr.detail);
+                        }
                         asyncCallback(queryCommandErr);
                     } else {
                         // incre ment the retry count
@@ -1014,8 +1020,8 @@ function handler(event, context) {
             // close the server connection
             client.end((disconnectErr) => {
                 if (disconnectErr) {
-                	logger.error("Error during server disconnect: " + disconnectErr.stack);
-                	logger.error("Watch for database connection count increasing without limit!!!");
+                    logger.error("Error during server disconnect: " + disconnectErr.stack);
+                    logger.error("Watch for database connection count increasing without limit!!!");
                 }
 
                 /*
@@ -1050,10 +1056,11 @@ function handler(event, context) {
             });
         });
     };
+
     /**
-	 * Function which loads a redshift cluster
-	 * 
-	 */
+     * Function which loads a redshift cluster
+     *
+     */
     function loadCluster(config, thisBatchId, s3Info, manifestInfo, clusterInfo, callback) {
         /* build the redshift copy command */
         var copyCommand = '';
@@ -1076,7 +1083,7 @@ function handler(event, context) {
         }
 
         // open a transaction so that all pre-sql, load, and post-sql commit at
-		// once
+        // once
         copyCommand += 'begin;\n';
 
         // if the presql option is set, insert it into the copyCommand
@@ -1184,7 +1191,7 @@ function handler(event, context) {
                 }
 
                 // add the encryption option to the copy command, and the master
-				// symmetric key clause to the credentials
+                // symmetric key clause to the credentials
                 if (config.masterSymmetricKey) {
                     copyOptions = copyOptions + "encrypted\n";
 
@@ -1240,8 +1247,8 @@ function handler(event, context) {
 
                 pgClient.connect((err) => {
                     if (err) {
-                    	logger.error(err);
-                    	
+                        logger.error(err);
+
                         callback(null, {
                             status: ERROR,
                             error: err,
@@ -1264,9 +1271,9 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which marks a batch as failed and sends notifications
-	 * accordingly
-	 */
+     * Function which marks a batch as failed and sends notifications
+     * accordingly
+     */
     function failBatch(loadState, config, thisBatchId, s3Info, manifestInfo) {
         logger.info("Failing Batch " + thisBatchId + " due to " + JSON.stringify(loadState));
 
@@ -1283,10 +1290,10 @@ function handler(event, context) {
                     'x-amz-meta-load-date': common.readableTime(common.now())
                 }
             };
-            
+
             logger.debug("Moving manifest file to failure manifest prefix");
             logger.debug(JSON.stringify(copySpec));
-            
+
             s3.copyObject(copySpec, function (err, data) {
                 if (err) {
                     logger.error(err);
@@ -1321,15 +1328,15 @@ function handler(event, context) {
                             }
                         }
                     };
-                    
+
                     logger.debug("Marking new failure manifest location on Batch entry");
                     logger.debug(JSON.stringify(manifestModification));
-                    
+
                     common.retryableUpdate(dynamoDB, manifestModification, function (err, data) {
                         if (err) {
                             console.log(err);
                             // add this new error to the original failed load
-							// state
+                            // state
                             closeBatch(loadState + " " + err, config, thisBatchId, s3Info, manifestInfo);
                         } else {
                             // close the batch with the original
@@ -1346,9 +1353,9 @@ function handler(event, context) {
     };
 
     /**
-	 * Function which closes the batch to mark it as done, including
-	 * notifications
-	 */
+     * Function which closes the batch to mark it as done, including
+     * notifications
+     */
     function closeBatch(batchError, config, thisBatchId, s3Info, manifestInfo) {
         var item = {
             Key: {
@@ -1392,7 +1399,7 @@ function handler(event, context) {
                 }
             };
         }
-        
+
         logger.debug("Marking Batch entry as completed");
         logger.debug(JSON.stringify(item));
 
@@ -1401,23 +1408,23 @@ function handler(event, context) {
             // ugh, the batch closure didn't finish - this is not a good
             // place to be
             if (err) {
-            	logger.error("Batch closure failed. Batch will remain in load state and must be manually reset. Check whether database load completed before moving to final state.")
-            	logger.error(JSON.stringify(err));
+                logger.error("Batch closure failed. Batch will remain in load state and must be manually reset. Check whether database load completed before moving to final state.")
+                logger.error(JSON.stringify(err));
                 context.done(error, JSON.stringify(err));
             } else {
                 // send notifications
                 notify(config, thisBatchId, s3Info, manifestInfo, batchError, function (err) {
                     if (err) {
-                    	logger.error(JSON.stringify(err));
+                        logger.error(JSON.stringify(err));
                         context.done(error, JSON.stringify(err) + " " + JSON.stringify(batchError));
-                    } else if (batchError) {                    
-                    	logger.error(JSON.stringify(batchError));
+                    } else if (batchError) {
+                        logger.error(JSON.stringify(batchError));
 
                         // allow for an environment variable to suppress failure
-						// end status if failure notifications were correctly
-						// sent
+                        // end status if failure notifications were correctly
+                        // sent
                         if (config.failureTopicARN && process.env[SUPPRESS_FAILURE_ON_OK_NOTIFICATION] === 'true') {
-                        	logger.info("Suppressing failed end state due to environment setting " + SUPPRESS_FAILURE_ON_OK_NOTIFICATION);
+                            logger.info("Suppressing failed end state due to environment setting " + SUPPRESS_FAILURE_ON_OK_NOTIFICATION);
                             context.done(null, null);
                         } else {
                             context.done(error, JSON.stringify(batchError));
@@ -1441,7 +1448,7 @@ function handler(event, context) {
 
         logger.debug(`Sending SNS Notification to ${topic}`);
         logger.debug(JSON.stringify(m));
-        
+
         sns.publish(m, function (err, data) {
             callback(err);
         });
@@ -1467,7 +1474,7 @@ function handler(event, context) {
         var sendNotifications = [];
 
         if (batchError && batchError !== null) {
-        	logger.error(JSON.stringify(batchError));
+            logger.error(JSON.stringify(batchError));
 
             if (config.failureTopicARN) {
                 sendNotifications.push(sendSNS.bind(undefined, config.failureTopicARN.S, "Lambda Redshift Batch Load " + thisBatchId + " Failure", messageBody));
@@ -1482,6 +1489,7 @@ function handler(event, context) {
             callback(err);
         });
     }
+
     /* end of runtime functions */
 
     try {
@@ -1489,7 +1497,7 @@ function handler(event, context) {
 
         if (!event.Records) {
             // filter out unsupported events
-        	logger.error("Event type unsupported by Lambda Redshift Loader");
+            logger.error("Event type unsupported by Lambda Redshift Loader");
             logger.info(JSON.stringify(event));
             context.done(null, null);
         } else {
@@ -1512,7 +1520,7 @@ function handler(event, context) {
                 }
 
                 if (noProcessReason) {
-                	logger.error(noProcessReason);
+                    logger.error(noProcessReason);
                     context.done(error, noProcessReason);
                 } else {
                     // extract the s3 details from the event
@@ -1549,7 +1557,7 @@ function handler(event, context) {
 						 * method
 						 */
                         if (err) {
-                        	logger.error(JSON.stringify(err));
+                            logger.error(JSON.stringify(err));
                             context.done(error, JSON.stringify(err));
                         } else {
                             // update the inputInfo prefix to match the
@@ -1568,8 +1576,8 @@ function handler(event, context) {
                         // in the S3 structure is not configured for redshift
                         // loads, or there was an access issue that prevented us
                         // querying DDB
-                    	logger.error("No Configuration Found for " + inputInfo.prefix);
-                    	logger.error(err);
+                        logger.error("No Configuration Found for " + inputInfo.prefix);
+                        logger.error(err);
 
                         context.done(error, JSON.stringify(err));
                     });
@@ -1578,10 +1586,11 @@ function handler(event, context) {
             }
         }
     } catch (e) {
-    	logger.error("Unhandled Exception");
-    	logger.error(JSON.stringify(e));
-    	logger.error(JSON.stringify(event));
+        logger.error("Unhandled Exception");
+        logger.error(JSON.stringify(e));
+        logger.error(JSON.stringify(event));
         context.done(error, JSON.stringify(e));
     }
 }
+
 exports.handler = handler;

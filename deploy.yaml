@@ -59,7 +59,9 @@ Resources:
                 - "lambda:ListFunctions"                
                 - "s3:List*" 
                 - "s3:GetObject"
-                - "s3:PutObject"     
+                - "s3:PutObject"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
             Resource: "*"
           - Effect: "Allow"
             Action:     
@@ -96,7 +98,7 @@ Resources:
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
-        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.3.zip'
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.4.zip'
       Runtime: nodejs12.x
 
  
