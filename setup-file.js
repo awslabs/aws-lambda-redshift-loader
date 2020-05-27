@@ -412,6 +412,16 @@ q_copyOptions = function (callback) {
     callback(null);
 };
 
+q_isUpsert = function (callback) {
+    // a Filename Filter Regex
+    if (common.blank(setupConfig.isUpsert) !== null) {
+        dynamoConfig.Item.isUpsert = {
+            S: setupConfig.isUpsert
+        };
+    }
+    callback(null);
+};
+
 last = function (callback) {
     rl.close();
 
@@ -455,6 +465,7 @@ qs.push(q_batchBytes);
 qs.push(q_batchTimeoutSecs);
 qs.push(q_copyOptions);
 qs.push(q_symmetricKey);
+qs.push(q_isUpsert);
 
 // always have to have the 'last' function added to halt the readline channel
 // and run the setup
