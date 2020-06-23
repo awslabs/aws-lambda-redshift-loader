@@ -119,7 +119,7 @@ Resources:
           - Arn
       Code:
         S3Bucket: !Sub awslabs-code-${AWS::Region}
-        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.5.zip'
+        S3Key: 'LambdaRedshiftLoader/AWSLambdaRedshiftLoader-2.7.6.zip'
       Runtime: nodejs12.x
       VpcConfig:
         SecurityGroupIds:

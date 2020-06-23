@@ -158,7 +158,7 @@ function resolveConfig(prefix, successCallback, noConfigFoundCallback) {
     }, function (untilCallback) {
         // query for the prefix, implementing a reduce by '/' each time,
         // such that we load the most specific config first
-        logger.debug("Extracing S3 Config for Path: " + searchPrefix);
+        logger.debug("Extracting S3 Config for Path: " + searchPrefix);
 
         getConfigWithRetry(searchPrefix, function (err, data) {
             if (err) {
@@ -1558,7 +1558,7 @@ function handler(event, context) {
 						 */
                         if (err) {
                             logger.error(JSON.stringify(err));
-                            context.done(error, JSON.stringify(err));
+                            context.done(err, JSON.stringify(err));
                         } else {
                             // update the inputInfo prefix to match the
                             // resolved
@@ -1577,9 +1577,11 @@ function handler(event, context) {
                         // loads, or there was an access issue that prevented us
                         // querying DDB
                         logger.error("No Configuration Found for " + inputInfo.prefix);
-                        logger.error(err);
+                        if (err) {
+                            logger.error(err);
+                        }
 
-                        context.done(error, JSON.stringify(err));
+                        context.done(err, JSON.stringify(err));
                     });
                 }
 
