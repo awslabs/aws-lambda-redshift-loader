@@ -607,6 +607,8 @@ function createS3EventSource (s3, lambda, bucket, prefix, functionName, callback
                                                 callback();
                                             }
                                         });
+                                    } else {
+                                        callback("Configuration Already Exists");
                                     }
                                 }
                             });
