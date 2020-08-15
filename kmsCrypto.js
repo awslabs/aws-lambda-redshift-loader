@@ -27,7 +27,7 @@ var authContext = {
 };
 
 // module key alias to be used for this application
-var moduleKeyName = "alias/LambdaRedshiftLoaderKey";
+var moduleKeyName = process.env.S3_REDSHIFT_LOADER_KMS_KEY_NAME || "alias/LambdaRedshiftLoaderKey";
 
 function setRegion(region) {
 	if (!region) {
