@@ -840,7 +840,10 @@ function handler(event, context) {
 
             manifestContents.entries.push({
                 url: u,
-                mandatory: true
+                mandatory: true,
+                meta: {
+                    content_length: s3Info.size
+                }
             });
         }
 
@@ -1170,7 +1173,7 @@ function handler(event, context) {
                     } else {
                         copyOptions = copyOptions + ' \'auto\' \n';
                     }
-                } else if (config.dataFormat.S === 'Parquet' || config.dataFormat.S === 'ORC') {
+                } else if (config.dataFormat.S === 'PARQUET' || config.dataFormat.S === 'ORC') {
                     copyOptions = copyOptions + ' format as ' + config.dataFormat.S;
                 } else {
                     callback(null, {
