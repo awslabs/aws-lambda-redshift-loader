@@ -1589,7 +1589,7 @@ function handler(event, context) {
             // filter out unsupported events
             logger.error("Event type unsupported by Lambda Redshift Loader");
             logger.info(JSON.stringify(event));
-            context.done(null, null);
+            return;
         }
 
         //obtain the first record in order to establish the eventSource
