@@ -1493,7 +1493,9 @@ function handler(event, context) {
     exports.processS3EventRecord = function (event) {
         logger.info("processS3EventRecord " + JSON.stringify(event));
 
-        if (event.Records.length > 1) {
+        if (!event.Records) {
+            logger.error("The provided s3 event was not wellformed or was generated as a test event, this will be ignored.");
+        } else if (event.Records.length > 1) {
             context.done(error, "Unable to process multi-record events");
         } else {
             var r = event.Records[0];
