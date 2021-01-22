@@ -477,8 +477,12 @@ function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functi
 
             statements.map(function (item) {
                 try {
-                    // check that s3 has rights to invoke the function in the correct source account
-                    if (item.Principal == "s3.amazonaws.com" && item.Action == "lambda.InvokeFunction" && item.Resource === functionArn && item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount) {
+                    // check that the source s3 bucket has rights to invoke the function in the correct source account and for the correct bucket
+                    if (item.Principal === "s3.amazonaws.com" &&
+                        item.Action === "lambda.InvokeFunction" &&
+                        item.Resource === functionArn &&
+                        item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount &&
+                        item.Condition.ArnLike['AWS:SourceArn'] === s3Arn) {
                         foundMatch = true;
                     }
                 } catch (e) {
