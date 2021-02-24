@@ -459,65 +459,71 @@ function getS3Arn(bucket, prefix) {
 
 exports.getS3Arn = getS3Arn;
 
+
 function ensureS3InvokePermisssions(lambda, bucket, prefix, functionName, functionArn, callback) {
-    lambda.getPolicy({
-        FunctionName: functionName
-    }, function (err, data) {
-        if (err && err.code !== 'ResourceNotFoundException') {
-            callback(err);
-        }
+    var skipCheck = process.env.SKIP_LAMBDA_BUCKET_PERMISSION_CHECK ? Boolean(process.env.SKIP_LAMBDA_BUCKET_PERMISSION_CHECK) : false;
+    if ( skipCheck ) {
+        callback();
+    } else {
+        lambda.getPolicy({
+            FunctionName: functionName
+        }, function (err, data) {
+            if (err && err.code !== 'ResourceNotFoundException') {
+                callback(err);
+            }
 
-        var foundMatch = false;
-        var s3Arn = getS3Arn(bucket);
-        var sourceAccount = functionArn.split(":")[4];
+            var foundMatch = false;
+            var s3Arn = getS3Arn(bucket);
+            var sourceAccount = functionArn.split(":")[4];
 
-        // process the existing permissions policy if there is one
-        if (data && data.Policy) {
-            var statements = JSON.parse(data.Policy).Statement;
+            // process the existing permissions policy if there is one
+            if (data && data.Policy) {
+                var statements = JSON.parse(data.Policy).Statement;
 
-            statements.map(function (item) {
-                try {
-                    // check that the source s3 bucket has rights to invoke the function in the correct source account and for the correct bucket
-                    if (item.Principal === "s3.amazonaws.com" &&
-                        item.Action === "lambda.InvokeFunction" &&
-                        item.Resource === functionArn &&
-                        item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount &&
-                        item.Condition.ArnLike['AWS:SourceArn'] === s3Arn) {
-                        foundMatch = true;
+                statements.map(function (item) {
+                    try {
+                        // check that the source s3 bucket has rights to invoke the function in the correct source account and for the correct bucket
+                        if (item.Principal === "s3.amazonaws.com" &&
+                            item.Action === "lambda.InvokeFunction" &&
+                            item.Resource === functionArn &&
+                            item.Condition.StringEquals['AWS:SourceAccount'] === sourceAccount &&
+                            item.Condition.ArnLike['AWS:SourceArn'] === s3Arn) {
+                            foundMatch = true;
+                        }
+                    } catch (e) {
+                        // this is OK - just means that the policy structure doesn't
+                        // match the above format
+
                     }
-                } catch (e) {
-                    // this is OK - just means that the policy structure doesn't
-                    // match the above format
+                });
+            }
 
-                }
-            });
-        }
+            if (foundMatch === true) {
+                logger.info("Found existing Policy match for S3 path to invoke " + functionName);
+                callback();
+            } else {
+                var lambdaPermissions = {
+                    Action: "lambda:InvokeFunction",
+                    FunctionName: functionName,
+                    Principal: "s3.amazonaws.com",
+                    // only use internal account sources
+                    SourceAccount: sourceAccount,
+                    SourceArn: s3Arn,
+                    StatementId: uuid.v4()
+                };
 
-        if (foundMatch === true) {
-            logger.info("Found existing Policy match for S3 path to invoke " + functionName);
-            callback();
-        } else {
-            var lambdaPermissions = {
-                Action: "lambda:InvokeFunction",
-                FunctionName: functionName,
-                Principal: "s3.amazonaws.com",
-                // only use internal account sources
-                SourceAccount: sourceAccount,
-                SourceArn: s3Arn,
-                StatementId: uuid.v4()
-            };
-
-            lambda.addPermission(lambdaPermissions, function (err, data) {
-                if (err) {
-                    logger.error(err);
-                    callback(err);
-                } else {
-                    logger.info("Granted S3 permission to invoke " + functionArn);
-                    callback();
-                }
-            });
-        }
-    });
+                lambda.addPermission(lambdaPermissions, function (err, data) {
+                    if (err) {
+                        logger.error(err);
+                        callback(err);
+                    } else {
+                        logger.info("Granted S3 permission to invoke " + functionArn);
+                        callback();
+                    }
+                });
+            }
+        });
+    }
 }
 
 exports.ensureS3InvokePermisssions = ensureS3InvokePermisssions;
