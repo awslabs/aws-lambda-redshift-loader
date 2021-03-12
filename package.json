@@ -1,7 +1,7 @@
 {
     "name": "aws-lambda-redshift-loader",
     "description": "An Amazon Redshift Database Loader written for AWS Lambda",
-    "version": "2.7.8",
+    "version": "2.7.9",
     "homepage": "http://github.com/awslabs/aws-lambda-redshift-loader",
     "bugs": {
         "url": "http://github.com/awslabs/aws-lambda-redshift-loader/issues",
@@ -11,14 +11,15 @@
         "async": "3.1.0",
         "aws-sdk": "2.608.0",
         "https-proxy-agent": "3.0.1",
+        "lodash": ">=4.17.19",
         "minimist": ">=1.2.3",
         "pg": "7.14.0",
         "pg-ka-fix": "1.0.0-rm-fix",
         "pgpass": "1.0.2",
         "regex": "^0.1.1",
+        "semver": "7.3.4",
         "uuid": "3.3.3",
-        "winston": "^3.2.1",
-        "lodash": ">=4.17.19"
+        "winston": "^3.2.1"
     },
     "keywords": [
         "amazon",

@@ -16,241 +16,269 @@ var log_level = process.env['LOG_LEVEL'] || 'info';
 const winston = require('winston');
 
 const logger = winston.createLogger({
-	level : debug === true ? 'debug' : log_level,
-	transports : [ new winston.transports.Console({
-		format : winston.format.simple()
-	}) ]
+    level: debug === true ? 'debug' : log_level,
+    transports: [new winston.transports.Console({
+        format: winston.format.simple()
+    })]
 });
 
 function v1_v2(err, s3Info, configPre, forwardCallback) {
-	if (configPre.clusterEndpoint) {
-		logger.warn("Upgrading to Version 2.x multi-cluster configuration");
+    if (configPre.clusterEndpoint) {
+        logger.warn("Upgrading to Version 2.x multi-cluster configuration");
 
-		// bind the current config items into the new config map
-		var clusterConfig = {
-			M : {}
-		};
-		clusterConfig.M.clusterEndpoint = configPre.clusterEndpoint;
-		clusterConfig.M.clusterPort = configPre.clusterPort;
-		clusterConfig.M.clusterDB = configPre.clusterDB;
-		clusterConfig.M.connectUser = configPre.connectUser;
-		clusterConfig.M.connectPassword = configPre.connectPassword;
-		clusterConfig.M.targetTable = configPre.targetTable;
-		clusterConfig.M.truncateTarget = configPre.truncateTarget;
+        // bind the current config items into the new config map
+        var clusterConfig = {
+            M: {}
+        };
+        clusterConfig.M.clusterEndpoint = configPre.clusterEndpoint;
+        clusterConfig.M.clusterPort = configPre.clusterPort;
+        clusterConfig.M.clusterDB = configPre.clusterDB;
+        clusterConfig.M.connectUser = configPre.connectUser;
+        clusterConfig.M.connectPassword = configPre.connectPassword;
+        clusterConfig.M.targetTable = configPre.targetTable;
+        clusterConfig.M.truncateTarget = configPre.truncateTarget;
 
-		// update dynamo, adding the new config map as 'loadClusters' and
-		// removing the old values
-		var updateRequest = {
-			Key : {
-				s3Prefix : {
-					S : s3Info.prefix
-				}
-			},
-			TableName : configTable,
-			UpdateExpression : "SET #loadCluster = :newLoadCluster, lastUpdate = :updateTime, #ver = :version "
-					+ "REMOVE clusterEndpoint, clusterPort, clusterDB, connectUser, connectPassword, targetTable, truncateTarget",
-			ExpressionAttributeValues : {
-				":newLoadCluster" : {
-					L : [ clusterConfig ]
-				},
-				":updateTime" : {
-					S : common.getFormattedDate()
-				},
-				":version" : {
-					S : pjson.version
-				}
-			},
-			ExpressionAttributeNames : {
-				"#ver" : 'version',
-				"#loadCluster" : 'loadClusters'
-			},
-			/*
-			 * current can't be the target version, or someone else has done an
-			 * upgrade
-			 */
-			ConditionExpression : "(attribute_not_exists(#ver) or #ver != :version) and attribute_not_exists(#loadCluster)",
-			// add the ALL_NEW return values so we have the get the config after
-			// update
-			ReturnValues : "ALL_NEW"
-		};
+        // update dynamo, adding the new config map as 'loadClusters' and
+        // removing the old values
+        var updateRequest = {
+            Key: {
+                s3Prefix: {
+                    S: s3Info.prefix
+                }
+            },
+            TableName: configTable,
+            UpdateExpression: "SET #loadCluster = :newLoadCluster, lastUpdate = :updateTime, #ver = :version "
+                + "REMOVE clusterEndpoint, clusterPort, clusterDB, connectUser, connectPassword, targetTable, truncateTarget",
+            ExpressionAttributeValues: {
+                ":newLoadCluster": {
+                    L: [clusterConfig]
+                },
+                ":updateTime": {
+                    S: common.getFormattedDate()
+                },
+                ":version": {
+                    S: pjson.version
+                }
+            },
+            ExpressionAttributeNames: {
+                "#ver": 'version',
+                "#loadCluster": 'loadClusters'
+            },
+            /*
+             * current can't be the target version, or someone else has done an
+             * upgrade
+             */
+            ConditionExpression: "(attribute_not_exists(#ver) or #ver != :version) and attribute_not_exists(#loadCluster)",
+            // add the ALL_NEW return values so we have the get the config after
+            // update
+            ReturnValues: "ALL_NEW"
+        };
 
-		logger.debug(JSON.stringify(updateRequest));
+        logger.debug(JSON.stringify(updateRequest));
 
-		dynamoClient.updateItem(updateRequest, function(err, data) {
-			if (err) {
-				if (err.code === conditionCheckFailed) {
-					// no problem - configuration was upgraded by someone else
-					// while we were running - requery and return
-					var dynamoLookup = {
-						Key : {
-							s3Prefix : {
-								S : s3Info.prefix
-							}
-						},
-						TableName : configTable,
-						ConsistentRead : true
-					};
+        dynamoClient.updateItem(updateRequest, function (err, data) {
+            if (err) {
+                if (err.code === conditionCheckFailed) {
+                    // no problem - configuration was upgraded by someone else
+                    // while we were running - requery and return
+                    var dynamoLookup = {
+                        Key: {
+                            s3Prefix: {
+                                S: s3Info.prefix
+                            }
+                        },
+                        TableName: configTable,
+                        ConsistentRead: true
+                    };
 
-					dynamoClient.getItem(dynamoLookup, function(err, data) {
-						forwardCallback(null, s3Info, data.Item);
-					});
-				} else {
-					// unknown error - return the original configuration with
-					// the
-					// error
-					forwardCallback(err, s3Info, configPre);
-				}
-			} else {
-				// update was OK - go ahead with the new item returned by the
-				// upgrade call
-				forwardCallback(null, s3Info, data.Attributes);
-			}
-		});
-	} else {
-		// no upgrade required
-		forwardCallback(null, s3Info, configPre);
-	}
+                    dynamoClient.getItem(dynamoLookup, function (err, data) {
+                        forwardCallback(null, s3Info, data.Item);
+                    });
+                } else {
+                    // unknown error - return the original configuration with
+                    // the
+                    // error
+                    forwardCallback(err, s3Info, configPre);
+                }
+            } else {
+                // update was OK - go ahead with the new item returned by the
+                // upgrade call
+                forwardCallback(null, s3Info, data.Attributes);
+            }
+        });
+    } else {
+        // no upgrade required
+        forwardCallback(null, s3Info, configPre);
+    }
 }
+
 exports.v1_v2 = v1_v2;
 
 function fixEncryptedItemEncoding(err, s3Info, configPre, forwardCallback) {
-	var willDoUpgrade = false;
+    var willDoUpgrade = false;
 
-	// convert the encrypted items from the previous native storage format to
-	// base64 encoding
-	loadClusters = [];
+    // convert the encrypted items from the previous native storage format to
+    // base64 encoding
+    loadClusters = [];
 
-	var newMasterSymmetricKey;
-	var newSecretKeyForS3;
-	var updateExpressions = [];
-	var expressionAttributeValues = {
-		":updateTime" : {
-			S : common.getFormattedDate()
-		},
-		":version" : {
-			S : pjson.version
-		}
-	};
+    var newMasterSymmetricKey;
+    var newSecretKeyForS3;
+    var updateExpressions = [];
+    var expressionAttributeValues = {
+        ":updateTime": {
+            S: common.getFormattedDate()
+        },
+        ":version": {
+            S: pjson.version
+        }
+    };
 
-	if (configPre.masterSymmetricKey && configPre.masterSymmetricKey.S.indexOf('[') > -1) {
-		willDoUpgrade = true;
-		newMasterSymmetricKey = Buffer.from(JSON.parse(configPre.masterSymmetricKey.S)).toString('base64');
-		updateExpressions.push("masterSymmetricKey = :masterSymmetricKey");
-		expressionAttributeValues[":masterSymmetricKey"] = {
-			S : newMasterSymmetricKey
-		};
-	}
-	if (configPre.secretKeyForS3 && configPre.secretKeyForS3.S.indexOf('[') > -1) {
-		willDoUpgrade = true;
-		newSecretKeyForS3 = Buffer.from(JSON.parse(configPre.secretKeyForS3.S)).toString('base64');
-		updateExpressions.push("secretKeyForS3 = :s3secretAccessKey");
-		expressionAttributeValues[":s3secretAccessKey"] = {
-			S : newSecretKeyForS3
-		};
-	}
+    if (configPre.masterSymmetricKey && configPre.masterSymmetricKey.S.indexOf('[') > -1) {
+        willDoUpgrade = true;
+        newMasterSymmetricKey = Buffer.from(JSON.parse(configPre.masterSymmetricKey.S)).toString('base64');
+        updateExpressions.push("masterSymmetricKey = :masterSymmetricKey");
+        expressionAttributeValues[":masterSymmetricKey"] = {
+            S: newMasterSymmetricKey
+        };
+    }
+    if (configPre.secretKeyForS3 && configPre.secretKeyForS3.S.indexOf('[') > -1) {
+        willDoUpgrade = true;
+        newSecretKeyForS3 = Buffer.from(JSON.parse(configPre.secretKeyForS3.S)).toString('base64');
+        updateExpressions.push("secretKeyForS3 = :s3secretAccessKey");
+        expressionAttributeValues[":s3secretAccessKey"] = {
+            S: newSecretKeyForS3
+        };
+    }
 
-	// upgrade each cluster entry's password for redshift
-	if (configPre && configPre.loadClusters && configPre.loadClusters.L) {
-		configPre.loadClusters.L.map(function(item) {
-			if (item.M.connectPassword.S.indexOf('[') > -1) {
-				willDoUpgrade = true;
-				item.M.connectPassword.S = Buffer.from(JSON.parse(item.M.connectPassword.S)).toString('base64');
-			}
+    // upgrade each cluster entry's password for redshift
+    if (configPre && configPre.loadClusters && configPre.loadClusters.L) {
+        configPre.loadClusters.L.map(function (item) {
+            if (item.M.connectPassword.S.indexOf('[') > -1) {
+                willDoUpgrade = true;
+                item.M.connectPassword.S = Buffer.from(JSON.parse(item.M.connectPassword.S)).toString('base64');
+            }
 
-			loadClusters.push(item);
-		});
-	}
+            loadClusters.push(item);
+        });
+    }
 
-	if (loadClusters.length > 0) {
-		expressionAttributeValues[":newLoadClusters"] = {
-			L : loadClusters
-		};
-	}
+    if (loadClusters.length > 0) {
+        expressionAttributeValues[":newLoadClusters"] = {
+            L: loadClusters
+        };
+    }
 
-	if (willDoUpgrade) {
-		var updateRequest = {
-			Key : {
-				s3Prefix : {
-					S : s3Info.prefix
-				}
-			},
-			TableName : configTable,
-			UpdateExpression : "SET #loadClusters = :newLoadClusters, lastUpdate = :updateTime, #ver = :version "
-					+ (updateExpressions.length > 0 ? "," + updateExpressions.join(',') : ""),
-			ExpressionAttributeValues : expressionAttributeValues,
-			ExpressionAttributeNames : {
-				"#ver" : 'version',
-				"#loadClusters" : 'loadClusters'
-			},
-			/*
-			 * current can't be the target version, or someone else has done an
-			 * upgrade
-			 */
-			ConditionExpression : " #ver <> :version",
-			// add the ALL_NEW return values so we have the
-			// get the config after update
-			ReturnValues : "ALL_NEW"
-		};
+    if (willDoUpgrade) {
+        var updateRequest = {
+            Key: {
+                s3Prefix: {
+                    S: s3Info.prefix
+                }
+            },
+            TableName: configTable,
+            UpdateExpression: "SET #loadClusters = :newLoadClusters, lastUpdate = :updateTime, #ver = :version "
+                + (updateExpressions.length > 0 ? "," + updateExpressions.join(',') : ""),
+            ExpressionAttributeValues: expressionAttributeValues,
+            ExpressionAttributeNames: {
+                "#ver": 'version',
+                "#loadClusters": 'loadClusters'
+            },
+            /*
+             * current can't be the target version, or someone else has done an
+             * upgrade
+             */
+            ConditionExpression: " #ver <> :version",
+            // add the ALL_NEW return values so we have the
+            // get the config after update
+            ReturnValues: "ALL_NEW"
+        };
 
-		logger.info("Upgrading to 2.4.x Base64 encoded encryption values");
-		logger.debug(JSON.stringify(updateRequest));
+        logger.info("Upgrading to 2.4.x Base64 encoded encryption values");
+        logger.debug(JSON.stringify(updateRequest));
 
-		dynamoClient.updateItem(updateRequest, function(err, data) {
-			if (err) {
-				if (err.code === conditionCheckFailed) {
-					// no problem - configuration was upgraded by someone else
-					// while we were running - requery and return
-					var dynamoLookup = {
-						Key : {
-							s3Prefix : {
-								S : s3Info.prefix
-							}
-						},
-						TableName : configTable,
-						ConsistentRead : true
-					};
+        dynamoClient.updateItem(updateRequest, function (err, data) {
+            if (err) {
+                if (err.code === conditionCheckFailed) {
+                    // no problem - configuration was upgraded by someone else
+                    // while we were running - requery and return
+                    var dynamoLookup = {
+                        Key: {
+                            s3Prefix: {
+                                S: s3Info.prefix
+                            }
+                        },
+                        TableName: configTable,
+                        ConsistentRead: true
+                    };
 
-					dynamoClient.getItem(dynamoLookup, function(err, data) {
-						forwardCallback(null, s3Info, data.Item);
-					});
-				} else {
-					// unknown error - return the original configuration with
-					// the error
-					forwardCallback(err, s3Info, configPre);
-				}
-			} else {
-				// update was OK - go ahead with the new item returned by the
-				// upgrade call
-				forwardCallback(null, s3Info, data.Attributes);
-			}
-		});
-	} else {
-		forwardCallback(null, s3Info, configPre)
-	}
+                    dynamoClient.getItem(dynamoLookup, function (err, data) {
+                        forwardCallback(null, s3Info, data.Item);
+                    });
+                } else {
+                    // unknown error - return the original configuration with
+                    // the error
+                    forwardCallback(err, s3Info, configPre);
+                }
+            } else {
+                // update was OK - go ahead with the new item returned by the
+                // upgrade call
+                forwardCallback(null, s3Info, data.Attributes);
+            }
+        });
+    } else {
+        forwardCallback(null, s3Info, configPre)
+    }
 }
+
 exports.fixEncryptedItemEncoding = fixEncryptedItemEncoding;
 
 function upgradeAll(dynamoDB, s3Info, configPre, finalCallback) {
-	dynamoClient = dynamoDB;
+    dynamoClient = dynamoDB;
 
-	// add required upgrades here
-	var upgrades = [];
-	/*
-	 * upgrades.push(function(callback) { exports.v1_v2(null, s3Info, configPre,
-	 * callback); });
-	 */
-	upgrades.push(function(callback) {
-		exports.fixEncryptedItemEncoding(null, s3Info, configPre, callback);
-	});
+    // add required upgrades here
+    var upgrades = [];
+    /*
+     * upgrades.push(function(callback) { exports.v1_v2(null, s3Info, configPre,
+     * callback); });
+     */
+    upgrades.push(function (callback) {
+        exports.fixEncryptedItemEncoding(null, s3Info, configPre, callback);
+    });
 
-	// run all the upgrades in order
-	async.waterfall(upgrades, function(err, s3Info, finalConfig) {
-		if (err) {
-			logger.error(err);
-		}
+    // run all the upgrades in order
+    async.waterfall(upgrades, function (err, s3Info, finalConfig) {
+        if (err) {
+            logger.error(err);
+        } else {
+            // upgrade the config to the current version
+            let params = {
+                TableName: configTable,
+                Key: {
+                    s3Prefix: {
+                        S: s3Info.prefix
+                    }
+                },
+                UpdateExpression: 'set version = :ver',
+                ExpressionAttributeValues: {
+                    ":ver": {S: '' + pjson.version}
+                },
+                ReturnValues: 'ALL_NEW'
+            }
 
-		// run the final callback
-		finalCallback(err, s3Info, finalConfig);
-	});
+            logger.info(`Upgrading Config ${s3Info.prefix} to version ${pjson.version}`);
+            logger.debug(JSON.stringify(params));
+
+            dynamoClient.updateItem(params, function (err, data) {
+                if (err) {
+                    logger.error(err);
+                    finalCallback(err, s3Info);
+                } else {
+                    // run the final callback
+                    finalCallback(err, s3Info, finalConfig);
+                }
+            });
+        }
+    });
 }
+
 exports.upgradeAll = upgradeAll;

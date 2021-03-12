@@ -11,6 +11,7 @@ var debug = (process.env['DEBUG'] === 'true');
 var log_level = process.env['LOG_LEVEL'] || 'info';
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
+let semver = require('semver');
 
 if (!region || region === null || region === "") {
     region = "us-east-1";
@@ -144,7 +145,8 @@ function getConfigWithRetry(prefix, callback) {
             callback(null, configData);
         }
     });
-};
+}
+
 exports.getConfigWithRetry = getConfigWithRetry;
 
 function resolveConfig(prefix, successCallback, noConfigFoundCallback) {
@@ -199,8 +201,8 @@ function handler(event, context) {
 	 */
     function upgradeConfig(s3Info, currentConfig, callback) {
         // v 1.x to 2.x upgrade for multi-cluster loaders
-        if (currentConfig.version !== pjson.version) {
-            logger.debug(`Performing version upgrade from ${currentConfig.version} to ${pjson.version}`);
+        if (semver.lt(currentConfig.version.S, pjson.version)) {
+            logger.debug(`Performing version upgrade from ${currentConfig.version.S} to ${pjson.version}`);
             upgrade.upgradeAll(dynamoDB, s3Info, currentConfig, callback);
         } else {
             // no upgrade needed
@@ -257,7 +259,7 @@ function handler(event, context) {
                 }
             }
         });
-    };
+    }
 
     /*
 	 * function to add a file to the pending batch set and then call the success
@@ -360,13 +362,22 @@ function handler(event, context) {
                         }
                     },
                     TableName: batchTable,
-                    UpdateExpression: "add entries :entry, writeDates :appendFileDate, size :size set #stat = :open, lastUpdate = :updateTime",
+                    UpdateExpression: "add writeDates :appendFileDate, size :size set #stat = :open, lastUpdate = :updateTime, entryMap = list_append(if_not_exists(entryMap, :emptyList), :entry)",
                     ExpressionAttributeNames: {
                         "#stat": 'status'
                     },
                     ExpressionAttributeValues: {
                         ":entry": {
-                            SS: [itemEntry]
+                            L: [{
+                                M: {
+                                    "file": {S: itemEntry},
+                                    "size": {N: '' + s3Info.size}
+                                }
+                            }
+                            ]
+                        },
+                        ":emptyList": {
+                            L: []
                         },
                         ":appendFileDate": {
                             NS: ['' + now]
@@ -386,6 +397,8 @@ function handler(event, context) {
 					 */
                     ConditionExpression: "#stat = :open or attribute_not_exists(#stat)"
                 };
+
+                logger.debug(JSON.stringify(item));
 
                 // add the file to the pending batch
                 dynamoDB.updateItem(item, function (err, data) {
@@ -645,28 +658,41 @@ function handler(event, context) {
                 data.Item.writeDates.NS.map(function (item) {
                     var t = parseInt(item);
 
-                    logger.debug(`Batch entry epoch timestamp: ${item}`);
-
                     if (!batchCreateDate || t < batchCreateDate) {
                         batchCreateDate = t;
                     }
                 });
+
                 var lastUpdateTime = data.Item.lastUpdate.N;
-                var pendingEntries = data.Item.entries.SS;
+
+                /*
+ * grab the pending entries from the locked
+ * batch. We have 2 copies - a batch that uses StringSet from pre 2.7.8, and a List from 2.7.9
+ */
+                let pendingEntries = {};
+                let pendingEntryCount = 0;
+                if (data.Item.entryMap) {
+                    pendingEntryCount += data.Item.entryMap.L.length;
+                    pendingEntries["entryMap"] = data.Item.entryMap.L;
+                }
+                if (data.Item.entrySet) {
+                    pendingEntryCount += data.Item.entries.SS.length;
+                    pendingEntries["entrySet"] = data.Item.entries.SS;
+                }
                 var doProcessBatch = false;
 
-                if (!pendingEntries || pendingEntries.length >= parseInt(config.batchSize.N)) {
+                if (pendingEntryCount >= parseInt(config.batchSize.N)) {
                     logger.info("Batch count " + config.batchSize.N + " reached");
                     doProcessBatch = true;
                 } else {
                     if (config.batchSize && config.batchSize.N) {
-                        logger.debug("Current batch count of " + pendingEntries.length + " below batch limit of " + config.batchSize.N);
+                        logger.debug("Current batch count of " + pendingEntryCount + " below batch limit of " + config.batchSize.N);
                     }
                 }
 
                 // check whether the current batch is bigger than the configured
                 // max count, size, or older than configured max age
-                if (config.batchTimeoutSecs && config.batchTimeoutSecs.N && pendingEntries.length > 0 && common.now() - batchCreateDate > parseInt(config.batchTimeoutSecs.N)) {
+                if (config.batchTimeoutSecs && config.batchTimeoutSecs.N && pendingEntryCount > 0 && common.now() - batchCreateDate > parseInt(config.batchTimeoutSecs.N)) {
                     logger.info("Batch age " + config.batchTimeoutSecs.N + " seconds reached");
                     doProcessBatch = true;
                 } else {
@@ -676,7 +702,7 @@ function handler(event, context) {
                     }
                 }
 
-                if (config.batchSizeBytes && config.batchSizeBytes.N && pendingEntries.length > 0 && parseInt(config.batchSizeBytes.N) <= parseInt(data.Item.size.N)) {
+                if (config.batchSizeBytes && config.batchSizeBytes.N && pendingEntryCount > 0 && parseInt(config.batchSizeBytes.N) <= parseInt(data.Item.size.N)) {
                     logger.info("Batch size " + config.batchSizeBytes.N + " bytes reached");
                     doProcessBatch = true;
                 } else {
@@ -757,12 +783,6 @@ function handler(event, context) {
                                 context.done(error, e);
                             } else {
                                 /*
-								 * grab the pending entries from the locked
-								 * batch
-								 */
-                                pendingEntries = data.Attributes.entries.SS;
-
-                                /*
 								 * assign the loaded configuration a new batch
 								 * ID
 								 */
@@ -828,26 +848,36 @@ function handler(event, context) {
 
         logger.debug("Building new COPY Manifest");
 
-        for (var i = 0; i < batchEntries.length; i++) {
-            /*
-			 * fix url encoding for files with spaces. Space values come in from
-			 * Lambda with '+' and plus values come in as %2B. Redshift wants
-			 * the original S3 value
-			 */
-            u = 's3://' + batchEntries[i].replace(/\+/g, ' ').replace(/%2B/g, '+')
-
-            logger.debug(u);
-
+        function addEntry(url, contentLength) {
             manifestContents.entries.push({
-                url: u,
+                /*
+                 * fix url encoding for files with spaces. Space values come in from
+                 * Lambda with '+' and plus values come in as %2B. Redshift wants
+                 * the original S3 value
+                 */
+                url: 's3://' + url.replace(/\+/g, ' ').replace(/%2B/g, '+'),
                 mandatory: true,
                 meta: {
-                    content_length: s3Info.size
+                    content_length: contentLength
                 }
             });
         }
 
-        var s3PutParams = {
+        // process the batch contents which are structured as a map listing filename and file size
+        if (batchEntries.entryMap) {
+            batchEntries.entryMap.map(function (batchEntry) {
+                addEntry(batchEntry.M.file.S, parseInt(batchEntry.M.size.N));
+            });
+        }
+
+        // process batch contents which are structured as a StringSet
+        if (batchEntries.entrySet) {
+            batchEntries.entrySet.map(function (batchEntry) {
+                addEntry(batchEntry, s3Info.size);
+            });
+        }
+
+        let s3PutParams = {
             Bucket: manifestInfo.manifestBucket,
             Key: manifestInfo.manifestPrefix,
             Body: JSON.stringify(manifestContents)
@@ -856,15 +886,15 @@ function handler(event, context) {
         logger.info("Writing manifest to " + manifestInfo.manifestBucket + "/" + manifestInfo.manifestPrefix);
 
         /*
-		 * save the manifest file to S3 and build the rest of the copy command
-		 * in the callback letting us know that the manifest was created
-		 * correctly
-		 */
+         * save the manifest file to S3 and build the rest of the copy command
+         * in the callback letting us know that the manifest was created
+         * correctly
+         */
         s3.putObject(s3PutParams, loadRedshiftWithManifest.bind(undefined, config, thisBatchId, s3Info, manifestInfo));
     };
 
     /**
-     * Function run when the Redshift manifest write completes succesfully
+     * Function run when the Redshift manifest write completes successfully
      */
     function loadRedshiftWithManifest(config, thisBatchId, s3Info, manifestInfo, err, data) {
         if (err) {
@@ -1531,11 +1561,13 @@ function handler(event, context) {
                         bucket: undefined,
                         key: undefined,
                         prefix: undefined,
+                        size: undefined,
                         inputFilename: undefined
                     };
 
                     inputInfo.bucket = r.s3.bucket.name;
                     inputInfo.key = decodeURIComponent(r.s3.object.key);
+                    inputInfo.size = r.s3.object.size;
 
                     // remove the bucket name from the key, if we have
                     // received it - this happens on object copy
