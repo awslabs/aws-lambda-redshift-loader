@@ -281,7 +281,7 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
             callback(err);
         } else {
             if (data) {
-                if (!data.entries.SS && !data.entryMap.L) {
+                if (!data.entries && !data.entryMap) {
                     msg = "Batch is Empty!";
                     logger.info(msg);
                     callback(msg);
@@ -310,29 +310,33 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                             // create a list of files which filters out the omittedFiles
                             var processFiles = [];
                             if (omitFiles) {
-                                data.entries.SS.map(function (item) {
-                                    if (omitFiles.indexOf(item) === -1) {
-                                        // file is not in the omit list, so add it to the process list
-                                        processFiles.push(item);
-                                    }
-                                });
+                                if (data.entries) {
+                                    data.entries.SS.map(function (item) {
+                                        if (omitFiles.indexOf(item) === -1) {
+                                            // file is not in the omit list, so add it to the process list
+                                            processFiles.push(item);
+                                        }
+                                    });
+                                }
 
-                                data.entryMap.L.map(function (item) {
-                                    if (omitFiles.indexOf(item.file.S) === -1) {
-                                        // file is not in the omit list, so add it to the process list
-                                        processFiles.push(item.file.S);
-                                    }
-                                });
+                                if (data.entryMap) {
+                                    data.entryMap.L.map(function (item) {
+                                        if (omitFiles.indexOf(item.file.S) === -1) {
+                                            // file is not in the omit list, so add it to the process list
+                                            processFiles.push(item.M.file.S);
+                                        }
+                                    });
+                                }
                             } else {
                                 // add pre 2.7.9 StringSet entries
-                                if (data.entries.SS) {
+                                if (data.entries) {
                                     processFiles = data.entries.SS;
                                 }
 
                                 // add 2.7.0 and forward entryMap list
-                                if (data.entryMap.L) {
+                                if (data.entryMap) {
                                     data.entryMap.L.map(function (item) {
-                                        processFiles.push(item.file.S);
+                                        processFiles.push(item.M.file.S);
                                     });
                                 }
                             }
