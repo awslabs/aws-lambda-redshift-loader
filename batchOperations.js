@@ -2,7 +2,6 @@ var aws = require('aws-sdk');
 require('./constants');
 var common = require('./common');
 var async = require('async');
-var debug = true;
 var dynamoDB;
 var s3;
 var debug = (process.env['DEBUG'] === 'true');
@@ -10,12 +9,12 @@ var log_level = process.env['LOG_LEVEL'] || 'info';
 const winston = require('winston');
 
 const logger = winston.createLogger({
-  level: debug === true ? 'debug' : log_level,
-  transports: [
-    new winston.transports.Console({
-        format: winston.format.simple()
-    })
-  ]
+    level: debug === true ? 'debug' : log_level,
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.simple()
+        })
+    ]
 });
 
 /**
@@ -151,7 +150,7 @@ function doQuery(setRegion, batchStatus, queryStartDate, queryEndDate, callback)
     queryParams.ExpressionAttributeNames = keyConditionNames;
     queryParams.ExpressionAttributeValues = keyConditionValues;
 
-    if (debug == true) {
+    if (debug === true) {
         console.log(queryParams);
     }
 
@@ -282,7 +281,7 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
             callback(err);
         } else {
             if (data) {
-                if (!data.entries.SS) {
+                if (!data.entries.SS && !data.entryMap.L) {
                     msg = "Batch is Empty!";
                     logger.info(msg);
                     callback(msg);
@@ -317,8 +316,25 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                                         processFiles.push(item);
                                     }
                                 });
+
+                                data.entryMap.L.map(function (item) {
+                                    if (omitFiles.indexOf(item.file.S) === -1) {
+                                        // file is not in the omit list, so add it to the process list
+                                        processFiles.push(item.file.S);
+                                    }
+                                });
                             } else {
-                                processFiles = data.entries.SS;
+                                // add pre 2.7.9 StringSet entries
+                                if (data.entries.SS) {
+                                    processFiles = data.entries.SS;
+                                }
+
+                                // add 2.7.0 and forward entryMap list
+                                if (data.entryMap.L) {
+                                    data.entryMap.L.map(function (item) {
+                                        processFiles.push(item.file.S);
+                                    });
+                                }
                             }
 
                             // for each of the current file entries, execute the processedFiles reprocess method
@@ -406,6 +422,6 @@ function updateBatchStatus(s3Prefix, thisBatchId, status, requireStatusArray, up
             callback();
         }
     });
-};
+}
 
 exports.updateBatchStatus = updateBatchStatus;
