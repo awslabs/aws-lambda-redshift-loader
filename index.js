@@ -276,17 +276,21 @@ function handler(event, context) {
             },
             TableName: filesTable,
             ExpressionAttributeNames: {
-                "#rcvDate": "receiveDateTime"
+                "#rcvDate": "receiveDateTime",
+                "#ttl": "timeToLive"
             },
             ExpressionAttributeValues: {
                 ":rcvDate": {
                     S: common.readableTime(common.now())
                 },
+                ":ttl":  {
+                    N: '' + Math.floor(Date.now() / 1000) + 60 * 60
+                },
                 ":incr": {
                     N: "1"
                 }
             },
-            UpdateExpression: "set #rcvDate = :rcvDate add timesReceived :incr",
+            UpdateExpression: "set #rcvDate = :rcvDate,  #ttl = :ttl add timesReceived :incr",
             ReturnValues: "ALL_NEW"
         };
 
@@ -379,6 +383,9 @@ function handler(event, context) {
                         },
                         ":size": {
                             N: '' + s3Info.size
+                        },
+                        ":ttl":  {
+                            N: '' + Math.floor(Date.now() / 1000) + 60 * 60
                         }
                     },
                     /*
@@ -541,6 +548,12 @@ function handler(event, context) {
                     Value: {
                         S: batchId
                     }
+                },
+                ttl:  {
+                    Action: 'PUT',
+                    Value: {
+                        N: '' + Math.floor(Date.now() / 1000) + 60 * 60
+                    }
                 }
             }
         };
@@ -586,6 +599,12 @@ function handler(event, context) {
                     Action: 'PUT',
                     Value: {
                         N: '' + common.now()
+                    }
+                },
+                ttl:  {
+                    Action: 'PUT',
+                    Value: {
+                        N: '' + Math.floor(Date.now() / 1000) + 60 * 60
                     }
                 }
             }
@@ -709,6 +728,12 @@ function handler(event, context) {
                                 Value: {
                                     N: '' + common.now()
                                 }
+                            },
+                            ttl:  {
+                                Action: 'PUT',
+                                Value: {
+                                    N: '' + Math.floor(Date.now() / 1000) + 60 * 60
+                                }
                             }
                         },
                         /*
@@ -728,7 +753,7 @@ function handler(event, context) {
 						 * add the ALL_NEW return values so we have the most up
 						 * to date version of the entries string set
 						 */
-                        ReturnValues: "ALL_NEW"
+                        ReturnValues: "ALL_NEW",
                     };
 
                     logger.debug("Attempting to lock Batch for processing");
@@ -936,6 +961,12 @@ function handler(event, context) {
                             Action: 'PUT',
                             Value: {
                                 N: '' + common.now()
+                            }
+                        },
+                        ttl:  {
+                            Action: 'PUT',
+                            Value: {
+                                N: '' + Math.floor(Date.now() / 1000) + 60 * 60
                             }
                         }
                     }
@@ -1328,6 +1359,12 @@ function handler(event, context) {
                                 Value: {
                                     N: '' + common.now()
                                 }
+                            },
+                            ttl:  {
+                                Action: 'PUT',
+                                Value: {
+                                    N: '' + Math.floor(Date.now() / 1000) + 60 * 60
+                                }
                             }
                         }
                     };
@@ -1381,6 +1418,12 @@ function handler(event, context) {
                     Action: 'PUT',
                     Value: {
                         N: '' + common.now()
+                    }
+                },
+                ttl:  {
+                    Action: 'PUT',
+                    Value: {
+                        N: '' + Math.floor(Date.now() / 1000) + 60 * 60
                     }
                 }
             }

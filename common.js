@@ -134,6 +134,9 @@ function createTables(dynamoDB, callback) {
         }, {
             AttributeName: inputLoc,
             AttributeType: 'S'
+        }, {
+            AttributeName: batchTableTTLAttributeName,
+            AttributeType: 'N'
         }],
         KeySchema: [{
             AttributeName: inputLoc,
@@ -844,6 +847,11 @@ function reprocessFile(dynamoDB, s3, region, file, callback) {
                         ":oldBatch": {
                             L: [
                                 {S: "" + data.Item.batchId.S}
+                            ]
+                        },
+                        ":ttl": {
+                            L: [
+                                {N: "" + data.Item.batchId.S}
                             ]
                         }
                     },
