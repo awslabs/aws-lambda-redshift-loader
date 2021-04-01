@@ -375,12 +375,6 @@ function updateBatchStatus(s3Prefix, thisBatchId, status, requireStatusArray, up
                 Value: {
                     N: '' + common.now()
                 }
-            },
-            ttl:  {
-                Action: 'PUT',
-                Value: {
-                    N: '' + Math.floor(Date.now() / 1000) + 60 * 60
-                }
             }
         }
     };

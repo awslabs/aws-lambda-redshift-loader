@@ -79,12 +79,6 @@ dynamoDB.getItem(getConfig, function(err, data) {
 							Value : {
 								N : '' + common.now()
 							}
-						},
-						ttl:  {
-							Action: 'PUT',
-							Value: {
-								N: '' + Math.floor(Date.now() / 1000) + 60 * 60
-							}
 						}
 					},
 					// the batch to be unlocked must be in locked or error state - we
