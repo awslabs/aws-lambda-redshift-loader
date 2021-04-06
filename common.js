@@ -149,10 +149,6 @@ function createTables(dynamoDB, callback) {
             }],
             Projection: {
                 ProjectionType: 'ALL'
-            },
-            ProvisionedThroughput: {
-                ReadCapacityUnits: 1,
-                WriteCapacityUnits: 5
             }
         }]
     };

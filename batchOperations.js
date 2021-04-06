@@ -10,12 +10,12 @@ var log_level = process.env['LOG_LEVEL'] || 'info';
 const winston = require('winston');
 
 const logger = winston.createLogger({
-  level: debug === true ? 'debug' : log_level,
-  transports: [
-    new winston.transports.Console({
-        format: winston.format.simple()
-    })
-  ]
+    level: debug === true ? 'debug' : log_level,
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.simple()
+        })
+    ]
 });
 
 /**
@@ -91,13 +91,16 @@ exports.getBatch = getBatch;
 
 function cleanBatches(setRegion, s3Prefix, callback) {
     init(setRegion);
+    cleanBatchesSegments(setRegion, s3Prefix, null, callback);
+}
 
+function cleanBatchesSegments(setRegion, s3Prefix, lastEvaluatedKey, callback) {
     // query for batches based on given s3Prefix
-    queryBatchByPrefix(setRegion, s3Prefix, function (err, data) {
+    queryBatchByPrefix(setRegion, s3Prefix, lastEvaluatedKey, function (err, data) {
         if (err) {
             callback(err);
         } else {
-            async.map(data, function (batchItem, asyncCallback) {
+            async.map(data.items, function (batchItem, asyncCallback) {
                 //clean found batches one by one
                 cleanBatch(setRegion, batchItem, function (err, data) {
                     if (err) {
@@ -110,14 +113,17 @@ function cleanBatches(setRegion, s3Prefix, callback) {
                 if (err) {
                     callback(err);
                 } else {
-                    // deletions are completed
-                    callback(null, {
-                        batchCountDeleted: results.length,
-                        batchesDeleted: results
-                    });
+                    if (data.lastEvaluatedKey) {
+                        return cleanBatchesSegments(setRegion, s3Prefix, data.lastEvaluatedKey, callback);
+                    } else {
+                        // deletions are completed
+                        callback(null, {
+                            batchCountDeleted: results.length,
+                            batchesDeleted: results
+                        });
+                    }
                 }
             });
-
         }
     });
 }
@@ -154,7 +160,7 @@ function cleanBatch(setRegion, batchItem, callback) {
     });
 }
 
-function queryBatchByPrefix(setRegion, s3Prefix, callback) {
+function queryBatchByPrefix(setRegion, s3Prefix, lastEvaluatedKey, callback) {
     init(setRegion);
     var keyConditionExpression = null;
     var keyConditionNames = null;
@@ -163,6 +169,9 @@ function queryBatchByPrefix(setRegion, s3Prefix, callback) {
     queryParams = {
         TableName: batchTable
     };
+    if (lastEvaluatedKey) {
+        queryParams.ExclusiveStartKey = lastEvaluatedKey;
+    }
 
     keyConditionExpression = "#s3Prefix = :s3Prefix";
     // add s3Prefix
@@ -185,8 +194,7 @@ function queryBatchByPrefix(setRegion, s3Prefix, callback) {
 
     dynamoDB.query(queryParams, function (err, data) {
         if (err) {
-            logger.error(err);
-            process.exit(ERROR);
+            callback(err);
         } else {
             if (data && data.Items) {
                 var itemsToShow = [];
@@ -203,7 +211,7 @@ function queryBatchByPrefix(setRegion, s3Prefix, callback) {
                     itemsToShow.push(toShow);
                 });
 
-                callback(null, itemsToShow);
+                callback(null, {items: itemsToShow, lastEvaluatedKey: data.LastEvaluatedKey});
             } else {
                 callback(null, []);
             }
@@ -238,16 +246,16 @@ function doQuery(setRegion, batchStatus, queryStartDate, queryEndDate, callback)
         IndexName: batchStatusGSI
     };
 
-            // add the batch status
+    // add the batch status
     var keyConditionExpression = "#s = :batchStatus";
     var keyConditionNames = {
-                "#s": "status"
-            };
+        "#s": "status"
+    };
     var keyConditionValues = {
-                ":batchStatus": {
-                    'S': batchStatus
-                }
-            };
+        ":batchStatus": {
+            'S': batchStatus
+        }
+    };
 
     // add the start date, if provided
     if (startDate && !endDate) {
