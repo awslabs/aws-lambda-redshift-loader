@@ -355,11 +355,11 @@ function deleteBatch(s3Prefix, batchId, callback) {
 
 exports.deleteBatch = deleteBatch;
 
-function deleteBatches(setRegion, s3Prefix, batchStatus, startDate, endDate, dryRun, callback) {
+function deleteBatches(setRegion, batchStatus, startDate, endDate, dryRun, callback) {
     init(setRegion);
 
     // query for batches in the range we require
-    doQuery(setRegion, s3Prefix, batchStatus, startDate, endDate, function (err, data) {
+    doQuery(setRegion, batchStatus, startDate, endDate, function (err, data) {
         if (err) {
             callback(err);
         } else {
