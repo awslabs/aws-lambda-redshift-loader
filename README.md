@@ -142,8 +142,13 @@ Once launched, log in to the EC2 instance created as part of the stack. It conta
 
 You can set the logging behaviour of the function by adding environment variables:
 
-* `DEBUG` Sets log level debug and all messages will be shown in CloudWatch Logs
-* `LOG_LEVEL` Sets the log level to whatever you require, per [Winston documentation](https://github.com/winstonjs/winston#logging-levels)
+* `DEBUG` - Sets log level debug and all messages will be shown in CloudWatch Logs
+* `LOG_LEVEL` - Sets the log level to whatever you require, per [Winston documentation](https://github.com/winstonjs/winston#logging-levels)
+
+You can also set the following environment variables to change the behaviour of the loader:
+
+* `SuppressFailureStatusOnSuccessfulNotification` - Allows the loader to silently fail the execution state if failure notifications were successfully sent to SNS. When set to `true`, you will not see failed Lambda events in CloudWatch.
+* `SuppressWildcardExpansionPrefixList` - Allows you to specify a set of S3 Prefixes for which Hive Partitioning Wildcard expansion will not be used. Use this setting if you have prefixes which include the `=` symbol but which should not be converted to `value=*`. Requires version `2.8.0+`.
 
 ## Installing Manually
 

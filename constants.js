@@ -29,3 +29,4 @@ INVALID_ARG = -1;
 ERROR = -1;
 OK = 0;
 SUPPRESS_FAILURE_ON_OK_NOTIFICATION = 'SuppressFailureStatusOnSuccessfulNotification'
+SUPPRESS_WILDCARD_EXPANSION_PREFIXES = 'SuppressWildcardExpansionPrefixList'

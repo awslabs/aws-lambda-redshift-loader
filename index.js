@@ -67,29 +67,8 @@ require('pg-ka-fix')();
 
 var upgrade = require('./upgrades');
 
-String.prototype.shortenPrefix = function () {
-    var tokens = this.split("/");
-
-    if (tokens && tokens.length > 0) {
-        return tokens.slice(0, tokens.length - 1).join("/");
-    }
-};
-
-String.prototype.transformHiveStylePrefix = function () {
-    // transform hive style dynamic prefixes into static
-    // match prefixes
-
-    var tokeniseSearchKey = this.split('/');
-    var regex = /\=(.*)/;
-
-    var processedTokens = tokeniseSearchKey.map(function (item) {
-        if (item) {
-            return item.replace(regex, "=*");
-        }
-    });
-
-    return processedTokens.join('/');
-};
+// load the list of prefixes where wildcard expansion should be suppressed. this can be a blanket switch if set to *
+let suppressWildcardPrefixes = common.getWildcardPrefixSuppressionList();
 
 function getConfigWithRetry(prefix, callback) {
     var proceed = false;
@@ -1581,7 +1560,7 @@ function handler(event, context) {
 
                     // transform hive style dynamic prefixes into static
                     // match prefixes and set the prefix in inputInfo
-                    inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix();
+                    inputInfo.prefix = inputInfo.bucket + '/' + searchKey.transformHiveStylePrefix(suppressWildcardPrefixes);
 
                     // add the object size to inputInfo
                     inputInfo.size = r.s3.object.size;

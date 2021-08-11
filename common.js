@@ -25,6 +25,49 @@ const logger = winston.createLogger({
     ]
 });
 
+String.prototype.shortenPrefix = function () {
+    var tokens = this.split("/");
+
+    if (tokens && tokens.length > 0) {
+        return tokens.slice(0, tokens.length - 1).join("/");
+    }
+};
+
+String.prototype.transformHiveStylePrefix = function (suppressionList) {
+    // transform hive style dynamic prefixes into static match prefixes unless the prefix is in the suppress list or we have turned off wildcard expansion
+    if (typeof (suppressionList) === "boolean") {
+        return this.valueOf();
+    } else if (Array.isArray(suppressionList) && suppressionList.includes(this.valueOf())) {
+        return this.valueOf();
+    } else {
+        var tokeniseSearchKey = this.split('/');
+        var regex = /\=(.*)/;
+
+        var processedTokens = tokeniseSearchKey.map(function (item) {
+            if (item) {
+                return item.replace(regex, "=*");
+            }
+        });
+
+        return processedTokens.join('/');
+    }
+};
+
+function getWildcardPrefixSuppressionList() {
+    let val = process.env[SUPPRESS_WILDCARD_EXPANSION_PREFIXES]
+    if (val) {
+        if (val === "*") {
+            val = true;
+        } else {
+            val = val.split(/[ ,]+/)
+        }
+    }
+
+    return val;
+}
+
+exports.getWildcardPrefixSuppressionList = getWildcardPrefixSuppressionList;
+
 // function which creates a string representation of now suitable for use in S3
 // paths
 function getFormattedDate(date) {
