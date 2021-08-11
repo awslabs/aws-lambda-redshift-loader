@@ -285,7 +285,7 @@ function reprocessBatch(s3Prefix, batchId, region, omitFiles, callback) {
                     msg = "Batch is Empty!";
                     logger.info(msg);
                     callback(msg);
-                } else if (data.status.S === open) {
+                } else if (data.status.S === "open") {
                     msg = "Cannot reprocess an Open Batch";
                     logger.error(msg);
                     callback(msg);

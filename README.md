@@ -133,7 +133,7 @@ __Launch Links__
 
 __Post Install__
 
-If you prefer to use an EC2 instance to configure the database loader rather than your lapto, then run [this template](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=LambdaRedshiftLoaderAdminHost&templateURL=https://awslabs-code-us-east-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy-admin-host.yaml) using CloudFormation.
+If you prefer to use an EC2 instance to configure the database loader rather than your laptop, then run [this template](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=LambdaRedshiftLoaderAdminHost&templateURL=https://awslabs-code-us-east-1.s3.amazonaws.com/LambdaRedshiftLoader/deploy-admin-host.yaml) using CloudFormation.
 
 Once launched, log in to the EC2 instance created as part of the stack. It contains all the necessary components set up the autoloader.
 3. Invoke the `setup.js` script on the created EC2 instance to begin configuring the autoloader.
@@ -647,8 +647,8 @@ Enter the Prefix for Redshift COPY Manifests| Y | The prefix for COPY manifests.
 Enter the Prefix to use for Failed Load Manifest Storage | N | On failure of a COPY, you can elect to have the manifest file copied to an alternative location. Enter that prefix, which will be in the same bucket as the rest of your COPY manifests.
 Enter the Access Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | Amazon Redshift must provide credentials to S3 to be allowed to read data. Enter the Access Key for the Account or IAM user that Amazon Redshift should use.
 Enter the Secret Key used by Redshift to get data from S3. If NULL then Lambda execution role credentials will be used. | N | The Secret Key for the Access Key used to get data from S3. Will be encrypted prior to storage in DynamoDB.
-Enter the SNS Topic ARN for Failed Loads | N | If you want notifications to be sent to an SNS Topic on successful Load, enter the ARN here. This would be in format ```arn:aws:sns:<region>:<account number>:<topic name>```.
-Enter the SNS Topic ARN for Successful Loads  | N | SNS Topic ARN for notifications when a batch COPY fails.
+Enter the SNS Topic ARN for Successful Loads | N | If you want notifications to be sent to an SNS Topic on successful Load, enter the ARN here. This would be in format ```arn:aws:sns:<region>:<account number>:<topic name>```.
+Enter the SNS Topic ARN for Failed Loads | N | SNS Topic ARN for notifications when a batch COPY fails.
 How many files should be buffered before loading? | Y | Enter the number of files placed into the input location before a COPY of the current open batch should be performed. Recommended to be an even multiple of the number of CPU's in your cluster. You should set the multiple such that this count causes loads to be every 2-5 minutes.
 How old should we allow a Batch to be before loading (seconds)? | N | AWS Lambda will attempt to sweep out 'old' batches using this value as the number of seconds old a batch can be before loading. This 'sweep' is on every S3 event on the input location, regardless of whether it matches the Filename Filter Regex. Not recommended to be below 120.
 Additional Copy Options to be added | N | Enter any additional COPY options that you would like to use, as outlined at (http://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html). Please also see http://blogs.aws.amazon.com/bigdata/post/Tx2ANLN1PGELDJU/Best-Practices-for-Micro-Batch-Loading-on-Amazon-Redshift for information on good practices for COPY options in high frequency load environments.
