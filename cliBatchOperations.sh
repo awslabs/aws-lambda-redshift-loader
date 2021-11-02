@@ -45,7 +45,7 @@ while getopts ":a:r:p:g:u:" opt; do
 done
 
 # set default arguments here:
-if [ "$AWS_ACCOUNT_ID" == "" ]; then AWS_ACCOUNT_ID="XXXXXXXXXXX"; fi
+if [ "$AWS_ACCOUNT_ID" == "" ]; then AWS_ACCOUNT_ID="000000000000"; fi
 if [ "$AWS_ROLE" == "" ]; then AWS_ROLE="Developer"; fi
 if [ "$AWS_PROFILE" == "" ]; then AWS_PROFILE="default"; fi
 if [ "$AWS_REGION" == "" ]; then AWS_REGION="us-west-2"; fi
