@@ -1,5 +1,5 @@
 #!/bin/bash
-# Purpose: CLI program to check and operate LambdaRedshiftLoader batches
+# Purpose: The shell CLI program to check and operate LambdaRedshiftLoader batches
 # Author: Andrey Suvorov
 # Created: 2021-09-14
 # Updated: 2021-11-02
