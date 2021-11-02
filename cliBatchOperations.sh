@@ -1,7 +1,8 @@
 #!/bin/bash
-# Purpose: The shell CLI program to check and operate LambdaRedshiftLoader batches
+# Purpose: CLI program to check and operate LambdaRedshiftLoader batches
 # Author: Andrey Suvorov
 # Created: 2021-09-14
+# Updated: 2021-11-02
 
 SCRIPT_NAME=$0
 
@@ -44,7 +45,7 @@ while getopts ":a:r:p:g:u:" opt; do
 done
 
 # set default arguments here:
-if [ "$AWS_ACCOUNT_ID" == "" ]; then AWS_ACCOUNT_ID="000000000000"; fi
+if [ "$AWS_ACCOUNT_ID" == "" ]; then AWS_ACCOUNT_ID="823951367757"; fi
 if [ "$AWS_ROLE" == "" ]; then AWS_ROLE="Developer"; fi
 if [ "$AWS_PROFILE" == "" ]; then AWS_PROFILE="default"; fi
 if [ "$AWS_REGION" == "" ]; then AWS_REGION="us-west-2"; fi
@@ -111,19 +112,23 @@ batchAction(){
     PS3="Please select the action from the menu above: "
     select action in "${actions[@]}"; do
       case $action in
-        "Display")
+        "List")
           displayMsg "$action batches with $l_batchStatus status"
           echo "$l_response" | jq
           action_executed=$action
           break
           ;;
-        "Display with description")
+        "Describe")
           displayMsg "$action batches with $l_batchStatus status"
+          counter=1
 
           for row in $(echo "$l_response" | jq -r '.[] | @base64'); do
             _jq() {
                   echo "${row}" | base64 --decode | jq -r "${1}"
                   }
+
+            # exit individual items action menu
+            if ! [[  "$action_executed" == "" ]]; then break; fi
 
             batchId=$(_jq '.batchId')
             s3Prefix=$(_jq '.s3Prefix')
@@ -138,6 +143,57 @@ batchAction(){
             echo ""
 
             counter=$((counter+1))
+
+            # select an individual action for each batch in the query, one by one
+            PS3="Please select the batch action from the menu above: "
+            if [[ "$l_batchStatus" == "error" || "$l_batchStatus" == "locked" ]]; then
+              batch_actions=("Reprocess" "Unlock" "Delete" "Next" "Exit")
+            elif [[ "$l_batchStatus" == "complete" ]]; then
+              batch_actions=("Next" "Delete" "Exit")
+            elif [[ "$l_batchStatus" == "open" ]]; then
+              batch_actions=("Next" "Exit")
+            fi
+
+            select batch_action in "${batch_actions[@]}"; do
+              case $batch_action in
+                "Reprocess")
+                  echo "==> Reprocessing (batchId: ${batchId} s3Prefix: ${s3Prefix})"
+                  node reprocessBatch.js \
+                        --region "${AWS_REGION}" \
+                        --batchId "${batchId}" \
+                        --prefix "${s3Prefix}"
+
+                  break
+                  ;;
+                "Unlock")
+                  echo "==> Unlocking (batchId: ${batchId} s3Prefix: ${s3Prefix})"
+                  node unlockBatch.js \
+                        "${AWS_REGION}" \
+                        "${batchId}" \
+                        "${s3Prefix}"
+                  break
+                  ;;
+                "Delete")
+                  echo "==> Deleting (batchId: ${batchId} s3Prefix: ${s3Prefix})"
+                  node deleteBatch.js \
+                        --region "${AWS_REGION}" \
+                        --batchId "${batchId}" \
+                        --s3Prefix "${s3Prefix}"
+                  break
+                  ;;
+                "Next")
+                  echo "==> Next batch"
+                  break
+                  ;;
+                "Exit")
+                  clear
+                  action_executed=$action
+                  break
+                  ;;
+                *) displayMsg "Invalid option selected $REPLY"
+                  ;;
+              esac
+            done
           done
           action_executed=$action
           break
@@ -223,115 +279,119 @@ queryBatch(){
   echo "$response"
 }
 
-getCredentials
+main(){
+  startDate=$(date -v-7d '+%m/%d/%Y')
+  startDateUnix=$(date -j -f %m/%d/%Y "$startDate"  +%s)
+  endDate=$(date '+%m/%d/%Y')
+  endDateUnix=$(date -j -f %m/%d/%Y "$endDate"  +%s)
+  dates_set=false
 
-startDate=$(date -v-7d '+%m/%d/%Y')
-startDateUnix=$(date -j -f %m/%d/%Y "$startDate"  +%s)
-endDate=$(date '+%m/%d/%Y')
-endDateUnix=$(date -j -f %m/%d/%Y "$endDate"  +%s)
-dates_set=false
+  getCredentials
 
-main_menu=true
-while [ "$main_menu" == true ]; do
+  main_menu=true
+  while [ "$main_menu" == true ]; do
 
-  menuHeader " Main Menu "
+    menuHeader " Main Menu "
 
-  if ! [[ "$startDate" == "" && "$endDate" == "" ]]; then
-    if [[ "$dates_set" == false  ]]; then
-      read -r -p "Do you want to use selected dates to query batches? $startDate to $endDate (y/n): " defaultDates
-      if ! [[ $defaultDates =~ ^[Yy]$ ]]; then
-        startDateUnix=0
-        endDateUnix=0
-        while ! [[ "$startDateUnix" < "$endDateUnix" ]]; do
-          startDate=$(inputDate 'Start Date')
-          startDateUnix=$(date -j -f %m/%d/%Y "$startDate"  +%s)
-          endDate=$(inputDate 'End Date')
-          endDateUnix=$(date -j -f %m/%d/%Y "$endDate"  +%s)
-          if ! [[ "$startDateUnix" < "$endDateUnix" ]]; then
-            displayMsg "The Start Date $startDate can't be greater than End Date $endDate";
-          fi
-        done
+    if ! [[ "$startDate" == "" && "$endDate" == "" ]]; then
+      if [[ "$dates_set" == false  ]]; then
+        read -r -p "Do you want to use selected dates to query batches? $startDate to $endDate (y/n): " defaultDates
+        if ! [[ $defaultDates =~ ^[Yy]$ ]]; then
+          startDateUnix=0
+          endDateUnix=0
+          while ! [[ "$startDateUnix" < "$endDateUnix" ]]; do
+            startDate=$(inputDate 'Start Date')
+            startDateUnix=$(date -j -f %m/%d/%Y "$startDate"  +%s)
+            endDate=$(inputDate 'End Date')
+            endDateUnix=$(date -j -f %m/%d/%Y "$endDate"  +%s)
+            if ! [[ "$startDateUnix" < "$endDateUnix" ]]; then
+              displayMsg "The Start Date $startDate can't be greater than End Date $endDate";
+            fi
+          done
+        fi
+        dates_set=true
       fi
-      dates_set=true
     fi
-  fi
 
-  menuHeader " Main Menu "
-  if ! [[ $outputMsg == "" ]]; then
-    displayMsg "$outputMsg"
-    outputMsg=""
-  else
-    displayMsg "Query dates set from Start Date $startDate to End Date $endDate\n Please use option 6 to change dates"
-  fi
+    menuHeader " Main Menu "
+    if ! [[ $outputMsg == "" ]]; then
+      displayMsg "$outputMsg"
+      outputMsg=""
+    else
+      displayMsg "Query dates set from Start Date $startDate to End Date $endDate\n Please use option 6 to change dates"
+    fi
 
-  PS3="What you would like to do? Please select from the menu: "
-  statuses=("Check Error batches" "Check Locked batches" "Check Open batches"
-            "Check Complete batches" "Check Other batches" "Change query dates" "Exit")
-  select status in "${statuses[@]}"; do
-    case $status in
-      "Check Error batches")
-        queryResult=$(queryBatch "error")
-        if ! [[ "$queryResult" == "[]" ]]; then
-          actions=("Display" "Display with description" "Reprocess" "Delete" "Main Menu")
-          batchAction "error" "$queryResult"
-        else
-          outputMsg="No batches with status 'error' found for specified dates $startDate - $endDate"
-        fi
-        break
-        ;;
-      "Check Locked batches")
-        queryResult=$(queryBatch "locked")
-        if ! [[ "$queryResult" == "[]" ]]; then
-          actions=("Display" "Display with description" "Unlock" "Reprocess" "Delete" "Main Menu")
-          batchAction "locked" "$queryResult"
-        else
-          outputMsg="No batches with status 'locked' found for specified dates $startDate - $endDate"
-        fi
-        break
-        ;;
-      "Check Open batches")
-        queryResult=$(queryBatch "open")
-        if ! [[ "$queryResult" == "[]" ]]; then
-          actions=("Display" "Display with description" "Main Menu")
-          batchAction "open" "$queryResult"
-        else
-          outputMsg="No batches with status 'open' found for specified dates $startDate - $endDate"
-        fi
-        break
-        ;;
-      "Check Complete batches")
-        queryResult=$(queryBatch "complete")
-        if ! [[ "$queryResult" == "[]" ]]; then
-          actions=("Display" "Display with description" "Delete" "Main Menu")
-          batchAction "complete" "$queryResult"
-        else
-          outputMsg="No batches with status 'complete' found for specified dates $startDate - $endDate"
-        fi
-        break
-        ;;
-      "Check Other batches")
-        read -r -p "Please type in batch status to query: " batchStatus
-        queryResult=$(queryBatch "$batchStatus")
-        if ! [[ "$queryResult" == "[]" ]]; then
-          actions=("Display" "Display with description" "Delete" "Main Menu")
-          batchAction "$batchStatus" "$queryResult"
-        else
-          outputMsg="No batches with status '$batchStatus' found for specified dates $startDate - $endDate"
-        fi
-        break
-        ;;
-      "Change query dates")
-        dates_set=false
-        clear
-        break
-        ;;
-      "Exit")
-        displayMsg "Exiting program"
-        exit
-        ;;
-      *)
-        displayMsg "Invalid option selected $REPLY"
-        ;;
-    esac
+    PS3="What you would like to do? Please select from the menu: "
+    statuses=("Check Error batches" "Check Locked batches" "Check Open batches"
+              "Check Complete batches" "Check Other batches" "Change query dates" "Exit")
+    select status in "${statuses[@]}"; do
+      case $status in
+        "Check Error batches")
+          queryResult=$(queryBatch "error")
+          if ! [[ "$queryResult" == "[]" ]]; then
+            actions=("List" "Describe" "Reprocess" "Delete" "Main Menu")
+            batchAction "error" "$queryResult"
+          else
+            outputMsg="No batches with status 'error' found for specified dates $startDate - $endDate"
+          fi
+          break
+          ;;
+        "Check Locked batches")
+          queryResult=$(queryBatch "locked")
+          if ! [[ "$queryResult" == "[]" ]]; then
+            actions=("List" "Describe" "Unlock" "Reprocess" "Delete" "Main Menu")
+            batchAction "locked" "$queryResult"
+          else
+            outputMsg="No batches with status 'locked' found for specified dates $startDate - $endDate"
+          fi
+          break
+          ;;
+        "Check Open batches")
+          queryResult=$(queryBatch "open")
+          if ! [[ "$queryResult" == "[]" ]]; then
+            actions=("List" "Describe" "Main Menu")
+            batchAction "open" "$queryResult"
+          else
+            outputMsg="No batches with status 'open' found for specified dates $startDate - $endDate"
+          fi
+          break
+          ;;
+        "Check Complete batches")
+          queryResult=$(queryBatch "complete")
+          if ! [[ "$queryResult" == "[]" ]]; then
+            actions=("List" "Describe" "Delete" "Main Menu")
+            batchAction "complete" "$queryResult"
+          else
+            outputMsg="No batches with status 'complete' found for specified dates $startDate - $endDate"
+          fi
+          break
+          ;;
+        "Check Other batches")
+          read -r -p "Please type in batch status to query: " batchStatus
+          queryResult=$(queryBatch "$batchStatus")
+          if ! [[ "$queryResult" == "[]" ]]; then
+            actions=("List" "Describe" "Delete" "Main Menu")
+            batchAction "$batchStatus" "$queryResult"
+          else
+            outputMsg="No batches with status '$batchStatus' found for specified dates $startDate - $endDate"
+          fi
+          break
+          ;;
+        "Change query dates")
+          dates_set=false
+          clear
+          break
+          ;;
+        "Exit")
+          displayMsg "Exiting program"
+          exit
+          ;;
+        *)
+          displayMsg "Invalid option selected $REPLY"
+          ;;
+      esac
+    done
   done
-done
+}
+
+main
