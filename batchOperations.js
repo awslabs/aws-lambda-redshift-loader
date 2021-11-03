@@ -190,7 +190,9 @@ exports.doQuery = doQuery;
  * @param callback
  * @returns
  */
-function deleteBatch(s3Prefix, batchId, callback) {
+function deleteBatch(setRegion, s3Prefix, batchId, callback) {
+    init(setRegion);
+
     var deleteParams = {
         TableName: batchTable,
         Key: {
@@ -236,7 +238,7 @@ function deleteBatches(setRegion, batchStatus, startDate, endDate, dryRun, callb
                 async.map(data, function (batchItem, asyncCallback) {
                     // pass the request through the function that deletes the
                     // item from DynamoDB
-                    deleteBatch(batchItem.s3Prefix, batchItem.batchId, function (err, data) {
+                    deleteBatch(setRegion, batchItem.s3Prefix, batchItem.batchId, function (err, data) {
                         if (err) {
                             asyncCallback(err);
                         } else {
