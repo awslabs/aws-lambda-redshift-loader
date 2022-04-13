@@ -8,7 +8,7 @@
         "email": "meyersi@amazon.com"
     },
     "dependencies": {
-        "async": "3.1.0",
+        "async": "3.2.2",
         "aws-sdk": "2.962.0",
         "color-string": "^1.6.0",
         "expect": "27.0.6",
