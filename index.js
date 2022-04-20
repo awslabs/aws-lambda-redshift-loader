@@ -980,6 +980,9 @@ function handler(event, context) {
         var lastError;
 
         async.until(function (test_cb) {
+            if (retryCount > 1) {
+                logger.info("Retrying PG Query: attempt " + retryCount);
+            }
             test_cb(null, completed || !retries || retryCount >= retries);
         }, function (asyncCallback) {
             logger.debug("Performing Database Command:");
@@ -1008,14 +1011,12 @@ function handler(event, context) {
                         }
                         asyncCallback(queryCommandErr);
                     } else {
-                        // incre ment the retry count
+                        // increment the retry count
                         retryCount += 1;
 
                         logger.warn("Retryable Error detected. Try Attempt " + retryCount);
 
-                        // exponential backoff
-                        // if a backoff time is
-                        // provided
+                        // exponential backoff if a backoff time is provided
                         if (retryBackoffBaseMs) {
                             setTimeout(function () {
                                 // call the async callback
@@ -1250,18 +1251,54 @@ function handler(event, context) {
                     logger.info("Connecting to Database " + clusterInfo.clusterEndpoint.S + ":" + clusterInfo.clusterPort.N);
                 }
 
+                // prepare the ssl string for the connection, if we have cert env variable
+                let ssl_file = undefined;
+
+                if (process.env['CLUSTER_SSL_CERT_S3_PATH']) {
+                    let s3paths = [process.env['CLUSTER_SSL_CERT_S3_PATH']];
+                    async.map({
+                        s3paths,
+                        function(item, callback) {
+                            let tokens = item.split('/');
+                            let bucket = tokens.slice(2, 1);
+                            let key = tokens.slice(3).join('/');
+
+                            s3.getObject({Bucket: bucket, Key: key}, function (err, data) {
+                                if (err) {
+                                    callback(err);
+                                } else {
+                                    let fileBody = data.Body.toString('utf8');
+                                    callback(null, fileBody)
+                                }
+                            })
+                        },
+                        function(err, results) {
+                            ssl_file = results;
+                        }
+                    })
+                }
+
+                let clientArgs = {
+                    connectionString: dbString
+                }
+                if (ssl_file) {
+                    clientArgs['ssl'] = {
+                        'ca': ssl_file
+                    }
+                }
+
                 /*
 				 * connect to database and run the copy command
 				 */
-                const pgClient = new Client({
-                    connectionString: dbString
-                });
+                let pgClient = new Client(clientArgs);
+
+                logger.debug("Constructed new Postgres client");
 
                 pgClient.connect((err) => {
                     if (err) {
                         logger.error(err);
 
-                        callback(null, {
+                        callback(err, {
                             status: ERROR,
                             error: err,
                             cluster: clusterInfo.clusterEndpoint.S
@@ -1275,6 +1312,7 @@ function handler(event, context) {
 						 * backoff from 30ms with 5 retries - giving a max retry
 						 * duration of ~ 1 second
 						 */
+                        logger.info("Connected");
                         runPgCommand(clusterInfo, pgClient, copyCommand, 5, ["S3ServiceException:The specified key does not exist.,Status 404"], 30, callback);
                     }
                 });
