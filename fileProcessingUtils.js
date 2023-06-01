@@ -20,8 +20,8 @@ function connect(setRegion, callback) {
 
 /** function to delete a file */
 function deleteFile(setRegion, file, callback) {
-	connect(setRegion, function(dynamoDB, s3) {
-		common.deleteFile(dynamoDB, s3, setRegion, file, callback);
+	connect(setRegion, function(dynamoDB) {
+		common.deleteFile(dynamoDB, file, callback);
 	});
 }
 

@@ -805,7 +805,7 @@ function updateConfig(s3Prefix, configAttribute, configValue, dynamoDB, callback
 
 exports.updateConfig = updateConfig;
 
-function deleteFile(dynamoDB, region, file, callback) {
+function deleteFile(dynamoDB, file, callback) {
     var fileItem = {
         Key: {
             loadFile: {
