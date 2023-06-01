@@ -484,7 +484,7 @@ function handler(event, context) {
                                 + thisBatchId
                                 + " which may be stuck in '"
                                 + locked
-                                + "' state. If so, unlock the back using `node unlockBatch.js <region> <batch ID> <s3Prefix>`, delete the processed file marker with `node processedFiles.js --delete --file <filename> --region <region>`, and then re-store the file in S3";
+                                + "' state. If so, unlock the batch using `node unlockBatch.js <region> <batch ID> <s3Prefix>`, delete the processed file marker with `node processedFiles.js --delete --file <filename> --region <region>`, and then re-store the file in S3";
                             logger.error(e);
 
                             var msg = "Lambda Redshift Loader unable to write to Open Pending Batch";
