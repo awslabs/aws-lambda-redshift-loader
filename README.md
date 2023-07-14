@@ -1,5 +1,7 @@
 # A Zero Administration AWS Lambda Based Amazon Redshift Database Loader
 
+### Please note that this function is now deprecated, and instead we recommend that you use the Auto COPY feature built into Redshift. Please see https://aws.amazon.com/blogs/big-data/simplify-data-ingestion-from-amazon-s3-to-amazon-redshift-using-auto-copy-preview/ for more information
+
 With this AWS Lambda function, it's never been easier to get file data into Amazon
 Redshift. You simply drop files into pre-configured locations on Amazon S3, and
 this function automatically loads into your Amazon Redshift clusters.
