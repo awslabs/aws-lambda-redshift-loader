@@ -88,6 +88,138 @@ function getBatch(setRegion, s3Prefix, batchId, callback) {
 
 exports.getBatch = getBatch;
 
+function cleanBatches(setRegion, s3Prefix, callback) {
+    init(setRegion);
+    cleanBatchesSegments(setRegion, s3Prefix, null, callback);
+}
+
+function cleanBatchesSegments(setRegion, s3Prefix, lastEvaluatedKey, callback) {
+    // query for batches based on given s3Prefix
+    queryBatchByPrefix(setRegion, s3Prefix, lastEvaluatedKey, function (err, data) {
+        if (err) {
+            callback(err);
+        } else {
+            async.map(data.items, function (batchItem, asyncCallback) {
+                //clean found batches one by one
+                cleanBatch(setRegion, batchItem, function (err, data) {
+                    if (err) {
+                        asyncCallback(err);
+                    } else {
+                        asyncCallback(null, data);
+                    }
+                });
+            }, function (err, results) {
+                if (err) {
+                    callback(err);
+                } else {
+                    if (data.lastEvaluatedKey) {
+                        return cleanBatchesSegments(setRegion, s3Prefix, data.lastEvaluatedKey, callback);
+                    } else {
+                        // deletions are completed
+                        callback(null, {
+                            batchCountDeleted: results.length,
+                            batchesDeleted: results
+                        });
+                    }
+                }
+            });
+        }
+    });
+}
+
+function cleanBatch(setRegion, batchItem, callback) {
+    // delete batch entry
+    deleteBatch(batchItem.s3Prefix, batchItem.batchId, function (err, data) {
+        if (err) {
+            callback(err);
+        } else {
+            if ( !batchItem.entries || batchItem.entries.length <= 0) {
+                callback(null, data);
+            } else {
+                //delete related  entries in filesTable
+                async.map(batchItem.entries,  function (processedFile, asyncCallback) {
+                    common.deleteFile(dynamoDB, setRegion, processedFile, function (err, data) {
+                        if (err) {
+                            asyncCallback(err);
+                        } else {
+                            asyncCallback(null, data);
+                        }
+                    });
+                }, function (err, results) {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        data.processedFilesCountDeleted = results.length;
+                        data.processedFilesDeleted = results;
+                        callback(null, data);
+                    }
+                });
+            }
+        }
+    });
+}
+
+function queryBatchByPrefix(setRegion, s3Prefix, lastEvaluatedKey, callback) {
+    init(setRegion);
+    var keyConditionExpression = null;
+    var keyConditionNames = null;
+    var keyConditionValues = null;
+
+    queryParams = {
+        TableName: batchTable
+    };
+    if (lastEvaluatedKey) {
+        queryParams.ExclusiveStartKey = lastEvaluatedKey;
+    }
+
+    keyConditionExpression = "#s3Prefix = :s3Prefix";
+    // add s3Prefix
+    keyConditionNames = {
+        "#s3Prefix": "s3Prefix"
+    };
+    keyConditionValues = {
+        ":s3Prefix": {
+            "S": "" + s3Prefix
+        }
+    };
+
+    queryParams.KeyConditionExpression = keyConditionExpression;
+    queryParams.ExpressionAttributeNames = keyConditionNames;
+    queryParams.ExpressionAttributeValues = keyConditionValues;
+
+    if (debug == true) {
+        console.log(queryParams);
+    }
+
+    dynamoDB.query(queryParams, function (err, data) {
+        if (err) {
+            callback(err);
+        } else {
+            if (data && data.Items) {
+                var itemsToShow = [];
+
+                data.Items.map(function (item) {
+                    toShow = {
+                        s3Prefix: item.s3Prefix.S,
+                        batchId: item.batchId.S,
+                        status: item.status.S,
+                        entries: item.entries.SS,
+                        lastUpdateDate: common.readableTime(item.lastUpdate.N),
+                        lastUpdate: item.lastUpdate.N
+                    };
+                    itemsToShow.push(toShow);
+                });
+
+                callback(null, {items: itemsToShow, lastEvaluatedKey: data.LastEvaluatedKey});
+            } else {
+                callback(null, []);
+            }
+        }
+    });
+}
+
+exports.cleanBatches = cleanBatches;
+
 /**
  * Function which performs a batch query with the provided arguments
  *
